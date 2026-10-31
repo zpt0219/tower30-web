@@ -1,0 +1,27 @@
+{
+  "name": "tower30-web",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.core.json --noEmit",
+    "test": "vitest",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test:e2e": "playwright test"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "22.19.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.7",
+    "vitest": "4.1.12"
+  }
+}

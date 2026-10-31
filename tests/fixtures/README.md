@@ -1,0 +1,19 @@
+# C#迁移基线
+
+`csharp-first-two-floors.json` 来自原工程 commit `ed076a745e8986a7db10dd847dcbc7d15455a120` 的只读 C# 核心和本仓库未修改的起始 JSON。默认种子 `2463534242`，20 tick/秒，无交易、不使用大招、不调资源，默认首发，连打前两层。每20 tick和终局记录一次。
+
+`tests/core/parity.test.ts` 对照坐标、生命、能量、伤害/治疗、三种回能、前后摇、冷却、随机状态及在途投射物数量。整数/随机状态严格一致；浮点使用 `1e-7` 数量级容差。不代表全部40物种、其它技能或跨语言逐位一致。
+
+可选重建（需要原工程和.NET 9，仅迁移开发时使用；网页与正常测试不依赖它）：
+
+```sh
+dotnet run --project scripts/parity/Baseline.csproj \
+  -p:SourceProjectRoot=/home/pt/Desktop/asterfell-scene \
+  -p:BaseOutputPath="$TOWER_ARTIFACT_DIR/parity/bin/" \
+  -p:BaseIntermediateOutputPath="$TOWER_ARTIFACT_DIR/parity/obj/" \
+  > "$TOWER_ARTIFACT_DIR/csharp-trace.json"
+```
+
+在仓库根目录运行。不要在原工程目录编译、写文件或访问玩家存档。核对输出后再显式更新 fixture。
+
+`csharp-ultimates.json`增加“每tick检查满能量后立即尝试施放”的指令对照。运行上述重建命令时在末尾附加 `-- --ultimates`，并输出到独立文件。每20 tick、指令发生时和终局记录；第二层在第163/248 tick成功施放，第253 tick结束。测试在完全相同tick向TS提交同一大招命令。

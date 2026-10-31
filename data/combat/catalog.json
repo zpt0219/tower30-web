@@ -1,0 +1,775 @@
+{
+  "Species": [
+    {
+      "Id": "slime_dusk",
+      "Name": "史莱姆",
+      "Sprite": "076_azure_slime_blob",
+      "Hp": 32,
+      "Mp": 8,
+      "Atk": 10,
+      "Def": 6,
+      "Speed": 6
+    },
+    {
+      "Id": "sproutling",
+      "Name": "蘑菇精",
+      "Sprite": "038_green_spore_fungus",
+      "Hp": 30,
+      "Mp": 12,
+      "Atk": 7,
+      "Def": 4,
+      "Speed": 8
+    },
+    {
+      "Id": "nightwing",
+      "Name": "夜翼蝠",
+      "Sprite": "012_cave_bat_grey",
+      "Hp": 26,
+      "Mp": 8,
+      "Atk": 11,
+      "Def": 3,
+      "Speed": 13
+    },
+    {
+      "Id": "mudguard",
+      "Name": "石壳守卫",
+      "Sprite": "026_mud_golem_brown",
+      "Hp": 42,
+      "Mp": 8,
+      "Atk": 10,
+      "Def": 10,
+      "Speed": 3
+    },
+    {
+      "Id": "crab",
+      "Name": "岩滩蟹",
+      "Sprite": "036_stone_cave_crab",
+      "Hp": 38,
+      "Mp": 12,
+      "Atk": 9,
+      "Def": 11,
+      "Speed": 4
+    },
+    {
+      "Id": "reedwing",
+      "Name": "风翅虫",
+      "Sprite": "047_spiked_locust_green",
+      "Hp": 28,
+      "Mp": 12,
+      "Atk": 10,
+      "Def": 4,
+      "Speed": 14
+    },
+    {
+      "Id": "boar",
+      "Name": "林地獠兽",
+      "Sprite": "061_wild_boar_fiend",
+      "Hp": 44,
+      "Mp": 10,
+      "Atk": 12,
+      "Def": 7,
+      "Speed": 7
+    },
+    {
+      "Id": "moonbat",
+      "Name": "月翼蝠",
+      "Sprite": "031_white_winged_bat",
+      "Hp": 28,
+      "Mp": 10,
+      "Atk": 10,
+      "Def": 4,
+      "Speed": 14
+    },
+    {
+      "Id": "wisp",
+      "Name": "幽蓝游魂",
+      "Sprite": "068_blue_spectral_wraith",
+      "Hp": 30,
+      "Mp": 14,
+      "Atk": 9,
+      "Def": 5,
+      "Speed": 9
+    },
+    {
+      "Id": "ember_dragon",
+      "Name": "赤焰古龙",
+      "Sprite": "095_blaze_dragonling",
+      "Hp": 58,
+      "Mp": 18,
+      "Atk": 16,
+      "Def": 10,
+      "Speed": 8
+    }
+  ],
+  "Encounters": [
+    {
+      "Id": "C1-E01",
+      "Clue": "草路的黏液",
+      "Hidden": false,
+      "Enemies": [
+        {
+          "Id": "C1-SL-01",
+          "Species": "slime_dusk",
+          "Hp": 22,
+          "Atk": 7,
+          "Def": 3,
+          "Speed": 6,
+          "Xp": 13,
+          "Drop": "herb",
+          "Level": 1,
+          "Rank": 1
+        }
+      ]
+    },
+    {
+      "Id": "C1-E02",
+      "Clue": "河岸同类",
+      "Hidden": false,
+      "Enemies": [
+        {
+          "Id": "C1-SL-02",
+          "Species": "slime_dusk",
+          "Hp": 32,
+          "Atk": 8,
+          "Def": 4,
+          "Speed": 6,
+          "Xp": 16,
+          "Drop": "slime",
+          "Level": 2,
+          "Rank": 1
+        }
+      ]
+    },
+    {
+      "Id": "C1-E03",
+      "Clue": "灌木中的嫩芽",
+      "Hidden": true,
+      "Enemies": [
+        {
+          "Id": "C1-SP-01",
+          "Species": "sproutling",
+          "Hp": 28,
+          "Atk": 8,
+          "Def": 4,
+          "Speed": 8,
+          "Xp": 16,
+          "Drop": "herb",
+          "Level": 2,
+          "Rank": 1
+        }
+      ]
+    },
+    {
+      "Id": "C1-E04",
+      "Clue": "低枝的叫声",
+      "Hidden": true,
+      "Enemies": [
+        {
+          "Id": "C1-WI-01",
+          "Species": "nightwing",
+          "Hp": 30,
+          "Atk": 9,
+          "Def": 4,
+          "Speed": 13,
+          "Xp": 16,
+          "Drop": "dew",
+          "Level": 2,
+          "Rank": 1
+        }
+      ]
+    },
+    {
+      "Id": "C1-E05",
+      "Clue": "桥前双影",
+      "Hidden": false,
+      "Enemies": [
+        {
+          "Id": "C1-SL-03",
+          "Species": "slime_dusk",
+          "Hp": 40,
+          "Atk": 9,
+          "Def": 5,
+          "Speed": 6,
+          "Xp": 19,
+          "Drop": "slime",
+          "Level": 3,
+          "Rank": 1
+        },
+        {
+          "Id": "C1-WI-02",
+          "Species": "nightwing",
+          "Hp": 32,
+          "Atk": 10,
+          "Def": 5,
+          "Speed": 13,
+          "Xp": 19,
+          "Drop": "dew",
+          "Level": 3,
+          "Rank": 1
+        }
+      ]
+    },
+    {
+      "Id": "C1-E06",
+      "Clue": "第一座桥的守卫",
+      "Hidden": false,
+      "Enemies": [
+        {
+          "Id": "C1-GU-01",
+          "Species": "mudguard",
+          "Hp": 84,
+          "Atk": 10,
+          "Def": 10,
+          "Speed": 3,
+          "Xp": 22,
+          "Drop": "shell",
+          "Level": 4,
+          "Rank": 2
+        },
+        {
+          "Id": "C1-SP-02",
+          "Species": "sproutling",
+          "Hp": 36,
+          "Atk": 10,
+          "Def": 6,
+          "Speed": 8,
+          "Xp": 22,
+          "Drop": "herb",
+          "Level": 4,
+          "Rank": 2
+        },
+        {
+          "Id": "C1-SL-04",
+          "Species": "slime_dusk",
+          "Hp": 40,
+          "Atk": 10,
+          "Def": 6,
+          "Speed": 6,
+          "Xp": 22,
+          "Drop": "slime",
+          "Level": 4,
+          "Rank": 2
+        }
+      ]
+    },
+    {
+      "Id": "C1-O01",
+      "Clue": "近郊的隐藏伙伴",
+      "Hidden": true,
+      "Enemies": [
+        {
+          "Id": "C1-SL-05",
+          "Species": "slime_dusk",
+          "Hp": 40,
+          "Atk": 9,
+          "Def": 5,
+          "Speed": 6,
+          "Xp": 19,
+          "Drop": "slime",
+          "Level": 3,
+          "Rank": 1
+        }
+      ]
+    },
+    {
+      "Id": "C1-O02",
+      "Clue": "近郊的隐藏伙伴",
+      "Hidden": true,
+      "Enemies": [
+        {
+          "Id": "C1-SP-03",
+          "Species": "sproutling",
+          "Hp": 36,
+          "Atk": 9,
+          "Def": 5,
+          "Speed": 8,
+          "Xp": 19,
+          "Drop": "herb",
+          "Level": 3,
+          "Rank": 1
+        }
+      ]
+    },
+    {
+      "Id": "C1-O03",
+      "Clue": "近郊的隐藏伙伴",
+      "Hidden": true,
+      "Enemies": [
+        {
+          "Id": "C1-WI-03",
+          "Species": "nightwing",
+          "Hp": 38,
+          "Atk": 10,
+          "Def": 5,
+          "Speed": 13,
+          "Xp": 19,
+          "Drop": "dew",
+          "Level": 3,
+          "Rank": 1
+        }
+      ]
+    },
+    {
+      "Id": "C1-O04",
+      "Clue": "近郊的隐藏伙伴",
+      "Hidden": true,
+      "Enemies": [
+        {
+          "Id": "C1-GU-02",
+          "Species": "mudguard",
+          "Hp": 112,
+          "Atk": 11,
+          "Def": 11,
+          "Speed": 3,
+          "Xp": 25,
+          "Drop": "shell",
+          "Level": 5,
+          "Rank": 2
+        }
+      ]
+    },
+    {
+      "Id": "C1-F01",
+      "Clue": "西岸石隙中的爬行声",
+      "Hidden": false,
+      "Enemies": [
+        {
+          "Id": "C1-CR-01",
+          "Species": "crab",
+          "Hp": 30,
+          "Atk": 8,
+          "Def": 8,
+          "Speed": 4,
+          "Xp": 15,
+          "Drop": "shell",
+          "Level": 2,
+          "Rank": 1
+        }
+      ]
+    },
+    {
+      "Id": "C1-F02",
+      "Clue": "风吹过草梢的振翅声",
+      "Hidden": false,
+      "Enemies": [
+        {
+          "Id": "C1-RW-01",
+          "Species": "reedwing",
+          "Hp": 28,
+          "Atk": 8,
+          "Def": 4,
+          "Speed": 12,
+          "Xp": 15,
+          "Drop": "wing",
+          "Level": 2,
+          "Rank": 1
+        }
+      ]
+    },
+    {
+      "Id": "C1-F03",
+      "Clue": "药车旁的拱土痕",
+      "Hidden": false,
+      "Enemies": [
+        {
+          "Id": "C1-BO-01",
+          "Species": "boar",
+          "Hp": 46,
+          "Atk": 10,
+          "Def": 6,
+          "Speed": 7,
+          "Xp": 20,
+          "Drop": "herb",
+          "Level": 3,
+          "Rank": 1
+        }
+      ]
+    },
+    {
+      "Id": "C1-F04",
+      "Clue": "海角湿草下的两道影子",
+      "Hidden": true,
+      "Enemies": [
+        {
+          "Id": "C1-CR-02",
+          "Species": "crab",
+          "Hp": 40,
+          "Atk": 9,
+          "Def": 9,
+          "Speed": 4,
+          "Xp": 20,
+          "Drop": "shell",
+          "Level": 3,
+          "Rank": 1
+        },
+        {
+          "Id": "C1-RW-02",
+          "Species": "reedwing",
+          "Hp": 32,
+          "Atk": 9,
+          "Def": 4,
+          "Speed": 13,
+          "Xp": 20,
+          "Drop": "wing",
+          "Level": 3,
+          "Rank": 1
+        }
+      ]
+    },
+    {
+      "Id": "C1-F05",
+      "Clue": "北园深处的混合兽群",
+      "Hidden": true,
+      "Enemies": [
+        {
+          "Id": "C1-BO-02",
+          "Species": "boar",
+          "Hp": 58,
+          "Atk": 11,
+          "Def": 7,
+          "Speed": 7,
+          "Xp": 24,
+          "Drop": "herb",
+          "Level": 4,
+          "Rank": 1
+        },
+        {
+          "Id": "C1-RW-03",
+          "Species": "reedwing",
+          "Hp": 40,
+          "Atk": 10,
+          "Def": 5,
+          "Speed": 14,
+          "Xp": 24,
+          "Drop": "wing",
+          "Level": 4,
+          "Rank": 1
+        }
+      ]
+    },
+    {
+      "Id": "C1-F06",
+      "Clue": "药车后方的守箱兽群",
+      "Hidden": false,
+      "Enemies": [
+        {
+          "Id": "C1-BO-03",
+          "Species": "boar",
+          "Hp": 80,
+          "Atk": 12,
+          "Def": 8,
+          "Speed": 7,
+          "Xp": 28,
+          "Drop": "herb",
+          "Level": 5,
+          "Rank": 2
+        },
+        {
+          "Id": "C1-CR-03",
+          "Species": "crab",
+          "Hp": 52,
+          "Atk": 11,
+          "Def": 10,
+          "Speed": 4,
+          "Xp": 26,
+          "Drop": "shell",
+          "Level": 4,
+          "Rank": 2
+        }
+      ]
+    },
+    {
+      "Id": "C1-N01",
+      "Clue": "月下草径的白翼",
+      "Hidden": false,
+      "Period": "night",
+      "Enemies": [
+        {
+          "Id": "C1-MB-01",
+          "Species": "moonbat",
+          "Hp": 26,
+          "Atk": 8,
+          "Def": 4,
+          "Speed": 14,
+          "Xp": 16,
+          "Drop": "wing",
+          "Level": 2,
+          "Rank": 1
+        }
+      ]
+    },
+    {
+      "Id": "C1-N02",
+      "Clue": "西侧夜路的幽蓝灯火",
+      "Hidden": false,
+      "Period": "night",
+      "Enemies": [
+        {
+          "Id": "C1-WS-01",
+          "Species": "wisp",
+          "Hp": 34,
+          "Atk": 9,
+          "Def": 5,
+          "Speed": 9,
+          "Xp": 20,
+          "Drop": "dew",
+          "Level": 3,
+          "Rank": 1
+        }
+      ]
+    },
+    {
+      "Id": "C1-N03",
+      "Clue": "林间夜巡的双影",
+      "Hidden": false,
+      "Period": "night",
+      "Enemies": [
+        {
+          "Id": "C1-MB-02",
+          "Species": "moonbat",
+          "Hp": 38,
+          "Atk": 10,
+          "Def": 5,
+          "Speed": 14,
+          "Xp": 23,
+          "Drop": "wing",
+          "Level": 4,
+          "Rank": 2
+        },
+        {
+          "Id": "C1-WS-02",
+          "Species": "wisp",
+          "Hp": 40,
+          "Atk": 10,
+          "Def": 6,
+          "Speed": 9,
+          "Xp": 23,
+          "Drop": "dew",
+          "Level": 4,
+          "Rank": 2
+        }
+      ]
+    },
+    {
+      "Id": "C1-B01",
+      "Clue": "北林空地的赤焰古龙",
+      "Hidden": false,
+      "Boss": true,
+      "Enemies": [
+        {
+          "Id": "C1-DR-01",
+          "Species": "ember_dragon",
+          "Hp": 2200,
+          "Atk": 38,
+          "Def": 18,
+          "Speed": 8,
+          "Xp": 80,
+          "Drop": "revive",
+          "Level": 8,
+          "Rank": 4
+        }
+      ]
+    }
+  ],
+  "XpThresholds": [
+    28,
+    82,
+    150,
+    240,
+    360
+  ],
+  "SkillUnlocks": {
+    "hero": {
+      "steady": 2,
+      "rally": 3,
+      "cleave": 4
+    },
+    "slime_dusk": {
+      "water": 2,
+      "slow": 3,
+      "tide": 5
+    },
+    "sproutling": {
+      "heal": 1,
+      "ward": 2,
+      "renew": 3
+    },
+    "nightwing": {
+      "disrupt": 2,
+      "swift": 3
+    },
+    "mudguard": {
+      "taunt": 1,
+      "guard": 2
+    },
+    "princess": {
+      "heal": 1,
+      "ward": 2,
+      "rally": 3,
+      "renew": 4
+    },
+    "crab": {
+      "ward": 1,
+      "guard": 2,
+      "shellwall": 3
+    },
+    "reedwing": {
+      "swift": 1,
+      "disrupt": 2,
+      "interrupt": 3
+    },
+    "boar": {
+      "rupture": 1,
+      "rally": 2,
+      "cleave": 3
+    },
+    "moonbat": {
+      "swift": 1,
+      "disrupt": 2
+    },
+    "wisp": {
+      "ward": 1,
+      "slow": 2
+    },
+    "ember_dragon": {
+      "flame": 1
+    }
+  },
+  "Growth": {
+    "LevelCosts": [
+      20,
+      35,
+      50,
+      70,
+      95,
+      125,
+      160,
+      200,
+      245
+    ],
+    "RankCosts": [
+      2,
+      4,
+      7,
+      11
+    ],
+    "SoulMultipliers": [
+      1,
+      1.5,
+      2,
+      2.5,
+      3
+    ],
+    "PotionMultiplier": 4,
+    "DewValue": 25,
+    "ExplorationRewards": {
+      "relic_claim": 40,
+      "trail_claim": 40,
+      "road_signal": 40,
+      "road_claim": 80,
+      "fountain_nozzle": 30,
+      "fountain_pipe": 30,
+      "fountain_seal": 30,
+      "fountain_core": 30,
+      "bridge_pin": 40
+    },
+    "Profiles": {
+      "hero": {
+        "Role": "melee",
+        "Auto": "swift",
+        "Ultimate": "steady",
+        "Passive": "勇气",
+        "Cooldown": 5,
+        "Interval": 1.4
+      },
+      "princess": {
+        "Role": "healer",
+        "Auto": "heal",
+        "Ultimate": "renew",
+        "Passive": "守望",
+        "Cooldown": 7,
+        "Interval": 1.7
+      },
+      "slime_dusk": {
+        "Role": "ranged",
+        "Auto": "water",
+        "Ultimate": "tide",
+        "Passive": "黏液余波",
+        "Cooldown": 6,
+        "Interval": 1.7
+      },
+      "sproutling": {
+        "Role": "healer",
+        "Auto": "heal",
+        "Ultimate": "renew",
+        "Passive": "新芽护佑",
+        "Cooldown": 7,
+        "Interval": 1.9
+      },
+      "nightwing": {
+        "Role": "melee",
+        "Auto": "leech",
+        "Ultimate": "pounce",
+        "Passive": "嗜血",
+        "Cooldown": 5,
+        "Interval": 1.2
+      },
+      "mudguard": {
+        "Role": "tank",
+        "Auto": "bait",
+        "Ultimate": "taunt",
+        "Passive": "石肤",
+        "Cooldown": 7,
+        "Interval": 2.0
+      },
+      "crab": {
+        "Role": "tank",
+        "Auto": "aegis",
+        "Ultimate": "shellwall",
+        "Passive": "潮汐回护",
+        "Cooldown": 7,
+        "Interval": 1.9
+      },
+      "reedwing": {
+        "Role": "ranged",
+        "Auto": "gust",
+        "Ultimate": "interrupt",
+        "Passive": "追风",
+        "Cooldown": 6,
+        "Interval": 1.5
+      },
+      "boar": {
+        "Role": "melee",
+        "Auto": "ram",
+        "Ultimate": "rupture",
+        "Passive": "獠牙追击",
+        "Cooldown": 6,
+        "Interval": 1.7
+      },
+      "moonbat": {
+        "Role": "ranged",
+        "Auto": "drain",
+        "Ultimate": "silence",
+        "Passive": "月蚀",
+        "Cooldown": 6,
+        "Interval": 1.6
+      },
+      "wisp": {
+        "Role": "ranged",
+        "Auto": "curse",
+        "Ultimate": "gloom",
+        "Passive": "幽光延续",
+        "Cooldown": 6,
+        "Interval": 1.8
+      },
+      "ember_dragon": {
+        "Role": "tank",
+        "Auto": "ember",
+        "Ultimate": "flame",
+        "Passive": "余烬",
+        "Cooldown": 7,
+        "Interval": 2.0
+      }
+    }
+  }
+}

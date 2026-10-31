@@ -1,0 +1,254 @@
+[
+  {
+    "path": "public/assets/hero.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/characters/01_hero_orange_blue_band.png",
+    "sha256": "36605bcc08de355e54919cf08733f2a435477bafc3570984242222b7a55faa01",
+    "use": "Existing project character sheet; 16px frames, copied only for the first two playable floors."
+  },
+  {
+    "path": "public/assets/princess.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/characters/25_princess_blonde_orange_dress.png",
+    "sha256": "db123f705fd8ab4f34d10d4e2a682d994bd0e3e01b9ce73072897dcb48cfd0d7",
+    "use": "Existing project character sheet; 16px frames, copied only for the first two playable floors."
+  },
+  {
+    "path": "public/assets/slime_dusk.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/076_azure_slime_blob.png",
+    "sha256": "3214ae6557c1c920809780694364d39daeb95a82704299ec5299bf07d0a5e7ce",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/sproutling.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/038_green_spore_fungus.png",
+    "sha256": "5606ba2635d198032c1a097322de0ec4fa5a0251cb5a2e3894644190c5ab425c",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/reedwing.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/047_spiked_locust_green.png",
+    "sha256": "797dffe11deeb7d91b74e07c1ac4b7691ac6d56238a27b4412c6a1fb3125405e",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/moonbat.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/031_white_winged_bat.png",
+    "sha256": "184da118012b8825ee4b0d392fbe10c6ee85df44826fe7d4194bb980e6653fd3",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/forest_sprite.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/023_emerald_sprite_green.png",
+    "sha256": "7f766fc056b3fba38c0ee238c653b4077cbe40769ed48b6499fb8e6016ce94b7",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/boar.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/061_wild_boar_fiend.png",
+    "sha256": "9edf51693592478b37d3466b56fddef567137283b41f629015530b38c60c7377",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/nightwing.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/012_cave_bat_grey.png",
+    "sha256": "8d90c3c4ca904c1e583b4e6abec6fed8a238e4f5ec42400d5f8b655308c1d2e4",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/cave_wolf.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/018_cave_wolf_brown.png",
+    "sha256": "8f156a842035fcd0ec9ffa719c2dd30e4c10d8e65cf05fbc867728f5531fb9d7",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/blade_skeleton.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/059_blade_skeleton.png",
+    "sha256": "06dd7ca20a8d82c4320dcee68515253c6544cd3f373671e72654acfd52a8262e",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/mudguard.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/026_mud_golem_brown.png",
+    "sha256": "fdb97eaf691d86fa76af0bf9ab262cc03168a7a8ad5b08451a598e94799d9b19",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/crab.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/036_stone_cave_crab.png",
+    "sha256": "c4f3376e46ae5efb703ffbbb3c3ccb53b993fefdcf5a16fa175d29cab643fe7a",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/bronze_beetle.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/050_armored_bug_bronze.png",
+    "sha256": "66f7948d2d3e36fefd6268b9f2e60999e212f2b04a97b2850a3b867b0f1c9235",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/moss_crawler.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/025_moss_crawler_green.png",
+    "sha256": "87a2f7b93b48aa5128d097b8bfa3357420c2739f638f7946ad7a7855cd9cd61c",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/fire_imp.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/019_fire_imp_red.png",
+    "sha256": "67a26a2c5862e6cecf74091df6ebfd9082c5348c50645e6958128f9ca6dbccfc",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/ice_spirit.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/022_ice_spirit_blue.png",
+    "sha256": "d0e4e9df12a718cb0bab0ba5c7d5dbcb85a842afe18abdd0d16fa89c207150fb",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/evil_eye.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/040_evil_eye_gazer.png",
+    "sha256": "04ba0442c6c392a05845ae235cd6255f967074e632c1a6115b528ca35a8a6ada",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/necromancer.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/080_necromancer_pupil.png",
+    "sha256": "7a4798210b1025955f3ce35639b197c03347ffdeb4a573d4cec17aadcdbacd47",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/white_ghost.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/091_wailing_white_ghost.png",
+    "sha256": "97485373208a74e1917858f28b65e655d2be38949dc975057796b6171c496b69",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/wind_elemental.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/090_wind_gale_elemental.png",
+    "sha256": "edcbcc733e38ae1accb5426bb36c49e4bfbe91d9b3e35d8d9dbe93996d0ad7ff",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/venom_dragonling.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/096_venom_dragonling.png",
+    "sha256": "be9f5eb79b761abc961f971cf5065769ce9ec070461266877ed8b98e892956db",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/mimic.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/083_wooden_chest_mimic.png",
+    "sha256": "b42d9bb7d37ff71e728fde737e01b14ac485d5da35c9d2896b96bcb9f5b01226",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/mantis.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/074_emerald_mantis.png",
+    "sha256": "45f99fbabbdf1bb12f5adb2d804f8b4e79c8b81ee1ba487bd3f49193f95f3098",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/orc_berserker.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/082_orc_berserker_green.png",
+    "sha256": "e9d5a79b5cd3495897b3c00091fda8749f93f6468c60ee9bde297df27a0f478b",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/spectral_samurai.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/067_phantom_samurai_knight.png",
+    "sha256": "f5b133d87541455a9cc35ca9930ee3dda11319c17fd314bd48016965e9c7fd74",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/skeleton_guard.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/060_skeleton_heavy_infantry.png",
+    "sha256": "d87e5f376ffdff9358a19f460ec558518b01cd638cbde77d154a867e6517bb07",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/spectral_armor.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/070_floating_spectral_armor.png",
+    "sha256": "b7f9ef713275365a2162a3cb294c3f04c4c031cfab6013441ff76c39e7ed5ab9",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/earth_elemental.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/089_earth_crag_elemental.png",
+    "sha256": "d73a7effbf99c36680625eac1b4371642de499d4dcf21426b3ebb9864ac8c20b",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/iron_automaton.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/099_iron_automaton_soldier.png",
+    "sha256": "cc4878bc73d8f40ab67361474fabe1f2cfe47c92f9af33541fbb5b1fef2a71a3",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/water_elemental.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/087_water_pure_elemental.png",
+    "sha256": "237794c69a2105e8b5fd67fc7c19ec377ee83e0366228e71a44445756f7420e2",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/lava_elemental.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/088_magma_stone_elemental.png",
+    "sha256": "f2a8ec90b78ef6dc4e0112e7385294c6be99d2d6112a41d1ea77a42ec0356cd3",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/crystal_elemental.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/109_mana_crystal_elemental.png",
+    "sha256": "a8c84cf8776b6f8119e6ef08d8edff3778eee0c60ff2d62a2a50286c4c67bed7",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/wisp.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/068_blue_spectral_wraith.png",
+    "sha256": "e334606bdfd3e65cd244be179abd1a694492b495c26783a4bad5735b1cc81784",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/forest_dragon.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/dragons/112_dragon_forest_emerald.png",
+    "sha256": "2a16856505cdccfa17f55d4c772124ccdcd45a325fd3d5208c9075c5d5df8559",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/celestial_dragon.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/dragons/115_dragon_golden_celestial.png",
+    "sha256": "59e11a49b72e45e2efd4088232e9fa423b8fa3ef1524a18114f8a1ca23a883fe",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/war_dragon.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/dragons/113_dragon_crimson_blaze.png",
+    "sha256": "fe2a8d4836890db3b289319665d46fa3d0b50d5b62a6c3d5727ed7dddad09f39",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/nightmare.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/100_nightmare_shadow_fiend.png",
+    "sha256": "e05223a3593db032941d74bf415bdf684eb8cbadd27646566a32896c7aa0e1df",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/bronze_dragon.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/dragons/114_dragon_bronze_earth.png",
+    "sha256": "27e99587ea9cbc313cf1182600f2eb07db80e6c03f0a69bc13dde84ce19799db",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/silver_slime.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/106_metal_silver_slime.png",
+    "sha256": "4b01ee55b6191f5eec5f96ebb1e72d139b309fa31fa659082df8d9bf63bf8842",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/ember_dragon.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/dragons/118_dragon_ancient_1000years_red.png",
+    "sha256": "ef09739854509ac1c5eb84b86c1275399b64ccce89f6ceb4190ac9cab11bc2b2",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  },
+  {
+    "path": "public/assets/frost_dragon.png",
+    "source": "/home/pt/Desktop/asterfell-scene/assets/monsters/dragons/111_dragon_ancient_blue.png",
+    "sha256": "5a339b197a96ca43853e2bfaa68e7dfb90e04adcd747b540226a5d890815e4a5",
+    "use": "Workbench roster and encounter preview for the 40 configured species; only referenced character sheets copied."
+  }
+]

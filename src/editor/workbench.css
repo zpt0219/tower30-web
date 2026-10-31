@@ -1,0 +1,893 @@
+.editor-page .page-scroll {
+  padding: 0;
+  overflow: hidden;
+}
+.editor-page .page-heading {
+  min-height: 58px;
+  padding: 10px 22px;
+}
+.editor-page .page-heading .eyebrow {
+  display: none;
+}
+#workbench-root {
+  height: 100%;
+  min-height: 0;
+}
+.workbench {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.wb-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid #c2aa7b;
+  background: #e9d9b6;
+}
+.wb-toolbar strong {
+  display: block;
+  font: 600 20px serif;
+  white-space: nowrap;
+}
+.wb-toolbar span {
+  display: block;
+  font-size: 12px;
+  color: #6c7252;
+  margin-top: 4px;
+}
+.wb-actions {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.wb-actions button {
+  padding: 8px 13px;
+  white-space: nowrap;
+  font-size: 14px;
+}
+.wb-actions .primary {
+  min-width: 130px;
+  min-height: 49px;
+  font-size: 17px;
+}
+.wb-tabs {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  border-bottom: 1px solid #c7b28a;
+  background: #f5e9ce;
+  padding: 7px 18px;
+}
+.wb-tabs button {
+  background: transparent;
+  border-color: transparent;
+  font-size: 14px;
+  padding: 8px 18px;
+}
+.wb-tabs button.active,
+.wb-stat-tabs button.active,
+.wb-enemy-tabs button.active {
+  background: #536b4c;
+  color: #fff2d3;
+  border-color: #456042;
+}
+.wb-tabs .wb-reset {
+  margin-left: auto;
+  color: #936848;
+  font-size: 12px;
+  padding: 8px 10px;
+}
+.wb-validation {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-height: 38px;
+  padding: 7px 20px;
+  background: #dfe4c333;
+  font-size: 12px;
+  border-bottom: 1px solid #cabb96;
+}
+.wb-validation b {
+  color: #4e6a45;
+  white-space: nowrap;
+}
+.wb-validation span {
+  color: #756748;
+}
+.wb-validation.invalid {
+  background: #efd6bf;
+}
+.wb-validation.invalid b {
+  color: #9f4d32;
+}
+.wb-validation.invalid p {
+  font-size: 12px;
+  line-height: 1.35;
+  max-height: 65px;
+  overflow: auto;
+  color: #8f472c;
+}
+.wb-body {
+  display: grid;
+  grid-template-columns: 175px minmax(280px, 1fr) 232px;
+  min-height: 0;
+  flex: 1;
+}
+.wb-sidebar {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid #c7b28a;
+  padding: 12px 9px;
+  background: #e7d7b33b;
+}
+.wb-sidebar > .wb-help {
+  padding: 0 8px;
+  font-size: 12px;
+}
+.wb-search {
+  display: block;
+  margin: 0 0 10px;
+}
+.wb-search > span {
+  font-size: 12px;
+  color: #7f6d4f;
+}
+.wb-search input {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 5px;
+  font-size: 13px;
+  padding: 8px;
+}
+.wb-sidebar #wb-list {
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-width: thin;
+}
+.wb-entity {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  gap: 9px;
+  padding: 7px 10px;
+  margin-bottom: 5px;
+  border: 1px solid transparent;
+  background: transparent;
+  width: 100%;
+  min-height: 54px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.wb-entity:hover:not(:disabled) {
+  background: #e7d8b4;
+}
+.wb-entity.active {
+  background: #ddcda5;
+  border-color: #a88b54;
+  box-shadow: inset 3px 0 #50684a;
+}
+.wb-entity > strong {
+  font: 24px serif;
+  color: #978056;
+  min-width: 29px;
+}
+.wb-entity small {
+  font-size: 10px;
+  display: block;
+  margin-top: 3px;
+}
+.wb-avatar {
+  height: 32px;
+  width: 32px;
+  flex: none;
+  background-size: 96px 128px;
+  background-position: 0 0;
+  image-rendering: pixelated;
+}
+.wb-entity[data-id="hero"] .wb-avatar,
+.wb-entity[data-id="princess"] .wb-avatar {
+  background-size: 96px 256px;
+  background-position: 0 -32px;
+}
+.wb-inspector {
+  padding: 20px;
+  overflow-y: auto;
+  min-width: 0;
+  scrollbar-width: thin;
+}
+.wb-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.wb-section-title h2 {
+  font-size: 26px;
+}
+.wb-section-title button {
+  padding: 7px 10px;
+  font-size: 12px;
+  flex: none;
+}
+.wb-stat-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.wb-stat-tabs button {
+  min-width: 120px;
+  font-size: 14px;
+}
+.wb-help {
+  font-size: 12px;
+  color: #7d7059;
+  line-height: 1.6;
+  margin: 8px 0 12px;
+}
+.wb-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 12px;
+  margin: 14px 0;
+}
+.wb-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  color: #6c5c40;
+}
+.wb-field input,
+.wb-field select,
+.wb-field textarea {
+  width: 100%;
+  min-height: 48px;
+  font: 500 18px system-ui;
+  color: #3a3d2c;
+  border: 1px solid #bda779;
+  border-radius: 3px;
+  background: #fff7e4;
+  padding: 8px 10px;
+  min-width: 0;
+}
+.wb-field select {
+  font-size: 14px;
+}
+.wb-field textarea {
+  resize: vertical;
+  min-height: 72px;
+  font-size: 14px;
+  font-weight: 400;
+}
+.wb-field input:focus,
+.wb-field select:focus,
+.wb-field textarea:focus {
+  outline: 2px solid #65815c;
+  outline-offset: 1px;
+  background: #fffbea;
+}
+.wb-field input:invalid {
+  border-color: #b36a4a;
+}
+.wb-section-label {
+  margin: 24px 0 10px;
+  border-bottom: 1px solid #c7b28a;
+  padding-bottom: 9px;
+  font-size: 17px;
+}
+.wb-section-label small {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+}
+.wb-preview {
+  border-left: 1px solid #c7b28a;
+  background: #e6d9b634;
+  padding: 18px 15px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.wb-preview h3 {
+  font-size: 17px;
+}
+.wb-preview dl {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0 13px;
+  margin: 12px 0 18px;
+}
+.wb-preview dl > div {
+  padding: 7px 0;
+  border-bottom: 1px solid #c6b59066;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.wb-preview dt {
+  font-size: 11px;
+  color: #867354;
+}
+.wb-preview dd {
+  font-size: 17px;
+  margin: 0;
+}
+.wb-notice {
+  padding: 11px 12px;
+  background: #d5c79e66;
+  border-left: 3px solid #a68e56;
+  font-size: 12px;
+  color: #716140;
+  line-height: 1.7;
+  margin: 14px 0;
+}
+.wb-warning {
+  font-size: 12px;
+  color: #896640;
+}
+.wb-warning summary {
+  cursor: pointer;
+  min-height: 42px;
+  line-height: 1.7;
+}
+.wb-warning ul {
+  padding-left: 15px;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.wb-footer {
+  flex: none;
+  padding: 7px 18px;
+  background: #e8d9b6;
+  border-top: 1px solid #c6b18a;
+  font-size: 11px;
+  color: #827251;
+}
+.wb-enemy-tabs {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.wb-enemy-tabs button {
+  font-size: 12px;
+  padding: 8px 12px;
+}
+.wb-row {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+.wb-row span {
+  font-size: 12px;
+  color: #83704f;
+}
+.wb-row button {
+  font-size: 12px;
+  flex: none;
+}
+.wb-check {
+  font-size: 13px;
+  display: flex;
+  gap: 10px;
+  margin: 12px 0;
+  align-items: center;
+  line-height: 1.5;
+}
+.wb-check input {
+  min-height: 24px;
+  width: 24px;
+  height: 24px;
+  accent-color: #536d4c;
+  flex: none;
+}
+.wb-check small {
+  font-size: 11px;
+}
+.wb-reward-options summary {
+  padding: 10px;
+  cursor: pointer;
+  min-height: 48px;
+  background: #e5d6b3;
+  font-size: 13px;
+}
+.wb-reward-options {
+  margin-top: 22px;
+}
+.wb-party > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.wb-party strong {
+  font-size: 12px;
+  min-width: 50px;
+  color: #88724c;
+}
+.wb-party select {
+  flex: 1;
+  min-height: 48px;
+  font: 15px system-ui;
+  border: 1px solid #bda779;
+  border-radius: 3px;
+  background: #fff7e4;
+  padding: 9px;
+  min-width: 0;
+}
+.wb-party button {
+  font-size: 13px;
+}
+.test-label {
+  color: #f0c174 !important;
+  margin-right: 14px;
+  font-weight: bold;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+.test-warnings {
+  position: absolute;
+  z-index: 2;
+  left: 12px;
+  top: 8px;
+  max-width: 340px;
+  color: #f8e4b0;
+  background: #273e32df;
+  border: 1px solid #a28e54;
+  border-radius: 3px;
+  font-size: 11px;
+}
+.test-warnings summary {
+  padding: 9px 12px;
+  cursor: pointer;
+  min-height: 32px;
+}
+.test-warnings p {
+  padding: 0 12px 10px;
+  max-height: 120px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1250px) {
+  .wb-body {
+    grid-template-columns: 155px minmax(260px, 1fr) 202px;
+  }
+  .wb-inspector {
+    padding: 15px;
+  }
+  .wb-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .wb-toolbar {
+    padding: 10px 13px;
+  }
+  .wb-toolbar strong {
+    font-size: 18px;
+  }
+  .wb-actions {
+    gap: 5px;
+  }
+  .wb-actions button {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+  .wb-actions .primary {
+    font-size: 16px;
+    min-width: 125px;
+  }
+  .wb-preview {
+    padding: 15px 12px;
+  }
+  .wb-section-title h2 {
+    font-size: 24px;
+  }
+  .wb-section-title {
+    align-items: flex-start;
+  }
+  .wb-section-title button {
+    font-size: 11px;
+    padding: 7px;
+  }
+  .wb-field input {
+    font-size: 18px;
+  }
+  .wb-entity {
+    font-size: 13px;
+    padding: 7px 8px;
+  }
+  .wb-tabs {
+    padding: 5px 12px;
+  }
+  .wb-tabs button {
+    min-height: 44px;
+    padding: 8px 13px;
+  }
+  .wb-fields .wb-field select {
+    font-size: 13px;
+  }
+}
+@media (max-height: 650px) and (min-width: 700px) {
+  .editor-page .page-heading {
+    min-height: 48px;
+    padding: 7px 16px;
+  }
+  .editor-page .page-heading h1 {
+    font-size: 23px;
+  }
+  .wb-toolbar {
+    padding: 7px 12px;
+    min-height: 62px;
+  }
+  .wb-tabs {
+    padding: 3px 10px;
+  }
+  .wb-tabs button {
+    min-height: 42px;
+  }
+  .wb-validation {
+    padding: 5px 14px;
+    min-height: 31px;
+    font-size: 11px;
+    gap: 10px;
+  }
+  .wb-toolbar span {
+    font-size: 10px;
+  }
+  .wb-body {
+    grid-template-columns: 145px minmax(270px, 1fr) 193px;
+  }
+  .wb-inspector {
+    padding: 13px;
+  }
+  .wb-preview {
+    padding: 12px 10px;
+  }
+  .wb-preview dl > div {
+    padding: 5px 0;
+  }
+  .wb-preview dt {
+    font-size: 10px;
+  }
+  .wb-preview dd {
+    font-size: 15px;
+  }
+  .wb-sidebar {
+    padding: 9px 6px;
+  }
+  .wb-section-title h2 {
+    font-size: 22px;
+  }
+  .wb-footer {
+    padding: 5px 12px;
+    font-size: 10px;
+  }
+  .wb-avatar {
+    height: 28px;
+    width: 28px;
+    background-size: 84px 112px;
+  }
+  .wb-entity[data-id="hero"] .wb-avatar,
+  .wb-entity[data-id="princess"] .wb-avatar {
+    background-size: 84px 224px;
+    background-position: 0 -28px;
+  }
+  .test-label {
+    margin-right: 8px;
+    font-size: 10px;
+  }
+}
+@media (max-width: 850px) {
+  .wb-body {
+    grid-template-columns: 130px minmax(0, 1fr);
+  }
+  .wb-preview {
+    display: none;
+  }
+  .wb-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .wb-toolbar > div:first-child {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .wb-actions {
+    width: 100%;
+  }
+  .wb-actions .primary {
+    margin-left: auto;
+  }
+  .wb-actions button {
+    font-size: 11px;
+    padding: 8px;
+    min-height: 44px;
+  }
+  .wb-tabs .wb-reset {
+    font-size: 10px;
+    padding: 7px;
+  }
+  .wb-validation {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .wb-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .wb-section-title {
+    flex-wrap: wrap;
+  }
+  .wb-stat-tabs button {
+    min-width: 0;
+    flex: 1;
+    padding: 8px 11px;
+  }
+  .wb-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .wb-entity {
+    padding: 7px 6px;
+    gap: 6px;
+  }
+  .wb-entity small {
+    font-size: 9px;
+  }
+}
+@media (max-width: 550px) {
+  .editor-page .page-heading {
+    padding: 8px 12px;
+    min-height: 56px;
+  }
+  .wb-toolbar {
+    padding: 9px;
+  }
+  .wb-actions {
+    flex-wrap: wrap;
+  }
+  .wb-actions button {
+    flex: 1;
+    min-width: 63px;
+  }
+  .wb-actions .primary {
+    flex-basis: 100%;
+    margin-left: 0;
+    font-size: 17px;
+  }
+  .wb-tabs {
+    padding: 4px;
+    gap: 0;
+  }
+  .wb-tabs button {
+    padding: 7px;
+    font-size: 12px;
+  }
+  .wb-tabs .wb-reset {
+    display: none;
+  }
+  .wb-body {
+    grid-template-columns: 105px minmax(0, 1fr);
+  }
+  .wb-sidebar {
+    padding: 6px 4px;
+  }
+  .wb-avatar {
+    display: none;
+  }
+  .wb-entity {
+    font-size: 12px;
+    min-height: 52px;
+  }
+  .wb-sidebar .wb-help {
+    font-size: 10px;
+    padding: 0 3px;
+  }
+  .wb-search input {
+    font-size: 11px;
+    padding: 6px;
+  }
+  .wb-inspector {
+    padding: 12px 9px;
+  }
+  .wb-fields {
+    gap: 11px 8px;
+  }
+  .wb-field {
+    font-size: 11px;
+  }
+  .wb-field input {
+    font-size: 16px;
+    padding: 7px;
+    min-height: 48px;
+  }
+  .wb-section-title h2 {
+    font-size: 20px;
+  }
+  .wb-section-title .eyebrow {
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+  .wb-help {
+    font-size: 11px;
+  }
+  .wb-section-label {
+    font-size: 15px;
+  }
+  .wb-party > div {
+    flex-wrap: wrap;
+  }
+  .wb-party strong {
+    min-width: 40px;
+  }
+  .wb-party select {
+    font-size: 13px;
+  }
+  .wb-footer {
+    font-size: 9px;
+    padding: 5px 8px;
+  }
+}
+.workspace:has(.editor-page) {
+  padding-left: 18px;
+  gap: 0;
+}
+.workspace:has(.editor-page) > .sidebar {
+  display: none;
+}
+.editor-page .page-heading {
+  padding: 4px 18px;
+  min-height: 56px;
+}
+.wb-tabs {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.wb-validation {
+  min-height: 32px;
+}
+.wb-compact-reset {
+  display: none;
+}
+@media (max-height: 650px) and (min-width: 700px) {
+  .workspace:has(.editor-page) {
+    padding-left: 13px;
+  }
+  .editor-page .page-heading {
+    padding: 2px 14px;
+    min-height: 52px;
+  }
+  .wb-toolbar {
+    padding: 5px 12px;
+    min-height: 54px;
+  }
+  .wb-toolbar > div:first-child {
+    display: none;
+  }
+  .wb-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .wb-tabs {
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+  .wb-tabs button {
+    min-height: 48px;
+  }
+  .wb-validation {
+    min-height: 27px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  .wb-inspector > .wb-section-title {
+    display: none;
+  }
+  .wb-inspector > .wb-help:first-of-type {
+    display: none;
+  }
+  .wb-stat-tabs {
+    margin-bottom: 8px;
+  }
+  .wb-inspector .wb-fields {
+    margin-top: 9px;
+  }
+  .wb-fields {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .wb-compact-reset {
+    display: block;
+    margin-top: 22px;
+  }
+  .wb-preview .wb-help {
+    font-size: 10px;
+    line-height: 1.4;
+  }
+}
+@media (max-width: 850px) {
+  .workspace:has(.editor-page) {
+    padding-left: 10px;
+  }
+  .wb-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.wb-body:has(> .wb-inspector:first-child) {
+  grid-template-columns: minmax(0, 1fr) 232px;
+}
+@media (max-width: 1250px) {
+  .wb-body:has(> .wb-inspector:first-child) {
+    grid-template-columns: minmax(0, 1fr) 202px;
+  }
+}
+@media (max-height: 650px) and (min-width: 700px) {
+  .wb-body:has(> .wb-inspector:first-child) {
+    grid-template-columns: minmax(0, 1fr) 193px;
+  }
+}
+@media (max-width: 850px) {
+  .wb-body:has(> .wb-inspector:first-child) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-height: 650px) and (min-width: 700px) {
+  .workbench {
+    position: relative;
+  }
+  .wb-toolbar {
+    min-height: 56px;
+    flex-direction: row;
+    padding-left: 320px;
+  }
+  .wb-tabs {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 56px;
+    width: 315px;
+    min-height: 56px;
+    padding: 4px 7px;
+    z-index: 1;
+    border: 0;
+    background: transparent;
+  }
+  .wb-tabs button {
+    padding: 8px 12px;
+    white-space: nowrap;
+  }
+  .wb-tabs .wb-reset {
+    display: none;
+  }
+  .wb-actions {
+    justify-content: flex-end;
+  }
+  .wb-toolbar .wb-actions button {
+    padding: 8px 10px;
+  }
+  .wb-validation {
+    min-height: 27px;
+  }
+  .wb-toolbar > div:first-child {
+    display: none;
+  }
+}
+@media (max-width: 699px) {
+  .wb-tabs {
+    position: static;
+    width: auto;
+    height: auto;
+  }
+  .wb-toolbar {
+    padding-left: 9px;
+  }
+}
