@@ -77,6 +77,13 @@ export interface Unit extends Contribution {
   barrier: number;
   shield: number;
   dotTime: number;
+  weaken: number;
+  root: number;
+  physicalGuard: number;
+  spellGuard: number;
+  comboHits: number;
+  comboTarget: string;
+  charge: number;
   armorBreak: number;
   silence: number;
   taunt: number;
@@ -113,6 +120,7 @@ export interface Projectile {
   power: number;
   leech: number;
   x: number;
+  weaken: number;
   z: number;
   speed: number;
   life: number;

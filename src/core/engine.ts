@@ -29,7 +29,7 @@ import {
 } from "./playtest";
 import { z } from "zod";
 import { validateConfig } from "./config";
-export const PLAYABLE_FLOORS = 10;
+export const PLAYABLE_FLOORS = 20;
 export const SUPPORTED_SKILLS = supportedSkills;
 export const isHuman = (id: string) => id === "hero" || id === "princess";
 export const itemNames: Record<string, string> = {
@@ -309,7 +309,7 @@ export class TowerEngine {
       case "begin": {
         if (b) return "当前已有战斗";
         if (!this.playtest && s.floor > PLAYABLE_FLOORS)
-          return "后续楼层技能尚在迁移，本版开放前10层";
+          return "后续楼层技能尚在迁移，本版开放前20层";
         if (!s.members.some((m) => m.hp > 0))
           return "无人能够出战，请先在旅馆恢复";
         const enemies: Battle["enemies"] = [];
@@ -686,6 +686,7 @@ export class TowerEngine {
       slow: 0,
       stun: 0,
       barrier: 0,
+      weaken: 0, root: 0, physicalGuard: 0, spellGuard: 0, comboHits: 0, comboTarget: "", charge: 0,
       dotTime: 0, shield: 0, armorBreak: 0, silence: 0, taunt: 0, taunter: "", controlGuard: 0,
       leech: 0, focusTime: 0, focus: "", emergencyUsed: false,
       regeneration: 0,
@@ -710,6 +711,25 @@ export class TowerEngine {
     return true;
   }
   private passive(u: Unit) { return u.passiveLevel > 0 ? u.profile.PassiveEffect : ""; }
+  private negative(u: Unit) {
+    return u.stun>0 || u.root>0 || u.slow>0 || u.weaken>0 || u.silence>0 || u.armorBreak>0 || u.dotTime>0;
+  }
+  private multiplier(actor: Unit, target: Unit, rule: ActionRule, weaken: number) {
+    const attack=this.passive(actor), defense=this.passive(target), spell=rule.DamageType==="magical";
+    let scale=weaken>0?.75:1;
+    if(attack==="execute" && target.hp<target.attributes.MaxHp*.4)scale+=.18;
+    if(attack==="armor_bonus" && target.armorBreak>0)scale+=.12*actor.passiveLevel;
+    if(attack==="burn_bonus" && target.dotTime>0)scale+=.12*actor.passiveLevel;
+    if(attack==="controlled_bonus" && (target.stun>0 || target.root>0))scale+=.12*actor.passiveLevel;
+    if(attack==="combo")scale+=Math.min(3,actor.comboHits)*.06;
+    let guard=target.shield>0?.5:0;
+    if(spell && target.spellGuard>0 || !spell && target.physicalGuard>0)guard=Math.max(guard,.45);
+    if(defense==="damage_guard")guard=Math.max(guard,.08*target.passiveLevel);
+    if(!spell && defense==="physical_guard")guard=Math.max(guard,.12*target.passiveLevel);
+    if(spell && defense==="spell_guard")guard=Math.max(guard,.15*target.passiveLevel);
+    if(spell && this.gearEffect(target,"spell_guard"))guard=Math.max(guard,.15);
+    return scale*(1-Math.min(.6,guard));
+  }
   private gearEffect(u: Unit, effect: string) {
     return !u.enemy && Object.values(this.member(u.id)?.equipment ?? {}).some(id => this.config.Rules.Equipment.some(g => g.Id === id && g.Effect === effect));
   }
@@ -725,7 +745,7 @@ export class TowerEngine {
     if (!SUPPORTED_SKILLS.has(skill)) return false;
     const r = this.config.Rules.Actions[skill]!;
     if (r.DamageType === "heal" || r.DamageType === "buff")
-      return this.state.battle!.units.some(v => v.enemy === u.enemy && v.hp > 0 && v.entry <= 0 && gap(u,v) <= (r.Range ?? 6) && (r.DamageType === "buff" || v.hp < v.attributes.MaxHp || v.slow > 0 || v.stun > 0 || v.silence > 0 || v.armorBreak > 0));
+      return this.state.battle!.units.some(v => v.enemy === u.enemy && v.hp > 0 && v.entry <= 0 && gap(u,v) <= (r.Range ?? 6) && (r.DamageType === "buff" || v.hp < v.attributes.MaxHp || this.negative(v)));
     return this.foes(u).some(v => gap(u,v) <= (r.Range ?? (skill === u.profile.Ultimate ? 8 : u.range + .25)));
   }
   private rule(
@@ -769,6 +789,7 @@ export class TowerEngine {
             this.config.Rules.Combatants[u.kind]!.WindupRatio
           : r.Windup,
     };
+    u.charge = kind === "ultimate" ? u.action.work / (1+u.attributes.Haste) : 0;
     if (kind === "basic") u.cooldown = u.profile.Interval;
     if (kind === "auto") u.special = u.profile.Cooldown;
     if (kind === "ultimate") {
@@ -790,6 +811,7 @@ export class TowerEngine {
     if (hostile) u.interrupts++;
     this.emit("cancel", u.id, u.id, 0, false, u.action.id);
     u.action = null;
+    u.charge = 0;
   }
   private gain(u: Unit, amount: number, source: "action" | "hurt" | "kill") {
     if (u.hp <= 0) return;
@@ -826,6 +848,7 @@ export class TowerEngine {
     if (rule?.DamageType === "heal") {
       amount = roundAway(actor.attributes[rule.ScalingStat === "mag" ? "Magic" : "Attack"] * (rule.Ratios[0] ?? 1) + (rule.Bases[0] ?? 0));
     }
+    if (this.passive(actor) === "self_heal" && actor === target) amount = Math.ceil(amount * 1.15);
     if (this.passive(actor) === "heal_low" && target.hp < target.attributes.MaxHp * .4) amount = Math.ceil(amount * 1.2);
     if (this.passive(actor) === "shield_heal" && target.barrier > 0) amount = Math.ceil(amount * 1.15);
     if (rule?.DamageType === "heal") {
@@ -859,6 +882,7 @@ export class TowerEngine {
     projectileId: number,
     source: Attributes,
     periodic = false,
+    weaken = actor.weaken,
   ) {
     if (target.hp <= 0 || target.entry > 0) return false;
     const dodge =
@@ -878,7 +902,7 @@ export class TowerEngine {
           : target.attributes.Defense * (target.armorBreak > 0 ? .6 : 1),
         source.Penetration,
         critical,
-        ((this.passive(actor) === "execute" && target.hp < target.attributes.MaxHp * .4 ? 1.18 : 1) + (this.passive(actor) === "armor_bonus" && target.armorBreak > 0 ? .12 * actor.passiveLevel : 0) + (this.passive(actor) === "burn_bonus" && target.dotTime > 0 ? .12 * actor.passiveLevel : 0)) * (1 - Math.max(target.shield > 0 ? .5 : 0, this.passive(target) === "damage_guard" ? .08 * target.passiveLevel : 0, rule.DamageType === "magical" && this.gearEffect(target, "spell_guard") ? .15 : 0)),
+        this.multiplier(actor,target,rule,weaken),
       ),
       absorbed = Math.min(amount, Math.ceil(target.barrier));
     target.barrier = Math.max(0, target.barrier - absorbed);
@@ -933,6 +957,7 @@ export class TowerEngine {
     source = u.attributes,
     power = 0,
     leechTime = u.leech,
+    weakenTime = u.weaken,
   ) {
     const b = this.state.battle!, lvl = kind === "ultimate" ? u.ultimateLevel : u.autoLevel;
     const duration = (fallback: number) => r.Duration ?? fallback;
@@ -946,13 +971,37 @@ export class TowerEngine {
     const regen = (v: Unit, time: number) => { v.regeneration = duration(time); v.regenTick = 1; v.regenOwner = u.id; };
     const taunt = (v: Unit, time: number) => { v.taunter = u.id; v.taunt = duration(time) * (1-v.attributes.Tenacity); this.emit(skill,u.id,v.id); };
     const damageBefore = u.damage;
-    const strike = (v: Unit) => this.hit(u,v,raw,r,kind,actionId,projectileId,source);
+    const strike = (v: Unit) => this.hit(u,v,raw,r,kind,actionId,projectileId,source,false,weakenTime);
+    const finishLeech=()=>{
+      const rate=Math.min(.6,source.Lifesteal+(leechTime>0?.33:0)+(skill==="leech"?.6:0));
+      const amount=roundAway((u.damage-damageBefore)*rate*(r.Area?.5:1));
+      if(amount>0&&u.hp>0)this.heal(u,u,amount,null,actionId);
+    };
+    if(skill==="boss_carapace") {
+      this.heal(u,u,Math.trunc(u.attributes.MaxHp*.08),null,actionId);u.physicalGuard=duration(3);
+      for(const v of b.units.filter(v=>v.enemy!==u.enemy&&v.hp>0&&v.entry<=0&&gap(u,v)<=range(7.5)))strike(v);
+      finishLeech();
+      return;
+    }
+    if(skill==="mossheal" || skill==="rooted_guard") {
+      if(skill==="mossheal") {if(u.hp>=u.attributes.MaxHp)return;this.heal(u,u,0,scaled,actionId);regen(u,3);}
+      else {const before=u.root;u.root=duration(2);if(u.root>before)u.root=before+(u.root-before)*(1-u.attributes.Tenacity);u.shield=duration(4);this.heal(u,u,0,scaled,actionId);this.emit(skill,u.id,u.id);}
+      return;
+    }
+    if(["hard_shell","spirit_armor","armor_front","spirit_veil"].includes(skill)) {
+      for(const v of kind==="ultimate"?allies(6):[u]) {
+        if(skill==="hard_shell"||skill==="armor_front")v.physicalGuard=duration(kind==="ultimate"?4:3+lvl*.3);
+        else v.spellGuard=duration(kind==="ultimate"?4:3+lvl*.3);
+        this.emit(skill,u.id,v.id);
+      }
+      return;
+    }
     if (r.DamageType === "heal") {
       const ordered = allies(kind === "ultimate" ? 6 : 5).sort((a,b) => a.hp/a.attributes.MaxHp - b.hp/b.attributes.MaxHp);
-      const injured = ordered.filter(v => v.hp < v.attributes.MaxHp || (skill === "leafward" && (v.slow > 0 || v.stun > 0 || v.silence > 0 || v.armorBreak > 0)));
-      const targets = skill === "forest_rest" ? (ordered.some(v=>v.hp<v.attributes.MaxHp||v.slow>0||v.stun>0||v.silence>0||v.armorBreak>0)?allies(6):[]) : injured.slice(0,kind === "ultimate" ? 3+lvl : 1);
+      const injured = ordered.filter(v => v.hp < v.attributes.MaxHp || (skill === "leafward" && this.negative(v)));
+      const targets = skill === "forest_rest" ? (ordered.some(v=>v.hp<v.attributes.MaxHp||this.negative(v))?allies(6):[]) : injured.slice(0,kind === "ultimate" ? 3+lvl : 1);
       for (const v of targets) {
-        if (skill === "forest_rest") { v.stun = v.slow = v.silence = v.armorBreak = 0; this.emit("cleanse",u.id,v.id); }
+        if (skill === "forest_rest") { v.stun = v.root = v.weaken = v.slow = v.silence = v.armorBreak = v.dotTime = 0; this.emit("cleanse",u.id,v.id); }
         this.heal(u,v,0,scaled,actionId);
         if (skill === "leafward" || skill === "wardheal" || (skill === "heal" && u.passiveLevel > 0)) {
           v.barrier = Math.max(v.barrier,skill === "leafward" ? stat*(.4+lvl*.12) : skill === "wardheal" ? stat*.5 : 3+u.passiveLevel*2); this.emit("ward",u.id,v.id);
@@ -984,16 +1033,26 @@ export class TowerEngine {
       return;
     }
     if (skill === "interrupt") {
-      target = foes.filter(v => gap(u,v) <= range(8)).sort((a,b) => (b.action?.kind === "ultimate" ? b.action.work/(1+b.attributes.Haste) : 0)-(a.action?.kind === "ultimate" ? a.action.work/(1+a.attributes.Haste) : 0) || b.energy-a.energy)[0];
+      target = foes.filter(v => gap(u,v) <= range(8)).sort((a,b) => b.charge-a.charge || b.energy-a.energy)[0];
     }
     if (!target) return;
     if (kind === "auto" && !projectileId && gap(u,target) > range(u.range+.25)) return;
     if (skill === "fire_rain") {
       if (gap(u,target) <= range(8)) { b.zones.push({owner:u.id,enemy:u.enemy,x:target.x,z:target.z,remaining:duration(4+lvl),tick:1,power:raw,radius:radius(3)}); this.emit(skill,u.id,target.id); } return;
     }
+    if(skill==="silence") {
+      for(const v of foes.filter(v=>gap(u,v)<=range(8)).sort((a,b)=>Number(["healer","ranged"].includes(b.profile.Role))-Number(["healer","ranged"].includes(a.profile.Role))).slice(0,2+lvl)) {
+        const before=v.silence;
+        v.silence=Math.max(v.silence,duration(2+lvl));v.charge=0;strike(v);
+        if(v.silence>before)v.silence=before+(v.silence-before)*(1-v.attributes.Tenacity);
+      }
+      finishLeech();
+      return;
+    }
     const primary = kind === "ultimate" && !["interrupt","boss_stomp"].includes(skill) ? foes.find(v => gap(u,v) <= range(7)) : target;
     if (!primary) return;
     let targets = [primary];
+    if (skill === "ice_domain") targets = foes.filter(v=>gap(u,v)<=range(8)&&distance(v,primary)<=radius(3));
     if (skill === "tide") targets = foes.filter(v => distance(v,primary) <= radius(2.8+lvl*.4));
     if (skill === "rupture") targets = foes.filter(v => distance(v,primary) <= radius(2.1));
     if (skill === "boss_stomp") targets = b.units.filter(v => v.enemy !== u.enemy && v.hp > 0 && v.entry <= 0 && (r.Range === undefined || gap(u,v) <= r.Range));
@@ -1005,11 +1064,25 @@ export class TowerEngine {
       const beforeArmor = v.armorBreak, beforeSlow = v.slow;
       if (skill === "rupture") v.armorBreak = duration(3+lvl);
       if (skill === "tide") v.slow = duration(2+lvl);
+      if(skill==="interrupt")v.charge=0;
       if (skill === "interrupt" && v.controlGuard <= 0) { v.stun = Math.min(2,duration(1.2+lvl*.3))*(1-v.attributes.Tenacity); v.controlGuard = Math.min(2,duration(1.2+lvl*.3))+2.5; }
+      const statusBefore={barrier:v.barrier,charge:v.charge};
       const hit = strike(v);
+      if(hit && kind==="basic") {u.comboHits=u.comboTarget===v.id?Math.min(3,u.comboHits+1):1;u.comboTarget=v.id;}
+      if(skill==="doublecut") {
+        const secondHit=strike(v);
+        // C# action status memory spans both segments and restores on any miss.
+        if(!hit||!secondHit){v.barrier=statusBefore.barrier;v.charge=statusBefore.charge;}
+      }
       if (!hit) { v.armorBreak = beforeArmor; v.slow = beforeSlow; continue; }
-      if (skill === "water") v.slow = duration(2+u.passiveLevel*.5);
-      if (["water","tide"].includes(skill) && v.slow > beforeSlow) v.slow = beforeSlow+(v.slow-beforeSlow)*(1-v.attributes.Tenacity);
+      if (skill === "water" || skill === "ice_shard") v.slow = duration(2+u.passiveLevel*.5);
+      if (["water","tide","ice_shard"].includes(skill) && v.slow > beforeSlow) v.slow = beforeSlow+(v.slow-beforeSlow)*(1-v.attributes.Tenacity);
+      if(skill==="drain")v.energy=Math.max(0,v.energy-(5+lvl+u.passiveLevel)*10);
+      if(skill==="curse")v.weaken=duration(2+lvl*.5+u.passiveLevel);
+      if(skill==="ice_domain") {
+        v.slow=duration(3);if(v.slow>beforeSlow)v.slow=beforeSlow+(v.slow-beforeSlow)*(1-v.attributes.Tenacity);
+        if(v.controlGuard<=0) {v.stun=Math.min(2,duration(.7+lvl*.2))*(1-v.attributes.Tenacity);v.controlGuard=Math.min(2,duration(.7+lvl*.2))+2.5;if(!(v.action?.kind==="ultimate"&&!this.rule(v,"ultimate",v.action.skill).Interruptible))this.cancel(v,true);}
+      }
       if (skill === "gust") v.energy = Math.max(0,v.energy-(4+lvl)*10);
       if (skill === "interrupt") { v.energy=0; if (v.stun>0 && !(v.action?.kind === "ultimate" && !this.rule(v,"ultimate",v.action.skill).Interruptible)) this.cancel(v,true); }
       if (skill === "breakstrike") v.armorBreak = duration(3);
@@ -1019,9 +1092,9 @@ export class TowerEngine {
         if (canMove(v,x,z,b.units)) { v.x=x; v.z=z; }
       }
     }
-    const leech = roundAway((u.damage-damageBefore) * Math.min(.6,source.Lifesteal+(leechTime>0?.33:0)) * (r.Area?.5:1));
-    if (leech>0 && u.hp>0) this.heal(u,u,leech,null,actionId);
+    finishLeech();
   }
+
   private step() {
     const s = this.state,
       b = s.battle!;
@@ -1055,6 +1128,7 @@ export class TowerEngine {
         p.source,
         p.power,
         p.leech,
+        p.weaken,
       );
     }
     if (b.tickets < 3) {
@@ -1081,7 +1155,7 @@ export class TowerEngine {
       u.special = Math.max(0, u.special - STEP);
       u.stun = Math.max(0, u.stun - STEP);
       u.slow = Math.max(0, u.slow - STEP);
-      for (const k of ["dotTime","shield","armorBreak","silence","taunt","controlGuard","leech","focusTime"] as const) u[k]=Math.max(0,u[k]-STEP);
+      for (const k of ["weaken","root","physicalGuard","spellGuard","dotTime","shield","armorBreak","silence","taunt","controlGuard","leech","focusTime"] as const) u[k]=Math.max(0,u[k]-STEP);
       if (u.entry > 0) {
         u.entry = Math.max(0, u.entry - STEP);
         continue;
@@ -1119,12 +1193,14 @@ export class TowerEngine {
         const action = u.action;
         if (u.silence > 0 && action.kind !== "basic" && !(action.kind === "ultimate" && !this.rule(u,"ultimate",action.skill).Interruptible)) { this.cancel(u,true); continue; }
         action.work = Math.max(0, action.work - STEP * speed);
+        u.charge=action.kind==="ultimate"?action.work/speed:0;
         if (action.work > 1e-8) continue;
         const target = b.units.find(
             (v) => v.id === action.target && v.hp > 0 && v.entry <= 0,
           ),
           r = this.rule(u, action.kind, action.skill);
         u.action = null;
+        u.charge=0;
         u.recovery =
           action.kind === "basic"
             ? u.profile.Interval *
@@ -1143,6 +1219,7 @@ export class TowerEngine {
             rule: r,
             source: clone(u.attributes),
             leech: u.leech,
+            weaken: u.weaken,
             power:
               action.kind === "basic"
                 ? roundAway(
@@ -1198,7 +1275,7 @@ export class TowerEngine {
         continue;
       }
       if (!target) continue;
-      if (gap(u, target) > u.range) move(u, target, b.units);
+      if (gap(u, target) > u.range) { if(u.root<=0) move(u, target, b.units); }
       else if (u.cooldown <= 0) this.startAction(u, "basic", "attack", target);
     }
     for (const zone of [...b.zones]) {
@@ -1307,7 +1384,7 @@ export class TowerEngine {
       return JSON.stringify({
         format: "tower30-playtest",
         schemaVersion: 1,
-        engineVersion: "tower30-ts-workbench-v2",
+        engineVersion: "tower30-ts-workbench-v3",
         config: this.config,
         configHash: this.configHash,
         setup: this.playtest,
@@ -1372,7 +1449,7 @@ export class TowerEngine {
       .object({
         format: z.literal("tower30-playtest"),
         schemaVersion: z.literal(1),
-        engineVersion: z.literal("tower30-ts-workbench-v2"),
+        engineVersion: z.literal("tower30-ts-workbench-v3"),
         config: z.unknown(),
         configHash: z.string(),
         setup: playtestSetupSchema,

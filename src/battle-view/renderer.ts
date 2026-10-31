@@ -229,9 +229,9 @@ export function drawBattle(
       c.shadowColor = "#10291c";
       c.shadowBlur = 4;
       c.fillText(names(u.kind), x, y + size * 0.45);
-      if (u.slow > 0 || u.stun > 0 || u.taunt > 0 || u.shield > 0 || u.armorBreak > 0) {
+      if (u.slow > 0 || u.stun > 0 || u.taunt > 0 || u.shield > 0 || u.armorBreak > 0 || u.root > 0 || u.weaken > 0 || u.silence > 0 || u.physicalGuard > 0 || u.spellGuard > 0) {
         c.fillStyle = "#b4e7ed";
-        c.fillText([u.stun>0?"眩晕":"",u.taunt>0?"受嘲讽":"",u.shield>0?"减伤":"",u.armorBreak>0?"破甲":"",u.slow>0?"减速":""].filter(Boolean).slice(0,2).join(" · "), x, y + size * 0.45 + 17);
+        c.fillText([u.stun>0?"眩晕":"",u.silence>0?"沉默":"",u.root>0?"扎根":"",u.weaken>0?"弱化":"",u.physicalGuard>0?"物防":"",u.spellGuard>0?"法防":"",u.taunt>0?"受嘲讽":"",u.shield>0?"减伤":"",u.armorBreak>0?"破甲":"",u.slow>0?"减速":""].filter(Boolean).slice(0,2).join(" · "), x, y + size * 0.45 + 17);
       }
       if (u.action) {
         c.fillStyle = "#f9de9c";

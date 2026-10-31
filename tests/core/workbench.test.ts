@@ -5,6 +5,7 @@ import { TowerEngine } from "../../src/core/engine";
 import {
   defaultPlaytestSetup,
   playtestWarnings,
+  supportedSkills,
 } from "../../src/core/playtest";
 import {
   newProject,
@@ -140,7 +141,7 @@ describe("网页工作台草稿与测试", () => {
     );
     e.advance(80);
     const oldRules = JSON.parse(e.serialize()) as { engineVersion: string };
-    oldRules.engineVersion = "tower30-ts-workbench-v1";
+    oldRules.engineVersion = "tower30-ts-workbench-v2";
     expect(() => TowerEngine.restorePlaytest(JSON.stringify(oldRules))).toThrow();
     const loaded = TowerEngine.restorePlaytest(e.serialize());
     e.advance(30);
@@ -170,15 +171,7 @@ describe("网页工作台草稿与测试", () => {
       for (const u of e.getSnapshot().battle!.units) {
         expect(u.passiveLevel).toBe(0);
         if (u.action)
-          expect([
-            "attack",
-            "swift",
-            "steady",
-            "heal",
-            "renew",
-            "water",
-            "tide",
-          ]).toContain(u.action.skill);
+          expect(u.action.skill === "attack" || supportedSkills.has(u.action.skill)).toBe(true);
       }
     }
     expect(e.getSnapshot().skippedFeatures.length).toBeGreaterThan(0);

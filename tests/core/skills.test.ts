@@ -39,10 +39,10 @@ it('技能倍率、射程和前摇编辑实际改变同一核心；未修改测�
  changed.Rules.Actions.steady!.Range=1;
  const near=TowerEngine.createPlaytest(changed,{...defaultPlaytestSetup(),party:['hero'],energy:1000,startingGear:false});near.dispatch({type:'begin'});near.dispatch({type:'start'});near.advance(8);expect(near.dispatch({type:'ultimate',id:'hero'}).ok).toBe(false);
 });
-it('前10层所有首发敌群与可获得伙伴可完整测试，stage0/1装备全部可用',()=>{
+it('前20层敌群可完整测试，stage0/1/2装备全部可用',()=>{
  const c=validateConfig(raw),e=new TowerEngine(c);
- for(let floor=1;floor<=10;floor++)expect(()=>TowerEngine.createPlaytest(c,{...defaultPlaytestSetup(),floor,skillPolicy:'strict'})).not.toThrow();
- for(const o of c.Economy.Offers.filter(o=>o.Stage<=1)){
+ for(let floor=1;floor<=20;floor++)expect(()=>TowerEngine.createPlaytest(c,{...defaultPlaytestSetup(),floor,skillPolicy:'strict'})).not.toThrow();
+ for(const o of c.Economy.Offers.filter(o=>o.Stage<=2)){
   const g=c.Rules.Equipment.find(g=>g.Id===o.Item);if(g)expect(e.gearSupported(g),g.Id).toBe(true);
  }
 });

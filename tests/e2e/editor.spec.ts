@@ -1,3 +1,4 @@
+import { TowerEngine } from "../../src/core/engine";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { artifactDirectory } from "../../scripts/artifacts";
@@ -307,4 +308,19 @@ test('技能检视器编辑、草稿恢复与Play实际生效',async({page})=>{
  expect(saved.config.Rules.Actions.steady.Range).toBe(30);
  expect(saved.journal.some((c:{command:{type:string}})=>c.command.type==='ultimate')).toBe(true);
  await shot(page,'skill-play-win');
+});
+
+
+test('11层完整Play：新增沉默技能的射程与持续参数生效',async({page})=>{
+ await page.goto('./');await openEditor(page);
+ await page.getByRole('button',{name:'技能 · 73',exact:true}).click();await page.locator('[data-wb="skill"][data-id="silence"]').click();
+ await page.getByLabel('技能前摇（秒）',{exact:true}).fill('0');await page.getByLabel('技能射程覆盖',{exact:true}).fill('30');await page.getByLabel('效果持续（秒）覆盖',{exact:true}).fill('7');
+ await saveReady(page);await page.getByRole('button',{name:'关卡 · 30',exact:true}).click();await page.getByRole('button',{name:/^11 /}).click();
+ await page.getByRole('button',{name:'测试设置',exact:true}).click();await page.getByLabel('我方伙伴1',{exact:true}).selectOption('moonbat');await page.getByLabel('起始能量',{exact:true}).fill('1000');await page.getByLabel('技能测试模式',{exact:true}).selectOption('strict');await saveReady(page);
+ await expect(page.locator('#wb-validation')).toContainText('0项未迁移功能');await page.getByRole('button',{name:'▶ Play 第11关',exact:true}).click();
+ const ultimate=page.getByRole('button',{name:'月翼蝠大招',exact:true});await expect(ultimate).toBeEnabled();await ultimate.click();await page.waitForTimeout(150);await page.getByRole('button',{name:'暂停',exact:true}).click();
+ await expect(page.locator('#save-status')).toHaveText('测试已保存');
+ const session=JSON.parse(await readSession(page));const engine=TowerEngine.restorePlaytest(session.serialized),snapshot=engine.getSnapshot();
+ expect(snapshot.skippedFeatures).toEqual([]);expect(snapshot.battle!.units.some(u=>u.enemy&&u.silence>5)).toBe(true);expect(engine.getConfigSnapshot().Rules.Actions.silence!.Duration).toBe(7);expect(snapshot.mode).toBe('playtest');
+ await shot(page,'editor-silence-active');
 });

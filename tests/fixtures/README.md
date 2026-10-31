@@ -21,3 +21,5 @@ dotnet run --project scripts/parity/Baseline.csproj \
 `csharp-ten-floors.json`为M2正常资源对照，生成命令在末尾使用 `-- --m2`。固定购买裂甲剑/叶幕杖、实际魂魄升阶、掉落药水培养、付费旅馆、默认首发与合法补人、大招和吟唱打断，连续通过10层。241个样本；`-- --m2 --dense`输出逐tick及诊断命中，实际3724个样本通过。详细资源策略与结果见[本次记录](../../docs/M2-STATUS.md)。
 
 重建时写到本次NAS目录，核对再更新fixture。TS新增一次Boss战撤回/重试回归后，以相同战前状态继续对照；全量命令重放也在测试中验证。
+
+`csharp-twenty-floors.json`在M2策略上增加11层前四件正常购买的装备与后续50金币住宿，连续通过20层；生成参数 `-- --twenty`，534个样本，`-- --twenty --dense`另有8005个逐tick样本实际对照。规则与资源明细见[前20层记录](../../docs/FLOOR20-STATUS.md)。

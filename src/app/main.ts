@@ -1,3 +1,4 @@
+import { skillLabel } from "../data/skill-labels";
 import "./style.css";
 import { config as baselineConfig } from "../data/load";
 import baselineSource from "../../data/tower/thirty-floor-trial.json";
@@ -70,14 +71,6 @@ const labels: Record<string, string> = {
   member: "伙伴详情",
   editor: "编辑与 Play",
 };
-const skillNames: Record<string, string> = {
-  swift: "迅击",
-  steady: "稳击",
-  heal: "治疗",
-  renew: "新芽复苏",
-  water: "水弹",
-  tide: "涌潮",
-};
 const roleNames: Record<string, string> = {
   melee: "近战输出",
   healer: "治疗辅助",
@@ -124,7 +117,7 @@ const rawName = (id: string) =>
         itemNames[id] ??
         id);
 const name = (id: string) => esc(rawName(id));
-const skill = (id: string) => skillNames[id] ?? id;
+const skill = skillLabel;
 const format = (key: string, value: number) =>
   percentages.has(key) ? `${Math.round(value * 100)}%` : String(value);
 function button(
@@ -424,7 +417,7 @@ function confirmAction(title: string, body: string, accept: () => void) {
 function render() {
   actions.clear();
   const inBattle = page === "battle";
-  app.innerHTML = `<header class="topbar"><a class="brand" href="#" aria-label="试炼之塔首页"><span class="brand-seal">塔</span><div>翠庭试炼<small>THIRTY FLOORS</small></div></a><div class="run-status"><span>第 <b id="floor-counter">${String(Math.min(snap.floor, 30)).padStart(2, "0")}</b> / 30 层</span><span class="gold">${snap.mode === "playtest" ? '<b id="gold-counter">TEST</b> <small>不计奖励</small>' : `◈ <b id="gold-counter">${snap.gold}</b> <small>金币</small>`}</span></div><div class="save-indicator"><span class="version">${snap.mode === "playtest" ? "独立测试 · 不计通关" : "正式试跑 · 前10层"}</span><button id="save-status" class="text-button">${saveStatus}</button></div></header><div class="workspace"><nav class="sidebar" aria-label="主要功能">${[
+  app.innerHTML = `<header class="topbar"><a class="brand" href="#" aria-label="试炼之塔首页"><span class="brand-seal">塔</span><div>翠庭试炼<small>THIRTY FLOORS</small></div></a><div class="run-status"><span>第 <b id="floor-counter">${String(Math.min(snap.floor, 30)).padStart(2, "0")}</b> / 30 层</span><span class="gold">${snap.mode === "playtest" ? '<b id="gold-counter">TEST</b> <small>不计奖励</small>' : `◈ <b id="gold-counter">${snap.gold}</b> <small>金币</small>`}</span></div><div class="save-indicator"><span class="version">${snap.mode === "playtest" ? "独立测试 · 不计通关" : "正式试跑 · 前20层"}</span><button id="save-status" class="text-button">${saveStatus}</button></div></header><div class="workspace"><nav class="sidebar" aria-label="主要功能">${[
     ["tower", "Ⅰ", "试炼"],
     ["party", "♟", "伙伴"],
     ["bag", "⚔", "装备"],
@@ -540,7 +533,7 @@ function towerPage() {
     },
   ).join(
     "",
-  )}</aside><section class="floor-detail"><div class="floor-detail-scroll"><div class="floor-banner"><div><span class="tag">${e.Boss ? "BOSS · 守关" : esc(f.Theme)}</span><p class="eyebrow">FLOOR ${String(selectedFloor).padStart(2, "0")}</p><h2>${esc(e.Title)}</h2><p>${cleared ? "这一层的奖励已经领取。" : supported ? "整理队伍，准备踏入林间战场。" : "楼层资料已载入，技能迁移完成后开放挑战。"}</p></div><div class="tower-emblem" aria-hidden="true"><div class="tower-top"></div><div class="tower-body"><i></i><i></i><i></i></div><span>${String(selectedFloor).padStart(2, "0")}</span></div></div><div class="floor-info"><section><div class="section-caption">敌方阵容 <span>${e.Difficulty}</span></div><div class="enemy-line">${e.Enemies.map((g) => `<div class="enemy-entry">${portrait(g.Species)}<div><h3>${name(g.Species)} <small>×${g.Count}</small></h3><p>Lv.${g.Level} · ${g.Rank}阶 · ${roleNames[config.Rules.Profiles[g.Species]!.Role]}</p><p class="small">${esc(config.Rules.Profiles[g.Species]!.AutoDescription || skill(config.Rules.Profiles[g.Species]!.Auto))}</p></div></div>`).join("")}</div></section><section class="rewards"><div class="section-caption">首次胜利奖励</div><strong class="reward-gold">◈ ${e.Gold} <small>金币</small></strong><p>击败敌人后获得魂魄、经验药水与战利品</p><p class="small">首次收集消耗1魂魄 · 新伙伴半血加入</p></section></div><div class="hint"><span>✧</span><p>${esc(e.Hint)}</p></div></div><div class="section-caption">我的队伍 <span>${snap.members.length} 位伙伴 · 最多5首发</span></div><div class="party-preview">${snap.members.map((m) => `<div>${portrait(m.id)}<div><b>${name(m.id)} <small>Lv.${m.level}</small></b><p>${m.hp} / ${m.attributes.MaxHp}</p>${bar(m.hp, m.attributes.MaxHp)}</div></div>`).join("")}</div><div class="page-actions"><div class="small">${selectedFloor > snap.playableFloors ? "当前试玩开放前10层，尚未完成30层验证。" : cleared ? "已通关楼层不能重复领取奖励。" : "进入后先选首发，再开始交战。生命与能量跨战保留。"}</div>${button(cleared ? "已通过本层" : !supported ? "后续版本开放" : !current ? "请先通过前层" : "准备挑战 →", () => send({ type: "begin" }), "primary large", !current || !supported || cleared)}</div></section></div>`;
+  )}</aside><section class="floor-detail"><div class="floor-detail-scroll"><div class="floor-banner"><div><span class="tag">${e.Boss ? "BOSS · 守关" : esc(f.Theme)}</span><p class="eyebrow">FLOOR ${String(selectedFloor).padStart(2, "0")}</p><h2>${esc(e.Title)}</h2><p>${cleared ? "这一层的奖励已经领取。" : supported ? "整理队伍，准备踏入林间战场。" : "楼层资料已载入，技能迁移完成后开放挑战。"}</p></div><div class="tower-emblem" aria-hidden="true"><div class="tower-top"></div><div class="tower-body"><i></i><i></i><i></i></div><span>${String(selectedFloor).padStart(2, "0")}</span></div></div><div class="floor-info"><section><div class="section-caption">敌方阵容 <span>${e.Difficulty}</span></div><div class="enemy-line">${e.Enemies.map((g) => `<div class="enemy-entry">${portrait(g.Species)}<div><h3>${name(g.Species)} <small>×${g.Count}</small></h3><p>Lv.${g.Level} · ${g.Rank}阶 · ${roleNames[config.Rules.Profiles[g.Species]!.Role]}</p><p class="small">${esc(config.Rules.Profiles[g.Species]!.AutoDescription || skill(config.Rules.Profiles[g.Species]!.Auto))}</p></div></div>`).join("")}</div></section><section class="rewards"><div class="section-caption">首次胜利奖励</div><strong class="reward-gold">◈ ${e.Gold} <small>金币</small></strong><p>击败敌人后获得魂魄、经验药水与战利品</p><p class="small">首次收集消耗1魂魄 · 新伙伴半血加入</p></section></div><div class="hint"><span>✧</span><p>${esc(e.Hint)}</p></div></div><div class="section-caption">我的队伍 <span>${snap.members.length} 位伙伴 · 最多5首发</span></div><div class="party-preview">${snap.members.map((m) => `<div>${portrait(m.id)}<div><b>${name(m.id)} <small>Lv.${m.level}</small></b><p>${m.hp} / ${m.attributes.MaxHp}</p>${bar(m.hp, m.attributes.MaxHp)}</div></div>`).join("")}</div><div class="page-actions"><div class="small">${selectedFloor > snap.playableFloors ? "当前试玩开放前20层，尚未完成30层验证。" : cleared ? "已通关楼层不能重复领取奖励。" : "进入后先选首发，再开始交战。生命与能量跨战保留。"}</div>${button(cleared ? "已通过本层" : !supported ? "后续版本开放" : !current ? "请先通过前层" : "准备挑战 →", () => send({ type: "begin" }), "primary large", !current || !supported || cleared)}</div></section></div>`;
 }
 function partyPage() {
   return `<div class="section-intro"><div><h2>一路同行的伙伴</h2><p>人类通过战斗经验成长；怪兽使用经验药水。满能量时，点击战场卡片释放大招。</p></div><span class="tag">${snap.members.length} 位已收集</span></div><div class="cards-grid">${snap.members.map((m) => memberCard(m)).join("")}</div>`;
@@ -836,7 +829,7 @@ function settingsPage() {
       );
     },
     "danger",
-  )}</article></section><section><div class="section-caption">首版试玩说明</div><article class="info-card"><h3>M2 · 前10层资源流程</h3><p>已接通：固定20 tick/秒、移动碰撞、动作前后摇、在途投射物、普攻与自动技能、1000能量手动大招、收集、战报与操作重放存档。</p><p>可试用：基础商店、装备对比、道具、付费旅馆、药水升级与找零。第11—30层和未迁移装备会明确锁定。</p><p>尚未完成：第11—30层技能与状态、20/30层Boss及完整30层平衡验证。</p></article><article class="info-card"><h3>操作方式</h3><p>自动普攻和自动技能不需要操作。能量达到1000时，点击伙伴卡片施放大招。暂停后可在调试栏单步推进；倍速只改变调度速度。</p><p>键盘：Tab切换焦点，Enter确认，Esc关闭弹窗；战场按空格暂停。切到后台后保持暂停，返回时手动继续。</p><p>所有资源与胜负均由本机核心计算，无游戏后端。</p></article></section></div>`;
+  )}</article></section><section><div class="section-caption">首版试玩说明</div><article class="info-card"><h3>M3进行中 · 前20层资源流程</h3><p>已接通：固定20 tick/秒、移动碰撞、动作前后摇、在途投射物、普攻与自动技能、1000能量手动大招、收集、战报与操作重放存档。</p><p>可试用：基础商店、装备对比、道具、付费旅馆、药水升级与找零。第21—30层和未迁移装备会明确锁定。</p><p>尚未完成：第21—30层技能与状态、30层Boss及完整30层平衡验证。</p></article><article class="info-card"><h3>操作方式</h3><p>自动普攻和自动技能不需要操作。能量达到1000时，点击伙伴卡片施放大招。暂停后可在调试栏单步推进；倍速只改变调度速度。</p><p>键盘：Tab切换焦点，Enter确认，Esc关闭弹窗；战场按空格暂停。切到后台后保持暂停，返回时手动继续。</p><p>所有资源与胜负均由本机核心计算，无游戏后端。</p></article></section></div>`;
 }
 function downloadJson(json: string, filename: string) {
   const blob = new Blob([json], { type: "application/json" }),
@@ -984,9 +977,13 @@ function updateBattleHud() {
             ? "正在入场"
             : u.action?.kind === "auto"
               ? "自动技能"
-              : u.slow > 0
-                ? "减速中"
-                : "自动交战";
+              : u.stun > 0 ? "眩晕中"
+                : u.silence > 0 ? "沉默中"
+                : u.root > 0 ? "扎根中"
+                : u.weaken > 0 ? "输出弱化"
+                : u.physicalGuard > 0 ? "物理防护"
+                : u.spellGuard > 0 ? "法术防护"
+                : u.slow > 0 ? "减速中" : "自动交战";
     if (button) {
       button.disabled =
         !!b.result ||

@@ -10,10 +10,15 @@ export const supportedSkills = new Set([
   "leafward", "forest_rest", "aegis", "shellwall", "bait", "taunt",
   "huntbite", "pounce", "gust", "interrupt", "firebolt", "fire_rain",
   "ram", "rupture", "boss_stomp", "breakstrike", "wardheal", "flame",
+  "drain", "silence", "spirit_armor", "spirit_veil", "leech", "doublecut",
+  "mossheal", "rooted_guard", "curse", "ice_shard", "ice_domain", "eye_ray",
+  "hard_shell", "armor_front", "boss_carapace",
 ]);
 export const supportedPassives = new Set([
   "slow", "heal_low", "shield_heal", "shield_targets", "damage_guard",
   "energy_attack", "execute", "armor_bonus", "burn_bonus",
+  "drain", "spell_guard", "attack_heal", "combo", "self_heal", "weaken",
+  "controlled_bonus", "physical_guard",
 ]);
 export const playtestSetupSchema = z
   .object({

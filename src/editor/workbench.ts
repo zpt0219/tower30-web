@@ -1,3 +1,4 @@
+import { skillLabel } from "../data/skill-labels";
 import { type Attributes, type Config } from "../core/config";
 import { TowerEngine } from "../core/engine";
 import { combatantAttributes, enemyAttributes } from "../core/projections";
@@ -226,7 +227,7 @@ export class Workbench {
           e = editableEncounter(this.project.source, c, ei);
         return `<button data-wb="floor" data-id="${f.Number}" class="wb-entity ${f.Number === this.project.setup.floor ? "active" : ""}"><strong>${String(f.Number).padStart(2, "0")}</strong><span>${esc(e.Title)}<small>${e.Boss ? "Boss · " : ""}${e.Enemies.reduce((s, v) => s + v.Count, 0)}名敌人</small></span></button>`;
       }).join("");
-    if (this.tab === "skills") return this.skillOptions().map(([id]) => `<button data-wb="skill" data-id="${esc(id)}" class="wb-entity ${id===this.action?"active":""}"><span><strong>${esc(id)}</strong><small>${supportedSkills.has(id)?"已实现，可 Play":"待迁移，测试中停用"}</small></span></button>`).join("");
+    if (this.tab === "skills") return this.skillOptions().map(([id]) => `<button data-wb="skill" data-id="${esc(id)}" class="wb-entity ${id===this.action?"active":""}"><span><strong>${esc(skillLabel(id))}</strong><small>${esc(id)} · ${supportedSkills.has(id)?"已实现，可 Play":"待迁移，测试中停用"}</small></span></button>`).join("");
     return ["hero", "princess", ...c.Species.map((s) => s.Id)]
       .filter((id) => `${this.name(id)} ${id}`.includes(this.query))
       .map(
@@ -275,14 +276,14 @@ export class Workbench {
       (id) =>
         [
           id,
-          `${id}${supportedSkills.has(id) ? " · 已实现" : " · 待迁移"}`,
+          `${skillLabel(id)} · ${id}${supportedSkills.has(id) ? " · 已实现" : " · 待迁移"}`,
         ] as const,
     );
   }
   private skills() {
     const r=this.config().Rules.Actions[this.action]!, path:Path=["Rules","Actions",this.action];
     const scalar=(key:string,label:string,options:{min?:number;max?:number;step?:number}={})=>this.field(label,[...path,key],r[key as keyof typeof r]??"",options);
-    return `<div class="wb-section-title"><div><p class="eyebrow">SKILL INSPECTOR</p><h2>${esc(this.action)}</h2></div><button data-wb="reset-skill">恢复技能基线</button></div><p class="wb-help">同一技能的修改影响所有使用者。自动技能冷却在“角色”页设置。${supportedSkills.has(this.action)?"此技能已接入战斗核心。":"此技能尚未迁移；可以保存参数，Play 会按测试设置阻止或停用该技能。"}</p><h3 class="wb-section-label">动作时间轴</h3><div class="wb-fields">${scalar("Windup","技能前摇（秒）",{max:2,step:.05})}${scalar("Backswing","技能后摇（秒）",{max:3,step:.05})}${scalar("ProjectileSpeed","弹道速度",{min:1,max:100,step:1})}${scalar("Lifetime","弹道存活（秒）",{min:.05,max:4,step:.05})}${this.field("大招可被打断",[...path,"Interruptible"],String(r.Interruptible),{select:[["true","允许打断"],["false","不可打断"]]})}</div>${r.DamageType!=="buff"?`<h3 class="wb-section-label">${r.DamageType==="heal"?"治疗":"伤害"}系数 <small>属性 × 倍率 ＋ 固定值</small></h3><p class="wb-help">使用${r.ScalingStat==="mag"?"法术":"攻击"}属性。暴击、防御、护盾与被动在核心继续结算。</p><div class="wb-fields">${[0,1,2].map(i=>this.field(`Lv.${i+1} 倍率`,[...path,"Ratios",i],r.Ratios[Math.min(i,r.Ratios.length-1)]??1,{max:20,step:.05})+this.field(`Lv.${i+1} 固定值`,[...path,"Bases",i],r.Bases[Math.min(i,r.Bases.length-1)]??0,{max:1000000})).join("")}</div>`:""}<h3 class="wb-section-label">射程与效果覆盖</h3><p class="wb-help">留空沿用原技能规则。射程控制选取和执行距离；范围半径作用于涌潮、碎甲冲和火雨；持续时间作用于本技能附加的控制、减伤、追击或持续恢复。瞬时伤害没有持续时间。</p><div class="wb-fields">${scalar("Range","技能射程覆盖",{max:30,step:.1})}${scalar("Radius","范围半径覆盖",{max:30,step:.1})}${scalar("Duration","效果持续（秒）覆盖",{max:30,step:.1})}</div>`;
+    return `<div class="wb-section-title"><div><p class="eyebrow">SKILL INSPECTOR</p><h2>${esc(this.action)}</h2></div><button data-wb="reset-skill">恢复技能基线</button></div><p class="wb-help">同一技能的修改影响所有使用者。自动技能冷却在“角色”页设置。${supportedSkills.has(this.action)?"此技能已接入战斗核心。":"此技能尚未迁移；可以保存参数，Play 会按测试设置阻止或停用该技能。"}</p><h3 class="wb-section-label">动作时间轴</h3><div class="wb-fields">${scalar("Windup","技能前摇（秒）",{max:2,step:.05})}${scalar("Backswing","技能后摇（秒）",{max:3,step:.05})}${scalar("ProjectileSpeed","弹道速度",{min:1,max:100,step:1})}${scalar("Lifetime","弹道存活（秒）",{min:.05,max:4,step:.05})}${this.field("大招可被打断",[...path,"Interruptible"],String(r.Interruptible),{select:[["true","允许打断"],["false","不可打断"]]})}</div>${r.DamageType!=="buff"?`<h3 class="wb-section-label">${r.DamageType==="heal"?"治疗":"伤害"}系数 <small>属性 × 倍率 ＋ 固定值</small></h3><p class="wb-help">使用${r.ScalingStat==="mag"?"法术":"攻击"}属性。暴击、防御、护盾与被动在核心继续结算。</p><div class="wb-fields">${[0,1,2].map(i=>this.field(`Lv.${i+1} 倍率`,[...path,"Ratios",i],r.Ratios[Math.min(i,r.Ratios.length-1)]??1,{max:20,step:.05})+this.field(`Lv.${i+1} 固定值`,[...path,"Bases",i],r.Bases[Math.min(i,r.Bases.length-1)]??0,{max:1000000})).join("")}</div>`:""}<h3 class="wb-section-label">射程与效果覆盖</h3><p class="wb-help">留空沿用原技能规则。射程控制选取和执行距离；范围半径作用于涌潮、碎甲冲、火雨和寒潮；持续时间作用于本技能附加的控制、减伤、追击或持续恢复。瞬时伤害没有持续时间。</p><div class="wb-fields">${scalar("Range","技能射程覆盖",{max:30,step:.1})}${scalar("Radius","范围半径覆盖",{max:30,step:.1})}${scalar("Duration","效果持续（秒）覆盖",{max:30,step:.1})}</div>`;
   }
   private floors() {
     const c = this.config(),
