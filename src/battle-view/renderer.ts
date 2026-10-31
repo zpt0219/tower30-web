@@ -146,6 +146,13 @@ export function drawBattle(
   }
   const b = s.battle;
   if (!b) return;
+  for (const zone of b.zones) {
+    c.fillStyle = "#eaa14442";
+    c.strokeStyle = "#f8d18c99";
+    c.beginPath();
+    c.ellipse(px(zone.x), pz(zone.z), Math.abs(px(zone.x+zone.radius)-px(zone.x)), Math.abs(pz(zone.z+zone.radius)-pz(zone.z)), 0, 0, Math.PI*2);
+    c.fill(); c.stroke();
+  }
   const interp = (u: Unit) => {
     const prev = previous?.battle?.units.find((v) => v.id === u.id);
     return {
@@ -190,6 +197,10 @@ export function drawBattle(
       b.tick % 12 < 4 ? 0 : b.tick % 12 < 8 ? 1 : 2,
       u.enemy,
     );
+    if (u.hp > 0 && u.barrier > 0) {
+      c.strokeStyle = "#c6f4e7"; c.lineWidth = 2;
+      c.beginPath(); c.ellipse(x,y-size*.5,size*.65,size*.9,0,0,Math.PI*2); c.stroke();
+    }
     c.globalAlpha = 1;
     if (u.hp > 0) {
       const barW = Math.max(54, size * 1.8),
@@ -218,9 +229,9 @@ export function drawBattle(
       c.shadowColor = "#10291c";
       c.shadowBlur = 4;
       c.fillText(names(u.kind), x, y + size * 0.45);
-      if (u.slow > 0) {
+      if (u.slow > 0 || u.stun > 0 || u.taunt > 0 || u.shield > 0 || u.armorBreak > 0) {
         c.fillStyle = "#b4e7ed";
-        c.fillText("减速", x, y + size * 0.45 + 17);
+        c.fillText([u.stun>0?"眩晕":"",u.taunt>0?"受嘲讽":"",u.shield>0?"减伤":"",u.armorBreak>0?"破甲":"",u.slow>0?"减速":""].filter(Boolean).slice(0,2).join(" · "), x, y + size * 0.45 + 17);
       }
       if (u.action) {
         c.fillStyle = "#f9de9c";

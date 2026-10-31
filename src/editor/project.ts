@@ -61,7 +61,8 @@ export function setPath(
   }
   if (!current || typeof current !== "object")
     throw new Error("编辑对象不存在");
-  (current as Record<string, unknown>)[String(path.at(-1))] = clone(value);
+  if (value === undefined) delete (current as Record<string, unknown>)[String(path.at(-1))];
+  else (current as Record<string, unknown>)[String(path.at(-1))] = clone(value);
 }
 export function importProject(text: string): EditorProject {
   if (text.length > 2_000_000) throw new Error("配置文件不能超过2MB");

@@ -12,6 +12,15 @@ async function openEditor(page: Page) {
   ).toBeVisible();
 }
 async function shot(page: Page, name: string) {
+  const card = page.locator(".result-card");
+  if (await card.count()) {
+    const bounds = (await card.boundingBox())!;
+    for (const button of await card.getByRole("button").all()) {
+      const box = (await button.boundingBox())!;
+      expect(box.height).toBeGreaterThanOrEqual(48);
+      expect(box.y + box.height).toBeLessThanOrEqual(bounds.y + bounds.height + 1);
+    }
+  }
   await page.screenshot({
     path: `${artifacts}/${test.info().project.name}-${name}.png`,
   });
@@ -273,4 +282,29 @@ test("超过敌人上限的草稿仍能编辑新增敌组并删除修复", async
   await expect(
     page.getByRole("button", { name: "▶ Play 第1关", exact: true }),
   ).toBeEnabled();
+});
+
+test('技能检视器编辑、草稿恢复与Play实际生效',async({page})=>{
+ await page.goto('./');await openEditor(page);
+ await page.getByRole('button',{name:'技能 · 73',exact:true}).click();
+ await page.locator('[data-wb="skill"][data-id="steady"]').click();
+ await page.getByLabel('Lv.1 倍率',{exact:true}).fill('8');
+ await page.getByLabel('Lv.1 固定值',{exact:true}).fill('9000');
+ await page.getByLabel('技能前摇（秒）',{exact:true}).fill('0.1');
+ await page.getByLabel('技能射程覆盖',{exact:true}).fill('30');
+ await page.getByLabel('大招可被打断',{exact:true}).selectOption('true');
+ await saveReady(page);await shot(page,'editor-skill-coefficients');await page.locator('.wb-inspector').evaluate(el=>el.scrollTop=0);await shot(page,'editor-skill');
+ await page.reload();await openEditor(page);await page.getByRole('button',{name:'技能 · 73',exact:true}).click();await page.locator('[data-wb="skill"][data-id="steady"]').click();
+ await expect(page.getByLabel('Lv.1 固定值',{exact:true})).toHaveValue('9000');
+ await expect(page.getByLabel('大招可被打断',{exact:true})).toHaveValue('true');
+ await page.getByRole('button',{name:'测试设置',exact:true}).click();
+ await page.getByLabel('起始能量',{exact:true}).fill('1000');await saveReady(page);
+ await page.getByRole('button',{name:'▶ Play 第1关',exact:true}).click();
+ await page.getByRole('button',{name:'主角大招',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'测试胜利',exact:true})).toBeVisible({timeout:15000});
+ const session=JSON.parse(await readSession(page));const saved=JSON.parse(session.serialized);
+ expect(saved.config.Rules.Actions.steady.Bases[0]).toBe(9000);
+ expect(saved.config.Rules.Actions.steady.Range).toBe(30);
+ expect(saved.journal.some((c:{command:{type:string}})=>c.command.type==='ultimate')).toBe(true);
+ await shot(page,'skill-play-win');
 });

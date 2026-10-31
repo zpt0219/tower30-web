@@ -55,8 +55,9 @@ type Path = (string | number)[];
 export class Workbench {
   private root: HTMLElement | null = null;
   project: EditorProject;
-  private tab: "characters" | "floors" | "setup" = "characters";
+  private tab: "characters" | "floors" | "skills" | "setup" = "characters";
   private character = "hero";
+  private action = "swift";
   private statTab: "Base" | "Growth" = "Base";
   private query = "";
   private group = 0;
@@ -194,7 +195,7 @@ export class Workbench {
     const common = `aria-label="${esc(label)}${options.percent ? " %" : ""}" id="${esc(id)}" data-path="${esc(JSON.stringify(path))}" ${options.percent ? 'data-percent="1"' : ""}`;
     let control: string;
     if (options.select)
-      control = `<select ${common}>${options.select.map(([v, l]) => `<option value="${esc(v)}" ${v === value ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
+      control = `<select ${common}>${options.select.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(value) ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
     else if (options.textarea)
       control = `<textarea ${common}>${esc(display)}</textarea>`;
     else
@@ -225,6 +226,7 @@ export class Workbench {
           e = editableEncounter(this.project.source, c, ei);
         return `<button data-wb="floor" data-id="${f.Number}" class="wb-entity ${f.Number === this.project.setup.floor ? "active" : ""}"><strong>${String(f.Number).padStart(2, "0")}</strong><span>${esc(e.Title)}<small>${e.Boss ? "Boss · " : ""}${e.Enemies.reduce((s, v) => s + v.Count, 0)}名敌人</small></span></button>`;
       }).join("");
+    if (this.tab === "skills") return this.skillOptions().map(([id]) => `<button data-wb="skill" data-id="${esc(id)}" class="wb-entity ${id===this.action?"active":""}"><span><strong>${esc(id)}</strong><small>${supportedSkills.has(id)?"已实现，可 Play":"待迁移，测试中停用"}</small></span></button>`).join("");
     return ["hero", "princess", ...c.Species.map((s) => s.Id)]
       .filter((id) => `${this.name(id)} ${id}`.includes(this.query))
       .map(
@@ -277,6 +279,11 @@ export class Workbench {
         ] as const,
     );
   }
+  private skills() {
+    const r=this.config().Rules.Actions[this.action]!, path:Path=["Rules","Actions",this.action];
+    const scalar=(key:string,label:string,options:{min?:number;max?:number;step?:number}={})=>this.field(label,[...path,key],r[key as keyof typeof r]??"",options);
+    return `<div class="wb-section-title"><div><p class="eyebrow">SKILL INSPECTOR</p><h2>${esc(this.action)}</h2></div><button data-wb="reset-skill">恢复技能基线</button></div><p class="wb-help">同一技能的修改影响所有使用者。自动技能冷却在“角色”页设置。${supportedSkills.has(this.action)?"此技能已接入战斗核心。":"此技能尚未迁移；可以保存参数，Play 会按测试设置阻止或停用该技能。"}</p><h3 class="wb-section-label">动作时间轴</h3><div class="wb-fields">${scalar("Windup","技能前摇（秒）",{max:2,step:.05})}${scalar("Backswing","技能后摇（秒）",{max:3,step:.05})}${scalar("ProjectileSpeed","弹道速度",{min:1,max:100,step:1})}${scalar("Lifetime","弹道存活（秒）",{min:.05,max:4,step:.05})}${this.field("大招可被打断",[...path,"Interruptible"],String(r.Interruptible),{select:[["true","允许打断"],["false","不可打断"]]})}</div>${r.DamageType!=="buff"?`<h3 class="wb-section-label">${r.DamageType==="heal"?"治疗":"伤害"}系数 <small>属性 × 倍率 ＋ 固定值</small></h3><p class="wb-help">使用${r.ScalingStat==="mag"?"法术":"攻击"}属性。暴击、防御、护盾与被动在核心继续结算。</p><div class="wb-fields">${[0,1,2].map(i=>this.field(`Lv.${i+1} 倍率`,[...path,"Ratios",i],r.Ratios[Math.min(i,r.Ratios.length-1)]??1,{max:20,step:.05})+this.field(`Lv.${i+1} 固定值`,[...path,"Bases",i],r.Bases[Math.min(i,r.Bases.length-1)]??0,{max:1000000})).join("")}</div>`:""}<h3 class="wb-section-label">射程与效果覆盖</h3><p class="wb-help">留空沿用原技能规则。射程控制选取和执行距离；范围半径作用于涌潮、碎甲冲和火雨；持续时间作用于本技能附加的控制、减伤、追击或持续恢复。瞬时伤害没有持续时间。</p><div class="wb-fields">${scalar("Range","技能射程覆盖",{max:30,step:.1})}${scalar("Radius","范围半径覆盖",{max:30,step:.1})}${scalar("Duration","效果持续（秒）覆盖",{max:30,step:.1})}</div>`;
+  }
   private floors() {
     const c = this.config(),
       f = c.Floors[this.project.setup.floor - 1]!,
@@ -322,6 +329,11 @@ export class Workbench {
   }
   private preview(c: Config | null) {
     if (!c) return "<p>修正配置错误后显示核心预览。</p>";
+    if (this.tab === "skills") {
+      const r=c.Rules.Actions[this.action]!;
+      const users=Object.entries(c.Rules.Profiles).filter(([,p])=>p.Auto===this.action||p.Ultimate===this.action).map(([id])=>this.name(id));
+      return `<p class="eyebrow">SKILL PREVIEW</p><h3>${esc(this.action)}</h3><p>${r.DamageType==="heal"?"治疗":r.DamageType==="buff"?"增益":r.DamageType==="magical"?"法术伤害":"物理伤害"} · ${r.Delivery==="projectile"?"投射物":"瞬时执行"}</p><p>前摇 ${r.Windup}s → 执行 → 后摇 ${r.Backswing}s</p><div class="wb-notice">使用角色：${users.map(esc).join("、")||"由装备或敌组覆盖使用"}</div><p class="wb-help">修改后点击 Play，创建独立测试。已运行的测试保留原配置。</p>`;
+    }
     let title: string, a: Attributes;
     try {
       if (this.tab === "characters") {
@@ -336,6 +348,7 @@ export class Workbench {
           this.character,
           this.project.setup.level,
           gear,
+          ["hero","princess"].includes(this.character)?1:this.project.setup.rank,
         );
       } else {
         const e = c.Encounters.find(
@@ -362,7 +375,7 @@ export class Workbench {
   }
   render() {
     if (!this.root) return;
-    this.root.innerHTML = `<section class="workbench"><div class="wb-toolbar"><div><strong>配置工作台</strong></div><div class="wb-actions"><button data-wb="save">保存草稿</button><button data-wb="export">导出工程</button><button data-wb="export-config">导出配表</button><button data-wb="import">导入</button><button data-wb="play" class="primary">▶ Play 第${this.project.setup.floor}关</button></div></div><div class="wb-tabs"><button data-wb="characters" class="${this.tab === "characters" ? "active" : ""}">角色 · 42</button><button data-wb="floors" class="${this.tab === "floors" ? "active" : ""}">关卡 · 30</button><button data-wb="setup" class="${this.tab === "setup" ? "active" : ""}">测试设置</button><button data-wb="reset-all" class="wb-reset">恢复全部基线</button></div><div id="wb-validation" class="wb-validation" role="status"></div><div class="wb-body">${this.tab === "setup" ? "" : `<aside class="wb-sidebar">${this.tab === "characters" ? `<label class="wb-search"><span>查找角色</span><input id="wb-search" placeholder="名称 / ID" value="${esc(this.query)}"></label>` : '<p class="wb-help">点击关卡即可选择测试目标；不需要先通关。</p>'}<div id="wb-list">${this.list()}</div></aside>`}<div class="wb-inspector">${this.tab === "characters" ? this.characters() : this.tab === "floors" ? this.floors() : this.setup()}${this.tab !== "setup" ? `<button class="wb-compact-reset" data-wb="${this.tab === "characters" ? "reset-character" : "reset-floor"}">${this.tab === "characters" ? "恢复此角色基线" : "恢复本关基线"}</button>` : ""}<button class="wb-compact-reset" data-wb="reset-all">恢复全部基线</button></div><aside id="wb-preview" class="wb-preview"></aside></div><div class="wb-footer"><span id="wb-save-status">${this.status}</span> · 草稿仅保存在此浏览器；可导出／导入JSON。正式试跑与测试完全分开。</div></section>`;
+    this.root.innerHTML = `<section class="workbench"><div class="wb-toolbar"><div><strong>配置工作台</strong></div><div class="wb-actions"><button data-wb="save">保存草稿</button><button data-wb="export">导出工程</button><button data-wb="export-config">导出配表</button><button data-wb="import">导入</button><button data-wb="play" class="primary">▶ Play 第${this.project.setup.floor}关</button></div></div><div class="wb-tabs"><button data-wb="characters" class="${this.tab === "characters" ? "active" : ""}">角色 · 42</button><button data-wb="floors" class="${this.tab === "floors" ? "active" : ""}">关卡 · 30</button><button data-wb="skills" class="${this.tab === "skills" ? "active" : ""}">技能 · 73</button><button data-wb="setup" class="${this.tab === "setup" ? "active" : ""}">测试设置</button><button data-wb="reset-all" class="wb-reset">恢复全部基线</button></div><div id="wb-validation" class="wb-validation" role="status"></div><div class="wb-body">${this.tab === "setup" ? "" : `<aside class="wb-sidebar">${this.tab === "characters" ? `<label class="wb-search"><span>查找角色</span><input id="wb-search" placeholder="名称 / ID" value="${esc(this.query)}"></label>` : `<p class="wb-help">${this.tab==="skills"?"选择技能，修改参数后 Play 测试。":"点击关卡即可选择测试目标；不需要先通关。"}</p>`}<div id="wb-list">${this.list()}</div></aside>`}<div class="wb-inspector">${this.tab === "characters" ? this.characters() : this.tab === "floors" ? this.floors() : this.tab === "skills" ? this.skills() : this.setup()}${(this.tab === "characters" || this.tab === "floors") ? `<button class="wb-compact-reset" data-wb="${this.tab === "characters" ? "reset-character" : "reset-floor"}">${this.tab === "characters" ? "恢复此角色基线" : "恢复本关基线"}</button>` : ""}<button class="wb-compact-reset" data-wb="reset-all">恢复全部基线</button></div><aside id="wb-preview" class="wb-preview"></aside></div><div class="wb-footer"><span id="wb-save-status">${this.status}</span> · 草稿仅保存在此浏览器；可导出／导入JSON。正式试跑与测试完全分开。</div></section>`;
     this.updateStatus();
   }
   private input(event: Event) {
@@ -401,6 +414,15 @@ export class Workbench {
             el.value === ""
               ? null
               : Number(el.value) / (el.dataset.percent ? 100 : 1);
+        if (path[1] === "Actions") {
+          if (["Range","Radius","Duration"].includes(String(path.at(-1))) && value === null) value=undefined;
+          if (path.at(-1) === "Interruptible") value=el.value === "true";
+          if (path[3] === "Ratios" || path[3] === "Bases") {
+            const r=this.lastValid.Rules.Actions[String(path[2])]!;
+            const key=path[3]; const current=readPath(this.project.source,path.slice(0,4)); const values=[0,1,2].map(i=>Array.isArray(current)&&i<current.length?current[i]:r[key][Math.min(i,r[key].length-1)]??(key==="Ratios"?1:0));
+            setPath(this.project.source,path.slice(0,4),values);
+          }
+        }
         setPath(this.project.source, path as Path, value);
       } else if (el.dataset.setting) {
         const key = el.dataset.setting as keyof PlaytestSetup;
@@ -455,6 +477,7 @@ export class Workbench {
     switch (action) {
       case "characters":
       case "floors":
+      case "skills":
       case "setup":
         if (
           action === "floors" &&
@@ -466,6 +489,10 @@ export class Workbench {
         this.tab = action;
         this.render();
         return;
+      case "skill":
+        this.action=id!;this.render();return;
+      case "reset-skill":
+        setPath(this.project.source,["Rules","Actions",this.action],readPath(this.baseline,["Rules","Actions",this.action]));this.render();void this.save();return;
       case "character":
         this.character = id!;
         this.render();

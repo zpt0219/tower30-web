@@ -7,6 +7,13 @@ export const supportedSkills = new Set([
   "renew",
   "water",
   "tide",
+  "leafward", "forest_rest", "aegis", "shellwall", "bait", "taunt",
+  "huntbite", "pounce", "gust", "interrupt", "firebolt", "fire_rain",
+  "ram", "rupture", "boss_stomp", "breakstrike", "wardheal", "flame",
+]);
+export const supportedPassives = new Set([
+  "slow", "heal_low", "shield_heal", "shield_targets", "damage_guard",
+  "energy_attack", "execute", "armor_bonus", "burn_bonus",
 ]);
 export const playtestSetupSchema = z
   .object({
@@ -47,7 +54,7 @@ export function playtestWarnings(
       warnings.add(`${id}：自动技能 ${p.Auto}`);
     if (p.Ultimate && !supportedSkills.has(p.Ultimate))
       warnings.add(`${id}：大招 ${p.Ultimate}`);
-    if (rank >= 3 && p.PassiveEffect)
+    if (rank >= 3 && p.PassiveEffect && !supportedPassives.has(p.PassiveEffect))
       warnings.add(`${id}：三阶被动 ${p.PassiveEffect}`);
   };
   for (const id of setup.party) {

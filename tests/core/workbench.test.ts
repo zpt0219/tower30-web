@@ -64,7 +64,7 @@ describe("网页工作台草稿与测试", () => {
       expect(e.getSnapshot().members[0]!.level).toBe(3);
     }
   });
-  it("全部30关可以独立进入数值测试，正式流程仍锁定且资源不变", () => {
+  it("全部30关可以独立进入数值测试，正式资源不变且测试奖励隔离", () => {
     const formal = new TowerEngine(config),
       before = formal.serialize();
     for (let floor = 1; floor <= 30; floor++) {
@@ -139,6 +139,9 @@ describe("网页工作台草稿与测试", () => {
       stored,
     );
     e.advance(80);
+    const oldRules = JSON.parse(e.serialize()) as { engineVersion: string };
+    oldRules.engineVersion = "tower30-ts-workbench-v1";
+    expect(() => TowerEngine.restorePlaytest(JSON.stringify(oldRules))).toThrow();
     const loaded = TowerEngine.restorePlaytest(e.serialize());
     e.advance(30);
     loaded.advance(30);

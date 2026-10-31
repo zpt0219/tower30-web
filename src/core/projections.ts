@@ -5,6 +5,7 @@ export function combatantAttributes(
   id: string,
   level: number,
   gear: string[] = [],
+  rank = 1,
 ): Attributes {
   const d = config.Rules.Combatants[id];
   if (!d) throw new Error("角色不存在：" + id);
@@ -17,6 +18,8 @@ export function combatantAttributes(
     for (const k of Object.keys(a) as (keyof Attributes)[])
       a[k] += g.Attributes[k];
   }
+  if (rank >= 3 && config.Rules.Profiles[id]?.PassiveEffect === "energy_attack")
+    a.EnergyRegen += 0.1 * (rank >= 5 ? 2 : 1);
   return capped(a);
 }
 export function enemyAttributes(
@@ -24,6 +27,8 @@ export function enemyAttributes(
   group: Config["Encounters"][number]["Enemies"][number],
 ): Attributes {
   const a = combatantAttributes(config, group.Species, group.Level);
+  if (group.Rank >= 3 && (group.ProfileOverride ?? config.Rules.Profiles[group.Species])?.PassiveEffect === "energy_attack")
+    a.EnergyRegen = Math.min(1, a.EnergyRegen + 0.1 * (group.Rank >= 5 ? 2 : 1));
   a.MaxHp = Math.ceil(a.MaxHp * group.Health);
   a.Attack = Math.ceil(a.Attack * group.AttackScale);
   a.Magic = Math.ceil(a.Magic * group.AttackScale);

@@ -3,7 +3,7 @@ import { roundEven, STEP } from "./math";
 export const distance = (
   a: { x: number; z: number },
   b: { x: number; z: number },
-) => Math.hypot(a.x - b.x, a.z - b.z);
+) => Math.sqrt((a.x-b.x)**2+(a.z-b.z)**2);
 export const gap = (a: Unit, b: Unit) =>
   Math.max(0, distance(a, b) - a.radius - b.radius);
 export const cellX = (i: number) => ((i % 31) - 15) * 0.8;
@@ -64,13 +64,13 @@ export function separate(units: Unit[]): void {
         if (a.hp <= 0 || b.hp <= 0) continue;
         let dx = a.x - b.x,
           dz = a.z - b.z,
-          d = Math.hypot(dx, dz);
+          d = Math.sqrt(dx*dx+dz*dz);
         const required = a.radius + b.radius;
         if (d >= required - 0.0001) continue;
         if (d < 1e-6) {
           dx = a.enemy ? 1 : -1;
           dz = a.slot % 2 === 0 ? 0.5 : -0.5;
-          d = Math.hypot(dx, dz);
+          d = Math.sqrt(dx*dx+dz*dz);
         }
         const nx = dx / d,
           nz = dz / d,
@@ -170,7 +170,7 @@ export function move(u: Unit, target: Unit, units: Unit[]): void {
     (["ranged", "healer"].includes(u.profile.Role) ? 3.8 : 0.55);
   while (head < queue.length) {
     const at = queue[head++]!,
-      d = Math.hypot(cellX(at) - target.x, cellZ(at) - target.z);
+      d = Math.sqrt((cellX(at)-target.x)**2+(cellZ(at)-target.z)**2);
     if (d < best) {
       best = d;
       goal = at;
@@ -197,7 +197,7 @@ export function move(u: Unit, target: Unit, units: Unit[]): void {
     tz = step === start ? target.z : cellZ(step),
     dx = tx - u.x,
     dz = tz - u.z,
-    length = Math.hypot(dx, dz);
+    length = Math.sqrt(dx*dx+dz*dz);
   if (length < 0.001) {
     u.blockedFor = Math.min(4, u.blockedFor + STEP);
     return;

@@ -99,7 +99,7 @@ describe("真实战斗、奖励、重放", () => {
     e.dispatch({ type: "finish" });
     expect(e.getSnapshot().floor).toBe(3);
     expect(e.getSnapshot().gold).toBe(370);
-    expect(e.dispatch({ type: "begin" }).ok).toBe(false);
+    expect(e.dispatch({ type: "begin" }).ok).toBe(true);
   });
   it("撤回重试恢复战前检查点，已确认购买不回退", () => {
     const e = new TowerEngine(config);

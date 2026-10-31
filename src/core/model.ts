@@ -75,6 +75,17 @@ export interface Unit extends Contribution {
   slow: number;
   stun: number;
   barrier: number;
+  shield: number;
+  dotTime: number;
+  armorBreak: number;
+  silence: number;
+  taunt: number;
+  taunter: string;
+  controlGuard: number;
+  leech: number;
+  focusTime: number;
+  focus: string;
+  emergencyUsed: boolean;
   regeneration: number;
   regenTick: number;
   regenOwner: string;
@@ -100,6 +111,7 @@ export interface Projectile {
   rule: ActionRule;
   source: Attributes;
   power: number;
+  leech: number;
   x: number;
   z: number;
   speed: number;
@@ -121,6 +133,7 @@ export interface Battle {
     rank: number;
   }[];
   projectiles: Projectile[];
+  zones: { owner: string; enemy: boolean; x: number; z: number; remaining: number; tick: number; power: number; radius: number }[];
   actionId: number;
   projectileId: number;
   tickets: number;

@@ -18,17 +18,18 @@ import {
   type State,
   type Unit,
 } from "./model";
-import { deployment, distance, gap, move, separate } from "./movement";
+import { canMove, deployment, distance, gap, move, separate } from "./movement";
 import { combatantAttributes, enemyAttributes } from "./projections";
 import {
   playtestSetupSchema,
   playtestWarnings,
   supportedSkills,
+  supportedPassives,
   type PlaytestSetup,
 } from "./playtest";
 import { z } from "zod";
 import { validateConfig } from "./config";
-export const PLAYABLE_FLOORS = 2;
+export const PLAYABLE_FLOORS = 10;
 export const SUPPORTED_SKILLS = supportedSkills;
 export const isHuman = (id: string) => id === "hero" || id === "princess";
 export const itemNames: Record<string, string> = {
@@ -188,6 +189,7 @@ export class TowerEngine {
       m.id,
       this.level(m),
       Object.values(m.equipment),
+      m.rank,
     );
   }
 
@@ -245,7 +247,7 @@ export class TowerEngine {
     return (
       (!g.Auto || SUPPORTED_SKILLS.has(g.Auto)) &&
       (!g.Ultimate || SUPPORTED_SKILLS.has(g.Ultimate)) &&
-      g.Effect === ""
+      ["", "attack_energy", "hurt_energy", "overheal", "emergency", "arrival", "spell_guard"].includes(g.Effect)
     );
   }
   quoteBuy(id: string, quantity: number) {
@@ -307,7 +309,7 @@ export class TowerEngine {
       case "begin": {
         if (b) return "当前已有战斗";
         if (!this.playtest && s.floor > PLAYABLE_FLOORS)
-          return "后续楼层技能尚在迁移，本版开放前两层";
+          return "后续楼层技能尚在迁移，本版开放前10层";
         if (!s.members.some((m) => m.hp > 0))
           return "无人能够出战，请先在旅馆恢复";
         const enemies: Battle["enemies"] = [];
@@ -345,6 +347,7 @@ export class TowerEngine {
           units: [],
           enemies,
           projectiles: [],
+          zones: [],
           actionId: 0,
           projectileId: 0,
           tickets: 1,
@@ -395,7 +398,7 @@ export class TowerEngine {
           !u ||
           u.hp <= 0 ||
           u.entry > 0 ||
-          u.stun > 0 ||
+          u.stun > 0 || u.silence > 0 ||
           u.hitStun > 0
         )
           return "该伙伴当前不能释放大招";
@@ -583,7 +586,7 @@ export class TowerEngine {
         {
           const cost = this.config.Rules.RankCosts[m.rank - 1]!;
           if ((s.souls[m.id] ?? 0) < cost) return "同种魂魄不足";
-          if (m.rank >= 2) return "三阶被动尚在迁移，本版最多二阶";
+          if (m.rank >= 2 && !supportedPassives.has(this.profile(m).PassiveEffect)) return "该物种三阶被动尚在迁移";
           s.souls[m.id]! -= cost;
           m.rank++;
           return "";
@@ -670,7 +673,7 @@ export class TowerEngine {
           ? 2
           : 1,
       passiveLevel:
-        this.playtest?.skillPolicy === "supported-only" || isHuman(kind)
+        (this.playtest?.skillPolicy === "supported-only" && !supportedPassives.has(profile.PassiveEffect)) || isHuman(kind)
           ? 0
           : rank >= 5
             ? 2
@@ -683,6 +686,8 @@ export class TowerEngine {
       slow: 0,
       stun: 0,
       barrier: 0,
+      dotTime: 0, shield: 0, armorBreak: 0, silence: 0, taunt: 0, taunter: "", controlGuard: 0,
+      leech: 0, focusTime: 0, focus: "", emergencyUsed: false,
       regeneration: 0,
       regenTick: 0,
       regenOwner: "",
@@ -697,38 +702,31 @@ export class TowerEngine {
     u.x = p.x;
     u.z = p.z;
     b.units.push(u);
+    if (!enemy && !opening && b.units.some(v => !v.enemy && v.hp > 0 && v.entry <= 0 && this.gearEffect(v, "arrival"))) {
+      u.barrier = Math.max(u.barrier, u.attributes.MaxHp * 0.12);
+      this.emit("ward", id, id);
+    }
     this.emit("enter", id, id);
     return true;
   }
+  private passive(u: Unit) { return u.passiveLevel > 0 ? u.profile.PassiveEffect : ""; }
+  private gearEffect(u: Unit, effect: string) {
+    return !u.enemy && Object.values(this.member(u.id)?.equipment ?? {}).some(id => this.config.Rules.Equipment.some(g => g.Id === id && g.Effect === effect));
+  }
+  private foes(u: Unit) {
+    return this.state.battle!.units.filter(v => v.enemy !== u.enemy && v.hp > 0 && v.entry <= 0)
+      .sort((a,b) => gap(u,a)-gap(u,b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }
   private target(u: Unit) {
-    return this.state
-      .battle!.units.filter(
-        (v) => v.enemy !== u.enemy && v.hp > 0 && v.entry <= 0,
-      )
-      .sort(
-        (a, b) =>
-          gap(u, a) - gap(u, b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
-      )[0];
+    const foes = this.foes(u);
+    return foes.find(v => u.taunt > 0 && v.id === u.taunter) ?? foes.find(v => u.focusTime > 0 && v.id === u.focus) ?? foes[0];
   }
   private available(u: Unit, skill: string) {
     if (!SUPPORTED_SKILLS.has(skill)) return false;
     const r = this.config.Rules.Actions[skill]!;
-    if (r.DamageType === "heal")
-      return this.state.battle!.units.some(
-        (v) =>
-          v.enemy === u.enemy &&
-          v.hp > 0 &&
-          v.entry <= 0 &&
-          gap(u, v) <= 6 &&
-          v.hp < v.attributes.MaxHp,
-      );
-    return this.state.battle!.units.some(
-      (v) =>
-        v.enemy !== u.enemy &&
-        v.hp > 0 &&
-        v.entry <= 0 &&
-        gap(u, v) <= (skill === u.profile.Ultimate ? 8 : u.range + 0.25),
-    );
+    if (r.DamageType === "heal" || r.DamageType === "buff")
+      return this.state.battle!.units.some(v => v.enemy === u.enemy && v.hp > 0 && v.entry <= 0 && gap(u,v) <= (r.Range ?? 6) && (r.DamageType === "buff" || v.hp < v.attributes.MaxHp || v.slow > 0 || v.stun > 0 || v.silence > 0 || v.armorBreak > 0));
+    return this.foes(u).some(v => gap(u,v) <= (r.Range ?? (skill === u.profile.Ultimate ? 8 : u.range + .25)));
   }
   private rule(
     u: Unit,
@@ -823,19 +821,20 @@ export class TowerEngine {
     rule: ActionRule | null,
     actionId: number,
   ) {
+    if (target.hp <= 0) return;
     let critical = false;
     if (rule?.DamageType === "heal") {
-      const lvl =
-        actor.action?.kind === "ultimate"
-          ? actor.ultimateLevel
-          : actor.autoLevel;
-      amount = roundAway(
-        actor.attributes.Magic *
-          (rule.Ratios[Math.min(lvl - 1, rule.Ratios.length - 1)] ?? 1) +
-          (rule.Bases[Math.min(lvl - 1, rule.Bases.length - 1)] ?? 0),
-      );
+      amount = roundAway(actor.attributes[rule.ScalingStat === "mag" ? "Magic" : "Attack"] * (rule.Ratios[0] ?? 1) + (rule.Bases[0] ?? 0));
+    }
+    if (this.passive(actor) === "heal_low" && target.hp < target.attributes.MaxHp * .4) amount = Math.ceil(amount * 1.2);
+    if (this.passive(actor) === "shield_heal" && target.barrier > 0) amount = Math.ceil(amount * 1.15);
+    if (rule?.DamageType === "heal") {
       critical = this.roll(actor.attributes.CritRate);
       if (critical) amount = roundAway(amount * 1.5);
+    }
+    if (this.gearEffect(actor, "overheal") && target.hp + amount > target.attributes.MaxHp) {
+      target.barrier = Math.max(target.barrier, Math.min(target.attributes.MaxHp * .25, (target.hp + amount - target.attributes.MaxHp) * .5));
+      this.emit("ward", actor.id, target.id);
     }
     const before = target.hp;
     this.hp(target, target.hp + amount);
@@ -859,13 +858,14 @@ export class TowerEngine {
     actionId: number,
     projectileId: number,
     source: Attributes,
+    periodic = false,
   ) {
     if (target.hp <= 0 || target.entry > 0) return false;
     const dodge =
-        rule.DamageType === "physical" &&
+        !periodic && rule.DamageType === "physical" &&
         kind !== "ultimate" &&
         this.roll(target.attributes.DodgeRate),
-      critical = this.roll(source.CritRate);
+      critical = !periodic && this.roll(source.CritRate);
     if (dodge) {
       target.dodges++;
       this.emit("dodge", actor.id, target.id, 0, false, actionId, projectileId);
@@ -875,9 +875,10 @@ export class TowerEngine {
         raw,
         rule.DamageType === "magical"
           ? target.attributes.Resistance
-          : target.attributes.Defense,
+          : target.attributes.Defense * (target.armorBreak > 0 ? .6 : 1),
         source.Penetration,
         critical,
+        ((this.passive(actor) === "execute" && target.hp < target.attributes.MaxHp * .4 ? 1.18 : 1) + (this.passive(actor) === "armor_bonus" && target.armorBreak > 0 ? .12 * actor.passiveLevel : 0) + (this.passive(actor) === "burn_bonus" && target.dotTime > 0 ? .12 * actor.passiveLevel : 0)) * (1 - Math.max(target.shield > 0 ? .5 : 0, this.passive(target) === "damage_guard" ? .08 * target.passiveLevel : 0, rule.DamageType === "magical" && this.gearEffect(target, "spell_guard") ? .15 : 0)),
       ),
       absorbed = Math.min(amount, Math.ceil(target.barrier));
     target.barrier = Math.max(0, target.barrier - absorbed);
@@ -887,13 +888,18 @@ export class TowerEngine {
     actor.damage += loss;
     if (critical) actor.criticals++;
     if (loss > 0 && target.hp > 0)
-      this.gain(target, (500 * loss) / target.attributes.MaxHp, "hurt");
+      {
+        this.gain(target, (500 * loss) / target.attributes.MaxHp, "hurt");
+        if (!target.emergencyUsed && target.hp <= target.attributes.MaxHp * .3 && this.gearEffect(target, "emergency")) {
+          target.emergencyUsed = true; target.barrier = Math.max(target.barrier, target.attributes.MaxHp * .18); this.emit("ward", target.id, target.id);
+        }
+      }
     if (target.hp === 0) {
       this.gain(actor, 300, "kill");
       this.cancel(target);
     }
     if (
-      loss > 0 &&
+      !periodic && loss > 0 &&
       target.hp > 0 &&
       target.hitGuard <= 0 &&
       loss >
@@ -926,69 +932,95 @@ export class TowerEngine {
     projectileId = 0,
     source = u.attributes,
     power = 0,
+    leechTime = u.leech,
   ) {
-    const b = this.state.battle!,
-      lvl = kind === "ultimate" ? u.ultimateLevel : u.autoLevel;
+    const b = this.state.battle!, lvl = kind === "ultimate" ? u.ultimateLevel : u.autoLevel;
+    const duration = (fallback: number) => r.Duration ?? fallback;
+    const range = (fallback: number) => r.Range ?? fallback;
+    const radius = (fallback: number) => r.Radius ?? fallback;
+    const stat = source[r.ScalingStat === "mag" ? "Magic" : "Attack"];
+    const allies = (reach: number) => b.units.filter(v => v.enemy === u.enemy && v.hp > 0 && v.entry <= 0 && gap(u,v) <= range(reach));
+    const foes = this.foes(u);
+    const scaled = { ...r, Ratios: [r.Ratios[Math.min(lvl-1,r.Ratios.length-1)] ?? 1], Bases: [r.Bases[Math.min(lvl-1,r.Bases.length-1)] ?? 0] };
+    const raw = kind === "basic" ? power || source[r.DamageType === "magical" ? "Magic" : "Attack"] : Math.max(1,roundAway(stat * scaled.Ratios[0]! + scaled.Bases[0]!));
+    const regen = (v: Unit, time: number) => { v.regeneration = duration(time); v.regenTick = 1; v.regenOwner = u.id; };
+    const taunt = (v: Unit, time: number) => { v.taunter = u.id; v.taunt = duration(time) * (1-v.attributes.Tenacity); this.emit(skill,u.id,v.id); };
+    const damageBefore = u.damage;
+    const strike = (v: Unit) => this.hit(u,v,raw,r,kind,actionId,projectileId,source);
     if (r.DamageType === "heal") {
-      const allies = b.units
-        .filter(
-          (v) =>
-            v.enemy === u.enemy &&
-            v.hp > 0 &&
-            v.entry <= 0 &&
-            v.hp < v.attributes.MaxHp &&
-            gap(u, v) <= (kind === "ultimate" ? 6 : 5),
-        )
-        .sort((a, b) => a.hp / a.attributes.MaxHp - b.hp / b.attributes.MaxHp);
-      for (const v of allies.slice(0, kind === "ultimate" ? 3 + lvl : 1)) {
-        // heal() receives the correct skill level even after the action leaves windup.
-        const scaled = {
-          ...r,
-          Ratios: [r.Ratios[Math.min(lvl - 1, r.Ratios.length - 1)]!],
-          Bases: [r.Bases[Math.min(lvl - 1, r.Bases.length - 1)]!],
-        };
-        this.heal(u, v, 0, scaled, actionId);
-        if (kind === "ultimate") {
-          v.regeneration = 3 + lvl;
-          v.regenTick = 1;
-          v.regenOwner = u.id;
+      const ordered = allies(kind === "ultimate" ? 6 : 5).sort((a,b) => a.hp/a.attributes.MaxHp - b.hp/b.attributes.MaxHp);
+      const injured = ordered.filter(v => v.hp < v.attributes.MaxHp || (skill === "leafward" && (v.slow > 0 || v.stun > 0 || v.silence > 0 || v.armorBreak > 0)));
+      const targets = skill === "forest_rest" ? (ordered.some(v=>v.hp<v.attributes.MaxHp||v.slow>0||v.stun>0||v.silence>0||v.armorBreak>0)?allies(6):[]) : injured.slice(0,kind === "ultimate" ? 3+lvl : 1);
+      for (const v of targets) {
+        if (skill === "forest_rest") { v.stun = v.slow = v.silence = v.armorBreak = 0; this.emit("cleanse",u.id,v.id); }
+        this.heal(u,v,0,scaled,actionId);
+        if (skill === "leafward" || skill === "wardheal" || (skill === "heal" && u.passiveLevel > 0)) {
+          v.barrier = Math.max(v.barrier,skill === "leafward" ? stat*(.4+lvl*.12) : skill === "wardheal" ? stat*.5 : 3+u.passiveLevel*2); this.emit("ward",u.id,v.id);
         }
+        if (skill === "renew") regen(v,3+lvl);
+        if (skill === "leafward") regen(v,3);
+        if (skill === "forest_rest") regen(v,4);
       }
       return;
     }
+    if (skill === "aegis") {
+      for (const v of allies(5).filter(v => v.barrier < stat*.5).sort((a,b) => a.hp/a.attributes.MaxHp-b.hp/b.attributes.MaxHp).slice(0,1+u.passiveLevel)) {
+        v.barrier = Math.max(v.barrier,stat*(.7+.2*lvl)); this.emit(skill,u.id,v.id);
+      }
+      return;
+    }
+    if (skill === "shellwall") {
+      for (const v of allies(5)) { v.shield = Math.max(v.shield,duration(3+lvl)); v.barrier = Math.max(v.barrier,stat*(.7+.2*lvl)); this.emit(skill,u.id,v.id); }
+      return;
+    }
+    if (skill === "bait" || skill === "taunt") {
+      for (const v of foes.filter(v => gap(u,v) <= range(skill === "bait" ? 3 : 4))) taunt(v,skill === "bait" ? 1.5+lvl*.5 : 2+lvl);
+      if (skill === "taunt") { u.shield = Math.max(u.shield,duration(3+lvl)); this.emit("guard",u.id,u.id); }
+      return;
+    }
+    if (skill === "pounce") {
+      const rear = [...foes].sort((a,b) => Number(["healer","ranged"].includes(b.profile.Role))-Number(["healer","ranged"].includes(a.profile.Role)) || Math.abs(b.x)-Math.abs(a.x))[0];
+      if (rear) { u.focus = rear.id; u.focusTime = duration(8); u.leech = duration(6+lvl*2); this.emit(skill,u.id,u.id); }
+      return;
+    }
+    if (skill === "interrupt") {
+      target = foes.filter(v => gap(u,v) <= range(8)).sort((a,b) => (b.action?.kind === "ultimate" ? b.action.work/(1+b.attributes.Haste) : 0)-(a.action?.kind === "ultimate" ? a.action.work/(1+a.attributes.Haste) : 0) || b.energy-a.energy)[0];
+    }
     if (!target) return;
-    const raw =
-      kind === "basic"
-        ? power || source[r.DamageType === "magical" ? "Magic" : "Attack"]
-        : Math.max(
-            1,
-            roundAway(
-              source[r.ScalingStat === "mag" ? "Magic" : "Attack"] *
-                (r.Ratios[Math.min(lvl - 1, r.Ratios.length - 1)] ?? 1) +
-                (r.Bases[Math.min(lvl - 1, r.Bases.length - 1)] ?? 0),
-            ),
-          );
-    const targets =
-      skill === "tide"
-        ? b.units.filter(
-            (v) =>
-              v.enemy !== u.enemy &&
-              v.hp > 0 &&
-              v.entry <= 0 &&
-              distance(v, target) <= 2.8 + lvl * 0.4,
-          )
-        : [target];
-    const damageBefore = u.damage;
+    if (kind === "auto" && !projectileId && gap(u,target) > range(u.range+.25)) return;
+    if (skill === "fire_rain") {
+      if (gap(u,target) <= range(8)) { b.zones.push({owner:u.id,enemy:u.enemy,x:target.x,z:target.z,remaining:duration(4+lvl),tick:1,power:raw,radius:radius(3)}); this.emit(skill,u.id,target.id); } return;
+    }
+    const primary = kind === "ultimate" && !["interrupt","boss_stomp"].includes(skill) ? foes.find(v => gap(u,v) <= range(7)) : target;
+    if (!primary) return;
+    let targets = [primary];
+    if (skill === "tide") targets = foes.filter(v => distance(v,primary) <= radius(2.8+lvl*.4));
+    if (skill === "rupture") targets = foes.filter(v => distance(v,primary) <= radius(2.1));
+    if (skill === "boss_stomp") targets = b.units.filter(v => v.enemy !== u.enemy && v.hp > 0 && v.entry <= 0 && (r.Range === undefined || gap(u,v) <= r.Range));
+    if (skill === "flame") {
+      const dx=primary.x-u.x,dz=primary.z-u.z,len=Math.max(.001,distance(u,primary));
+      targets=foes.filter(v => gap(u,v)<=range(7+lvl) && (v.x-u.x)*dx+(v.z-u.z)*dz>=distance(u,v)*len*.45);
+    }
     for (const v of targets) {
-      if (this.hit(u, v, raw, r, kind, actionId, projectileId, source)) {
-        if (skill === "water") v.slow = 2 + u.passiveLevel * 0.5;
-        if (skill === "tide") v.slow = 2 + lvl;
+      const beforeArmor = v.armorBreak, beforeSlow = v.slow;
+      if (skill === "rupture") v.armorBreak = duration(3+lvl);
+      if (skill === "tide") v.slow = duration(2+lvl);
+      if (skill === "interrupt" && v.controlGuard <= 0) { v.stun = Math.min(2,duration(1.2+lvl*.3))*(1-v.attributes.Tenacity); v.controlGuard = Math.min(2,duration(1.2+lvl*.3))+2.5; }
+      const hit = strike(v);
+      if (!hit) { v.armorBreak = beforeArmor; v.slow = beforeSlow; continue; }
+      if (skill === "water") v.slow = duration(2+u.passiveLevel*.5);
+      if (["water","tide"].includes(skill) && v.slow > beforeSlow) v.slow = beforeSlow+(v.slow-beforeSlow)*(1-v.attributes.Tenacity);
+      if (skill === "gust") v.energy = Math.max(0,v.energy-(4+lvl)*10);
+      if (skill === "interrupt") { v.energy=0; if (v.stun>0 && !(v.action?.kind === "ultimate" && !this.rule(v,"ultimate",v.action.skill).Interruptible)) this.cancel(v,true); }
+      if (skill === "breakstrike") v.armorBreak = duration(3);
+      if (skill === "ram") {
+        if (v.controlGuard<=0) { v.stun=Math.min(2,duration(.35))*(1-v.attributes.Tenacity); v.controlGuard=Math.min(2,duration(.35))+2.5; if (!(v.action?.kind === "ultimate" && !this.rule(v,"ultimate",v.action.skill).Interruptible)) this.cancel(v,true); }
+        const len=Math.max(.001,distance(u,v)), x=v.x+(v.x-u.x)/len*.6,z=v.z+(v.z-u.z)/len*.6;
+        if (canMove(v,x,z,b.units)) { v.x=x; v.z=z; }
       }
     }
-    const leech = roundAway(
-      (u.damage - damageBefore) * source.Lifesteal * (r.Area ? 0.5 : 1),
-    );
-    if (leech > 0 && u.hp > 0) this.heal(u, u, leech, null, actionId);
+    const leech = roundAway((u.damage-damageBefore) * Math.min(.6,source.Lifesteal+(leechTime>0?.33:0)) * (r.Area?.5:1));
+    if (leech>0 && u.hp>0) this.heal(u,u,leech,null,actionId);
   }
   private step() {
     const s = this.state,
@@ -1022,6 +1054,7 @@ export class TowerEngine {
         p.id,
         p.source,
         p.power,
+        p.leech,
       );
     }
     if (b.tickets < 3) {
@@ -1048,6 +1081,7 @@ export class TowerEngine {
       u.special = Math.max(0, u.special - STEP);
       u.stun = Math.max(0, u.stun - STEP);
       u.slow = Math.max(0, u.slow - STEP);
+      for (const k of ["dotTime","shield","armorBreak","silence","taunt","controlGuard","leech","focusTime"] as const) u[k]=Math.max(0,u[k]-STEP);
       if (u.entry > 0) {
         u.entry = Math.max(0, u.entry - STEP);
         continue;
@@ -1083,6 +1117,7 @@ export class TowerEngine {
       }
       if (u.action) {
         const action = u.action;
+        if (u.silence > 0 && action.kind !== "basic" && !(action.kind === "ultimate" && !this.rule(u,"ultimate",action.skill).Interruptible)) { this.cancel(u,true); continue; }
         action.work = Math.max(0, action.work - STEP * speed);
         if (action.work > 1e-8) continue;
         const target = b.units.find(
@@ -1107,6 +1142,7 @@ export class TowerEngine {
             skill: action.skill,
             rule: r,
             source: clone(u.attributes),
+            leech: u.leech,
             power:
               action.kind === "basic"
                 ? roundAway(
@@ -1146,7 +1182,7 @@ export class TowerEngine {
       }
       const target = this.target(u);
       if (
-        u.enemy &&
+        u.enemy && u.silence <= 0 &&
         u.energy >= 1000 &&
         this.available(u, u.profile.Ultimate)
       ) {
@@ -1154,7 +1190,7 @@ export class TowerEngine {
         continue;
       }
       if (
-        u.profile.Auto &&
+        u.silence <= 0 && u.profile.Auto &&
         u.special <= 0 &&
         this.available(u, u.profile.Auto)
       ) {
@@ -1165,6 +1201,17 @@ export class TowerEngine {
       if (gap(u, target) > u.range) move(u, target, b.units);
       else if (u.cooldown <= 0) this.startAction(u, "basic", "attack", target);
     }
+    for (const zone of [...b.zones]) {
+      zone.remaining -= STEP; zone.tick -= STEP;
+      if (zone.remaining <= 0) { b.zones = b.zones.filter(v=>v!==zone); continue; }
+      if (zone.tick > 0) continue;
+      zone.tick=1;
+      const owner=b.units.find(u=>u.id===zone.owner)!;
+      for (const v of b.units.filter(v=>v.enemy!==zone.enemy && v.hp>0 && v.entry<=0 && (v.x-zone.x)**2+(v.z-zone.z)**2<=zone.radius**2)) {
+        this.hit(owner,v,zone.power,{...this.config.Rules.Actions.fire_rain!,DamageType:"magical"},"ultimate",0,0,owner.attributes,true);
+      }
+    }
+    separate(b.units);
     for (const u of b.units.filter((u) => !u.enemy))
       this.member(u.id)!.energy = u.hp > 0 ? u.energy : 0;
     if (
@@ -1228,6 +1275,17 @@ export class TowerEngine {
           this.emit("collect", m.id);
         }
       }
+    for (const zone of [...b.zones]) {
+      zone.remaining -= STEP; zone.tick -= STEP;
+      if (zone.remaining <= 0) { b.zones = b.zones.filter(v=>v!==zone); continue; }
+      if (zone.tick > 0) continue;
+      zone.tick=1;
+      const owner=b.units.find(u=>u.id===zone.owner)!;
+      for (const v of b.units.filter(v=>v.enemy!==zone.enemy && v.hp>0 && v.entry<=0 && (v.x-zone.x)**2+(v.z-zone.z)**2<=zone.radius**2)) {
+        this.hit(owner,v,zone.power,{...this.config.Rules.Actions.fire_rain!,DamageType:"magical"},"ultimate",0,0,owner.attributes,true);
+      }
+    }
+    separate(b.units);
     for (const u of b.units.filter((u) => !u.enemy))
       u.attributes.MaxHp = this.attributes(this.member(u.id)!).MaxHp;
   }
@@ -1249,7 +1307,7 @@ export class TowerEngine {
       return JSON.stringify({
         format: "tower30-playtest",
         schemaVersion: 1,
-        engineVersion: "tower30-ts-workbench-v1",
+        engineVersion: "tower30-ts-workbench-v2",
         config: this.config,
         configHash: this.configHash,
         setup: this.playtest,
@@ -1314,7 +1372,7 @@ export class TowerEngine {
       .object({
         format: z.literal("tower30-playtest"),
         schemaVersion: z.literal(1),
-        engineVersion: z.literal("tower30-ts-workbench-v1"),
+        engineVersion: z.literal("tower30-ts-workbench-v2"),
         config: z.unknown(),
         configHash: z.string(),
         setup: playtestSetupSchema,

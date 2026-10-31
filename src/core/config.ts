@@ -57,6 +57,9 @@ const actionSchema = z.object({
   Lifetime: n.positive().max(4),
   Area: z.boolean(),
   Interruptible: z.boolean(),
+  Range: n.max(30).optional(),
+  Radius: n.max(30).optional(),
+  Duration: n.max(30).optional(),
 });
 const gearSchema = z.object({
   Id: id,
