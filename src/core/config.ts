@@ -1,4 +1,5 @@
 import { z } from "zod";
+import {effectsSchema,hasShieldRatio,hasDotRatio} from "./effects";
 const n = z.number().finite().nonnegative();
 const integer = n.int().max(1_000_000);
 const id = z.string().min(1).max(100);
@@ -60,6 +61,8 @@ const actionSchema = z.object({
   Range: n.max(30).optional(),
   Radius: n.max(30).optional(),
   Duration: n.max(30).optional(),
+  DotRatio: n.max(5).optional(),
+  ShieldRatios: z.array(n.max(20).nullable()).min(1).max(3).optional(),
 });
 const gearSchema = z.object({
   Id: id,
@@ -124,6 +127,7 @@ export const configSchema = z.object({
     ),
     Actions: z.record(id, actionSchema),
     Equipment: z.array(gearSchema),
+    Effects: effectsSchema.optional(),
   }),
   HumanXpThresholds: z.array(integer.positive()).length(29),
   StartingEquipment: z.array(id),
@@ -231,6 +235,10 @@ export function validateConfig(input: unknown): Config {
         s + "技能",
       );
     check(!!a && a.Base.MaxHp > 0, s + "生命");
+  }
+  for(const [skill,rule] of Object.entries(c.Rules.Actions)) {
+    check(rule.DotRatio===undefined||hasDotRatio(skill),skill+"没有可编辑的持续伤害倍率");
+    check(rule.ShieldRatios===undefined||hasShieldRatio(skill),skill+"没有可编辑的数值护盾倍率");
   }
   c.Floors.forEach((f, i) => {
     const e = c.Encounters.find((e) => e.Id === f.Encounter);

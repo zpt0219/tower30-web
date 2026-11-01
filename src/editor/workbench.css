@@ -891,3 +891,10 @@
     padding-left: 9px;
   }
 }
+.wb-effect-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.wb-effect-fields article { border:1px solid #c4af83; background:#f6ebd3; padding:13px; min-width:0; }
+.wb-effect-fields p { font-size:14px; line-height:1.6; margin:10px 0; color:#655b45; }
+.wb-effect-fields button { min-height:48px; font-size:14px; }
+.wb-effect-fields .wb-field { font-size:15px; }
+@media(max-width:850px) { .wb-effect-fields { grid-template-columns:1fr; } }
+.wb-effect-scope { padding:10px 12px; border-left:3px solid #677d54; background:#d9dec555; font-size:14px; line-height:1.6; margin:0 0 14px; }

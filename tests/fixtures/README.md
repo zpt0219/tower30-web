@@ -27,3 +27,5 @@ dotnet run --project scripts/parity/Baseline.csproj \
 完整30层：`csharp-thirty-floors.json`用 `-- --thirty` 生成，830个样本，另实际逐tick检查12377个样本。30层前真实退还/培养、调整首发和补人、保留治疗与打断；详见[30层记录](../../docs/FULL30-STATUS.md)。`-- --thirty --wrong-party`复现满血旧阵容失败，fixture只保留该次30层样本。
 
 `v04-nightwing-save.json / v04-nightwing-expected.json`由本仓库 `07ce207` 的原TS核心实际执行正常命令后生成，在20层夜翼追击移动中保存。仅为测试产物，不是玩家存档；用于验证历史规则重放和迁移点后的继续保存。常规测试只读这两份fixture，不依赖NAS或旧源码目录。
+
+`v06-effects-compatibility.json`由提交`19bd885`的真实TS核心生成：第30层独立测试在第100tick的v4操作记录及完整预期快照。生成时尚未加入效果参数，用于验证v0.7默认规则、配置指纹、旧记录继续与v5升级，不是玩家存档。

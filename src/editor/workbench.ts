@@ -1,3 +1,4 @@
+import {effectDefinitions,resolveEffects,hasDotRatio,dotDefaults,hasShieldRatio,defaultShieldRatio,type EffectKey,type ShieldSkill} from "../core/effects";
 import { skillLabel } from "../data/skill-labels";
 import { type Attributes, type Config } from "../core/config";
 import { TowerEngine } from "../core/engine";
@@ -203,10 +204,11 @@ export class Workbench {
       text?: boolean;
       select?: readonly (readonly [string, string])[];
       textarea?: boolean;
+      optional?: boolean;
     } = {},
   ) {
     const raw = readPath(this.project.source, path),
-      value = raw === undefined ? fallback : raw,
+      value = options.optional && (raw === undefined || raw === null) ? "" : raw === undefined ? fallback : raw,
       display =
         options.percent && typeof value === "number"
           ? Number((value * 100).toFixed(6))
@@ -219,7 +221,7 @@ export class Workbench {
     else if (options.textarea)
       control = `<textarea ${common}>${esc(display)}</textarea>`;
     else
-      control = `<input ${common} type="${options.text ? "text" : "number"}" value="${esc(display)}" ${options.text ? "" : `min="${options.min ?? 0}" max="${options.max ?? 1000000}" step="${options.step ?? 1}" inputmode="decimal"`}>`;
+      control = `<input ${common} type="${options.text ? "text" : "number"}" value="${esc(display)}" ${options.optional?`placeholder="默认 ${esc(Number((Number(fallback)*(options.percent?100:1)).toFixed(6)))}${options.percent?"%":""}"`:""} ${options.text ? "" : `min="${options.min ?? 0}" max="${options.max ?? 1000000}" step="${options.step ?? 1}" inputmode="decimal"`}>`;
     return `<label class="wb-field" for="${esc(id)}"><span>${esc(label)}${options.percent ? " %" : ""}</span>${control}</label>`;
   }
   private setting(
@@ -246,7 +248,7 @@ export class Workbench {
           e = editableEncounter(this.project.source, c, ei);
         return `<button data-wb="floor" data-id="${f.Number}" class="wb-entity ${f.Number === this.project.setup.floor ? "active" : ""}"><strong>${String(f.Number).padStart(2, "0")}</strong><span>${esc(e.Title)}<small>${e.Boss ? "Boss · " : ""}${e.Enemies.reduce((s, v) => s + v.Count, 0)}名敌人</small></span></button>`;
       }).join("");
-    if (this.tab === "skills") return this.skillOptions().map(([id]) => `<button data-wb="skill" data-id="${esc(id)}" class="wb-entity ${id===this.action?"active":""}"><span><strong>${esc(skillLabel(id))}</strong><small>${esc(id)} · ${supportedSkills.has(id)?"已实现，可 Play":"待迁移，测试中停用"}</small></span></button>`).join("");
+    if (this.tab === "skills") return `<button data-wb="skill" data-id="effects" class="wb-entity ${this.action==="effects"?"active":""}"><span><strong>效果与被动</strong><small>减疗 · 反伤 · 急速 · 护盾</small></span></button>`+this.skillOptions().map(([id]) => `<button data-wb="skill" data-id="${esc(id)}" class="wb-entity ${id===this.action?"active":""}"><span><strong>${esc(skillLabel(id))}</strong><small>${esc(id)} · ${supportedSkills.has(id)?"已实现，可 Play":"待迁移，测试中停用"}</small></span></button>`).join("");
     return ["hero", "princess", ...c.Species.map((s) => s.Id)]
       .filter((id) => `${this.name(id)} ${id}`.includes(this.query))
       .map(
@@ -299,10 +301,14 @@ export class Workbench {
         ] as const,
     );
   }
+  private effects() {
+    return `<div class="wb-section-title"><div><p class="eyebrow">SHARED EFFECTS</p><h2>共用效果与被动</h2></div><button data-wb="reset-effects">恢复共用效果默认</button></div><p class="wb-effect-scope">共用参数影响双方全部使用者。留空沿用默认；0的含义见各项说明。改动只应用到新Play和批测快照。</p>${["状态","被动","护盾","装备"].map(group=>`<h3 class="wb-section-label">${group} · 双方共用</h3><div class="wb-effect-fields">${Object.entries(effectDefinitions).filter(([,d])=>d.group===group).map(([key,d])=>`<article>${this.field(d.label,["Rules","Effects",key],d.default,{optional:true,percent:d.percent,min:d.min*(d.percent?100:1),max:d.max*(d.percent?100:1),step:d.percent?.1:.05})}<p>${esc(d.help)}</p><button data-wb="clear-effect" data-id="${key}">沿用默认</button></article>`).join("")}</div>`).join("")}<button class="wb-compact-reset" data-wb="reset-effects">恢复共用效果默认</button>`;
+  }
   private skills() {
+    if(this.action==="effects")return this.effects();
     const r=this.config().Rules.Actions[this.action]!, path:Path=["Rules","Actions",this.action];
     const scalar=(key:string,label:string,options:{min?:number;max?:number;step?:number}={})=>this.field(label,[...path,key],r[key as keyof typeof r]??"",options);
-    return `<div class="wb-section-title"><div><p class="eyebrow">SKILL INSPECTOR</p><h2>${esc(this.action)}</h2></div><button data-wb="reset-skill">恢复技能基线</button></div><p class="wb-help">同一技能的修改影响所有使用者。自动技能冷却在“角色”页设置。${supportedSkills.has(this.action)?"此技能已接入战斗核心。":"此技能尚未迁移；可以保存参数，Play 会按测试设置阻止或停用该技能。"}</p><h3 class="wb-section-label">动作时间轴</h3><div class="wb-fields">${scalar("Windup","技能前摇（秒）",{max:2,step:.05})}${scalar("Backswing","技能后摇（秒）",{max:3,step:.05})}${scalar("ProjectileSpeed","弹道速度",{min:1,max:100,step:1})}${scalar("Lifetime","弹道存活（秒）",{min:.05,max:4,step:.05})}${this.field("大招可被打断",[...path,"Interruptible"],String(r.Interruptible),{select:[["true","允许打断"],["false","不可打断"]]})}</div>${r.DamageType!=="buff"?`<h3 class="wb-section-label">${r.DamageType==="heal"?"治疗":"伤害"}系数 <small>属性 × 倍率 ＋ 固定值</small></h3><p class="wb-help">使用${r.ScalingStat==="mag"?"法术":"攻击"}属性。暴击、防御、护盾与被动在核心继续结算。</p><div class="wb-fields">${[0,1,2].map(i=>this.field(`Lv.${i+1} 倍率`,[...path,"Ratios",i],r.Ratios[Math.min(i,r.Ratios.length-1)]??1,{max:20,step:.05})+this.field(`Lv.${i+1} 固定值`,[...path,"Bases",i],r.Bases[Math.min(i,r.Bases.length-1)]??0,{max:1000000})).join("")}</div>`:""}<h3 class="wb-section-label">射程与效果覆盖</h3><p class="wb-help">留空沿用原技能规则。射程控制选取和执行距离；范围半径作用于涌潮、碎甲冲、火雨和寒潮；持续时间作用于本技能附加的控制、减伤、追击或持续恢复。瞬时伤害没有持续时间。</p><div class="wb-fields">${scalar("Range","技能射程覆盖",{max:30,step:.1})}${scalar("Radius","范围半径覆盖",{max:30,step:.1})}${scalar("Duration","效果持续（秒）覆盖",{max:30,step:.1})}</div>`;
+    return `<div class="wb-section-title"><div><p class="eyebrow">SKILL INSPECTOR</p><h2>${esc(this.action)}</h2></div><button data-wb="reset-skill">恢复技能基线</button></div><p class="wb-help">同一技能的修改影响所有使用者。自动技能冷却在“角色”页设置。${supportedSkills.has(this.action)?"此技能已接入战斗核心。":"此技能尚未迁移；可以保存参数，Play 会按测试设置阻止或停用该技能。"}</p><h3 class="wb-section-label">动作时间轴</h3><div class="wb-fields">${scalar("Windup","技能前摇（秒）",{max:2,step:.05})}${scalar("Backswing","技能后摇（秒）",{max:3,step:.05})}${scalar("ProjectileSpeed","弹道速度",{min:1,max:100,step:1})}${scalar("Lifetime","弹道存活（秒）",{min:.05,max:4,step:.05})}${this.field("大招可被打断",[...path,"Interruptible"],String(r.Interruptible),{select:[["true","允许打断"],["false","不可打断"]]})}</div>${r.DamageType!=="buff"?`<h3 class="wb-section-label">${r.DamageType==="heal"?"治疗":"伤害"}系数 <small>属性 × 倍率 ＋ 固定值</small></h3><p class="wb-help">使用${r.ScalingStat==="mag"?"法术":"攻击"}属性。暴击、防御、护盾与被动在核心继续结算。</p><div class="wb-fields">${[0,1,2].map(i=>this.field(`Lv.${i+1} 倍率`,[...path,"Ratios",i],r.Ratios[Math.min(i,r.Ratios.length-1)]??1,{max:20,step:.05})+this.field(`Lv.${i+1} 固定值`,[...path,"Bases",i],r.Bases[Math.min(i,r.Bases.length-1)]??0,{max:1000000})).join("")}</div>`:""}<h3 class="wb-section-label">射程与效果覆盖</h3><p class="wb-help">留空沿用原技能规则。射程控制选取和执行距离；范围半径作用于涌潮、碎甲冲、火雨和寒潮；持续时间作用于本技能附加的控制、减伤、追击或持续恢复。瞬时伤害没有持续时间。</p><div class="wb-fields">${scalar("Range","技能射程覆盖",{max:30,step:.1})}${scalar("Radius","范围半径覆盖",{max:30,step:.1})}${scalar("Duration","效果持续（秒）覆盖",{max:30,step:.1})}</div>${hasDotRatio(this.action)?`<h3 class="wb-section-label">持续伤害</h3><p class="wb-help">每秒按施法时${r.ScalingStat==="mag"?"法术":"攻击"}属性计算；默认${this.action==="poison"?"1/6":"1/8"}，取整后最低1。填0不附加持续伤害；直接伤害仍使用上方倍率。毒刺与毒雾的治疗抑制比例在共用效果下设置。</p><div class="wb-fields">${this.field("持续伤害属性比例",[...path,"DotRatio"],dotDefaults[this.action],{optional:true,percent:true,min:0,max:500,step:.1})}</div>`:""}${hasShieldRatio(this.action)?`<h3 class="wb-section-label">数值护盾倍率</h3><p class="wb-help">使用${r.ScalingStat==="mag"?"法术":"攻击"}属性。每个技能等级分别设置；留空沿用本级默认，0不生成新护盾。取已有护盾与新护盾较大值，不叠加。</p><div class="wb-fields">${[0,1,2].map(i=>this.field(`Lv.${i+1} 护盾倍率`,[...path,"ShieldRatios",i],defaultShieldRatio(this.action as ShieldSkill,i+1),{optional:true,min:0,max:20,step:.05})).join("")}</div>`:""}<button data-wb="skill" data-id="effects">编辑共用效果与被动</button><button class="wb-compact-reset" data-wb="reset-skill">恢复技能基线</button>`;
   }
   private floors() {
     const c = this.config(),
@@ -349,6 +355,10 @@ export class Workbench {
   }
   private preview(c: Config | null) {
     if (!c) return "<p>修正配置错误后显示核心预览。</p>";
+    if (this.tab === "skills" && this.action==="effects") {
+      const values=resolveEffects(c.Rules.Effects);
+      return `<p class="eyebrow">EFFECT PREVIEW</p><h3>当前生效数值</h3><p class="wb-help">共用效果；空白输入使用核心默认值。</p><dl>${Object.entries(effectDefinitions).map(([key,d])=>`<div><dt>${d.label}</dt><dd>${Number((values[key as EffectKey]*(d.percent?100:1)).toFixed(4))}${d.percent?"%":""}</dd></div>`).join("")}</dl>`;
+    }
     if (this.tab === "skills") {
       const r=c.Rules.Actions[this.action]!;
       const users=Object.entries(c.Rules.Profiles).filter(([,p])=>p.Auto===this.action||p.Ultimate===this.action).map(([id])=>this.name(id));
@@ -435,9 +445,17 @@ export class Workbench {
             el.value === ""
               ? null
               : Number(el.value) / (el.dataset.percent ? 100 : 1);
+        if(path[1]==="Effects") {
+          if(readPath(this.project.source,["Rules","Effects"])===undefined)setPath(this.project.source,["Rules","Effects"],{});
+          if(value===null)value=undefined;
+        }
         if (path[1] === "Actions") {
-          if (["Range","Radius","Duration"].includes(String(path.at(-1))) && value === null) value=undefined;
+          if (["Range","Radius","Duration","DotRatio"].includes(String(path.at(-1))) && value === null) value=undefined;
           if (path.at(-1) === "Interruptible") value=el.value === "true";
+          if(path[3]==="ShieldRatios") {
+            const current=readPath(this.project.source,path.slice(0,4));
+            setPath(this.project.source,path.slice(0,4),[0,1,2].map(i=>Array.isArray(current)?current[i]??null:null));
+          }
           if (path[3] === "Ratios" || path[3] === "Bases") {
             const r=this.lastValid.Rules.Actions[String(path[2])]!;
             const key=path[3]; const current=readPath(this.project.source,path.slice(0,4)); const values=[0,1,2].map(i=>Array.isArray(current)&&i<current.length?current[i]:r[key][Math.min(i,r[key].length-1)]??(key==="Ratios"?1:0));
@@ -445,6 +463,11 @@ export class Workbench {
           }
         }
         setPath(this.project.source, path as Path, value);
+        if(path[3]==="ShieldRatios") {
+          const values=readPath(this.project.source,path.slice(0,4));
+          if(Array.isArray(values)&&values.every(v=>v===null))setPath(this.project.source,path.slice(0,4),undefined);
+        }
+        if(path[1]==="Effects")this.pruneEffects();
       } else if (el.dataset.setting) {
         const key = el.dataset.setting as keyof PlaytestSetup;
         const value =
@@ -494,6 +517,10 @@ export class Workbench {
     a.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  private pruneEffects() {
+    const effects=readPath(this.project.source,["Rules","Effects"]);
+    if(effects&&typeof effects==="object"&&Object.keys(effects).length===0)setPath(this.project.source,["Rules","Effects"],undefined);
+  }
   private click(action: string, id?: string) {
     switch (action) {
       case "characters":
@@ -513,6 +540,10 @@ export class Workbench {
         return;
       case "skill":
         this.action=id!;this.render();return;
+      case "clear-effect":
+        if(id&&Object.hasOwn(effectDefinitions,id)&&readPath(this.project.source,["Rules","Effects"])!==undefined){setPath(this.project.source,["Rules","Effects",id],undefined);this.pruneEffects();this.render();void this.save();}return;
+      case "reset-effects":
+        setPath(this.project.source,["Rules","Effects"],undefined);this.render();void this.save();return;
       case "reset-skill":
         setPath(this.project.source,["Rules","Actions",this.action],readPath(this.baseline,["Rules","Actions",this.action]));this.render();void this.save();return;
       case "character":

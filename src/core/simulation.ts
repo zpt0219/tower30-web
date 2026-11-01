@@ -32,7 +32,7 @@ export interface SimulationPair { a: SimulationTrial; b: SimulationTrial }
 export interface SimulationReport {
   format: "tower30-comparison";
   schemaVersion: 1;
-  engineVersion: "tower30-ts-workbench-v4";
+  engineVersion: "tower30-ts-workbench-v4" | "tower30-ts-workbench-v5";
   policyVersion: typeof SIMULATION_POLICY_VERSION;
   setup: PlaytestSetup;
   options: SimulationOptions;
@@ -55,7 +55,7 @@ export function createSimulationReport(a: unknown, b: unknown, setup: PlaytestSe
     const engine = TowerEngine.createPlaytest(config, checkedSetup);
     return { config, hash: engine.configHash, label: name, warnings: playtestWarnings(config, checkedSetup) };
   };
-  return { format: "tower30-comparison", schemaVersion: 1, engineVersion: "tower30-ts-workbench-v4", policyVersion: SIMULATION_POLICY_VERSION,
+  return { format: "tower30-comparison", schemaVersion: 1, engineVersion: "tower30-ts-workbench-v5", policyVersion: SIMULATION_POLICY_VERSION,
     setup: clone(checkedSetup), options: checkedOptions, a: candidate(a,label), b: candidate(b,"当前草稿"), pairs: [], status: "running" };
 }
 

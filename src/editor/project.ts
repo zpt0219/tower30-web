@@ -1,3 +1,4 @@
+import {effectDefinitions} from "../core/effects";
 import { z } from "zod";
 import { validateConfig, type Config } from "../core/config";
 import { clone } from "../core/math";
@@ -78,6 +79,10 @@ export function importProject(text: string): EditorProject {
 }
 const names: Record<string, string> = {
   Rules: "规则",
+  Effects:"共用效果",
+  DotRatio:"持续伤害比例",
+  ShieldRatios:"护盾倍率",
+  ...Object.fromEntries(Object.entries(effectDefinitions).map(([key,d])=>[key,d.label])),
   Combatants: "角色",
   Base: "基础",
   Growth: "成长",
@@ -111,8 +116,12 @@ function describeError(e: unknown): string[] {
       let message = i.message;
       if (i.code === "invalid_type")
         message = i.expected === "int" ? "请输入整数" : "请输入有效数值或选项";
-      if (i.code === "too_small") message = `不能小于 ${i.minimum}`;
-      if (i.code === "too_big") message = `不能大于 ${i.maximum}`;
+      if (i.code === "unrecognized_keys") message=`存在不支持的参数：${i.keys.join("、")}`;
+      const effectKey=String(i.path[2]) as keyof typeof effectDefinitions;
+      const percent=i.path[1]==="Effects" && Object.hasOwn(effectDefinitions,effectKey) && effectDefinitions[effectKey].percent || i.path.at(-1)==="DotRatio";
+      const bound=(value:number|bigint)=>percent?`${Number((Number(value)*100).toFixed(6))}%`:String(value);
+      if (i.code === "too_small") message = `不能小于 ${bound(i.minimum)}`;
+      if (i.code === "too_big") message = `不能大于 ${bound(i.maximum)}`;
       return `${i.path.map((k) => names[String(k)] ?? String(k)).join(" → ")}：${message}`;
     });
   return [e instanceof Error ? e.message : "配置无效"];
