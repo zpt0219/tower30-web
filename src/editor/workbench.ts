@@ -79,7 +79,7 @@ export class Workbench {
   ) {
     this.project = newProject(baseline);
     this.lastValid = baseConfig;
-    this.comparison = new Comparison(baseConfig,()=>this.updateComparison(),notify,(source,name)=>this.download(source,name),onPlay,onReview);
+    this.comparison = new Comparison(baseConfig,focus=>this.updateComparison(focus),notify,(source,name)=>this.download(source,name),onPlay,onReview);
   }
   async load() {
     try {
@@ -104,13 +104,19 @@ export class Workbench {
     }
     await this.comparison.load();
   }
-  private updateComparison() {
+  private updateComparison(focus?:string) {
     const host=this.root?.isConnected?this.root.querySelector<HTMLElement>("#wb-comparison"):null;
     if(!host)return;
-    const left=host.querySelector(".sim-controls")?.scrollTop??0,right=host.querySelector(".sim-results")?.scrollTop??0,open=host.querySelector("details")?.open??false;
+    const left=host.querySelector(".sim-controls")?.scrollTop??0,right=host.querySelector(".sim-results")?.scrollTop??0;
+    const open=[...host.querySelectorAll("details")].map(el=>el.open);
+    const active=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    const input=active?.dataset.sim,floor=active?.dataset.floor;
     host.innerHTML=this.comparison.render(this.project.setup,this.project.source);
-    const controls=host.querySelector(".sim-controls"),results=host.querySelector(".sim-results"),details=host.querySelector("details");
-    if(controls)controls.scrollTop=left;if(results)results.scrollTop=right;if(details)details.open=open;
+    const controls=host.querySelector(".sim-controls"),results=host.querySelector(".sim-results");
+    if(controls)controls.scrollTop=left;if(results)results.scrollTop=right;
+    host.querySelectorAll("details").forEach((el,i)=>{el.open=open[i]??false;});
+    if(focus==="detail"&&results){const detail=host.querySelector("#sim-floor-detail");if(detail)results.scrollTop+=detail.getBoundingClientRect().top-results.getBoundingClientRect().top;}
+    if(input)host.querySelector<HTMLElement>(`[data-sim="${CSS.escape(input)}"]${floor?`[data-floor="${CSS.escape(floor)}"]`:""}`)?.focus({preventScroll:true});
   }
   attach(root: HTMLElement) {
     this.root = root;
@@ -179,10 +185,12 @@ export class Workbench {
     if (validation)
       validation.innerHTML = result.errors.length
         ? `<b>配置有误，暂不能 Play</b><p>${result.errors.map(esc).join("<br>")}</p>`
+        : this.tab==="analysis"
+          ? `<b>✓ 草稿结构校验通过</b><span>运行前校验全部批测关卡；单关Play仍使用测试设置的当前关卡。</span>`
         : strict
           ? `<b>所选关卡有未迁移功能</b><p>切换到“数值与已实现技能”可独立测试。</p>`
           : `<b>✓ 配置校验通过</b><span>42角色 · 30关 · ${result.warnings.length}项未迁移功能${result.warnings.length ? "将在测试中停用" : ""}</span>`;
-    validation?.classList.toggle("invalid", !!result.errors.length || !!strict);
+    validation?.classList.toggle("invalid", !!result.errors.length || (this.tab!=="analysis" && !!strict));
     this.root
       .querySelectorAll<HTMLButtonElement>('[data-wb="play"]')
       .forEach((b) => (b.disabled = !!result.errors.length || !!strict));
@@ -424,7 +432,7 @@ export class Workbench {
         (el instanceof HTMLInputElement && el.type === "checkbox"))
     )
       return;
-    if(el.dataset.sim){this.comparison.input(el as HTMLInputElement|HTMLSelectElement);return;}
+    if(el.dataset.sim){this.comparison.input(el as HTMLInputElement|HTMLSelectElement,this.project.setup);return;}
     if (el.id === "wb-search") {
       this.query = el.value;
       const list = this.root?.querySelector("#wb-list");

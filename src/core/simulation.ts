@@ -11,6 +11,8 @@ export const simulationOptionsSchema = z.object({
   reinforce: z.boolean(),
 }).strict();
 export type SimulationOptions = z.infer<typeof simulationOptionsSchema>;
+export const simulationFloorsSchema=z.array(z.number().int().min(1).max(30)).min(1).max(30)
+  .refine(floors=>new Set(floors).size===floors.length,"测试关卡不可重复");
 export const SIMULATION_POLICY_VERSION = "tower30-policy-v1";
 export interface SimulationTrial {
   seed: number;
@@ -28,10 +30,12 @@ export interface SimulationTrial {
   absorbed: number;
   replay: { tick: number; journal: State["journal"] };
 }
-export interface SimulationPair { a: SimulationTrial; b: SimulationTrial }
+export interface SimulationPair { a: SimulationTrial; b: SimulationTrial; floor?:number }
 export interface SimulationReport {
   format: "tower30-comparison";
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
+  floors?:number[];
+  floorWarnings?:{floor:number;a:string[];b:string[]}[];
   engineVersion: "tower30-ts-workbench-v4" | "tower30-ts-workbench-v5";
   policyVersion: typeof SIMULATION_POLICY_VERSION;
   setup: PlaytestSetup;
@@ -47,16 +51,43 @@ export function simulationSeed(first: number, index: number) {
     throw new Error("批量种子范围无效");
   return ((first - 1 + index) % 0xffffffff) + 1;
 }
-export function createSimulationReport(a: unknown, b: unknown, setup: PlaytestSetup, options: SimulationOptions, label = "保存的配置") : SimulationReport {
+export function createSimulationReport(a: unknown, b: unknown, setup: PlaytestSetup, options: SimulationOptions, label = "保存的配置", floors?:readonly number[]) : SimulationReport {
   const checkedSetup = playtestSetupSchema.parse(setup), checkedOptions = simulationOptionsSchema.parse(options);
-  const candidate = (source: unknown, name: string) => {
+  const selected=floors===undefined?[checkedSetup.floor]:simulationFloorsSchema.parse(floors).sort((a,b)=>a-b);
+  const floorWarnings=selected.map(floor=>({floor,a:[] as string[],b:[] as string[]}));
+  const candidate = (source: unknown, name: string,variant:"a"|"b") => {
     const config = validateConfig(source);
-    // Exercise the same validation used by interactive Play before any trials run.
-    const engine = TowerEngine.createPlaytest(config, checkedSetup);
-    return { config, hash: engine.configHash, label: name, warnings: playtestWarnings(config, checkedSetup) };
+    let hash="";
+    const warnings:string[]=[];
+    // Validate every selected floor before any trial; never validate an unrelated current Play floor.
+    for(const entry of floorWarnings){
+      const input={...checkedSetup,floor:entry.floor};
+      try{
+        const engine=TowerEngine.createPlaytest(config,input);hash=engine.configHash;
+        for(const type of ["begin","start"] as const){const result=engine.dispatch({type});if(!result.ok)throw new Error(result.message);}
+      }
+      catch(e){throw new Error(`${variant.toUpperCase()} 第${entry.floor}关：${e instanceof Error?e.message:"配置无效"}`);}
+      entry[variant]=playtestWarnings(config,input);
+      warnings.push(...entry[variant].map(w=>selected.length>1?`第${entry.floor}关：${w}`:w));
+    }
+    return { config, hash, label: name, warnings };
   };
-  return { format: "tower30-comparison", schemaVersion: 1, engineVersion: "tower30-ts-workbench-v5", policyVersion: SIMULATION_POLICY_VERSION,
-    setup: clone(checkedSetup), options: checkedOptions, a: candidate(a,label), b: candidate(b,"当前草稿"), pairs: [], status: "running" };
+  const report:SimulationReport={ format: "tower30-comparison", schemaVersion: floors===undefined?1:2, engineVersion: "tower30-ts-workbench-v5", policyVersion: SIMULATION_POLICY_VERSION,
+    setup: clone(checkedSetup), options: checkedOptions, a: candidate(a,label,"a"), b: candidate(b,"当前草稿","b"), pairs: [], status: "running" };
+  if(floors!==undefined){report.floors=selected;report.floorWarnings=floorWarnings;}
+  return report;
+}
+export function reportFloors(report:SimulationReport):number[]{
+  if(report.schemaVersion===1)return [report.setup.floor];
+  if(report.schemaVersion!==2)throw new Error("不支持的批测报告版本");
+  return simulationFloorsSchema.parse(report.floors);
+}
+export const simulationTotal=(report:SimulationReport)=>reportFloors(report).length*report.options.count;
+export function simulationJob(report:SimulationReport,index:number){
+  const floors=reportFloors(report);
+  if(!Number.isInteger(index)||index<0||index>=simulationTotal(report))throw new Error("模拟序号超出范围");
+  // Round-robin floors for each seed keeps partial/cancelled runs balanced across floors.
+  return {floor:floors[index%floors.length]!,seed:simulationSeed(report.setup.seed,Math.floor(index/floors.length))};
 }
 
 // A command controller, not a second combat implementation. Every decision is submitted to TowerEngine.
@@ -99,9 +130,10 @@ export function simulateBattle(config: Config, input: PlaytestSetup, options: Si
     replay:{tick:record.tick,journal:record.journal} };
 }
 export function simulatePair(report: SimulationReport, index: number): SimulationPair {
-  if(!Number.isInteger(index) || index<0 || index>=report.options.count)throw new Error("模拟序号超出范围");
-  const setup = {...report.setup,seed:simulationSeed(report.setup.seed,index)};
-  return {a:simulateBattle(report.a.config,setup,report.options),b:simulateBattle(report.b.config,setup,report.options)};
+  const job=simulationJob(report,index),setup={...report.setup,...job};
+  const pair:SimulationPair={a:simulateBattle(report.a.config,setup,report.options),b:simulateBattle(report.b.config,setup,report.options)};
+  if(report.schemaVersion===2)pair.floor=job.floor;
+  return pair;
 }
 export function summarizeTrials(rows: readonly SimulationTrial[]) {
   const n=rows.length, wins=rows.filter(r=>r.result==="victory"), total=(key:"ticks"|"fallen"|"reinforcements"|"energySpent"|"energyGained"|"hpRemaining"|"hpInitial"|"damage"|"healing"|"absorbed")=>rows.reduce((s,r)=>s+r[key],0);
@@ -121,6 +153,14 @@ export function summarizePairs(pairs: readonly SimulationPair[]) {
 }
 export function trialSave(report: SimulationReport, variant: "a"|"b", index: number) {
   const trial=report.pairs[index]?.[variant];if(!trial)throw new Error("模拟样本不存在");
+  const job=simulationJob(report,index);
+  if(trial.seed!==job.seed||report.schemaVersion===2&&report.pairs[index]!.floor!==job.floor)throw new Error("样本关卡或种子与任务不符");
   return {format:"tower30-playtest",schemaVersion:1,engineVersion:report.engineVersion,config:report[variant].config,
-    configHash:report[variant].hash,setup:{...report.setup,seed:trial.seed},...trial.replay};
+    configHash:report[variant].hash,setup:{...report.setup,...job},...trial.replay};
+}
+export function summarizeFloors(report:SimulationReport){
+  return reportFloors(report).map(floor=>{
+    const pairs=report.pairs.filter(p=>(p.floor??report.setup.floor)===floor);
+    return {floor,completed:pairs.length,requested:report.options.count,a:summarizeTrials(pairs.map(p=>p.a)),b:summarizeTrials(pairs.map(p=>p.b)),paired:summarizePairs(pairs)};
+  });
 }

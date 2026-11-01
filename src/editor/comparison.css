@@ -44,3 +44,38 @@
 .sim-row-actions { display:flex; width:290px; flex-wrap:wrap; gap:4px; }
 .sim-row-actions button { margin:0; }
 @media(max-height:560px) and (min-width:700px) { .sim-progress > p:not(.sim-warning) { display:none; } .sim-progress h3 { font-size:22px; margin-bottom:2px; } .sim-progress progress { height:8px; margin:6px 0 12px; } .sim-metric { padding:8px 0; } .sim-metric-head { padding:8px; } }
+.sim-floor-picker { border:1px solid #bca87b; background:#f5e9cf; margin:12px 0; }
+.sim-floor-picker > summary { min-height:48px; padding:12px; cursor:pointer; font-size:16px; line-height:1.5; }
+.sim-presets { display:flex; flex-wrap:wrap; gap:7px; padding:0 12px 12px; }
+.sim-floor-options { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; padding:0 12px 12px; }
+.sim-floor-options label { display:flex; min-height:48px; align-items:center; justify-content:center; gap:6px; cursor:pointer; border:1px solid #c2af84; background:#fff4d9; font-size:16px; }
+.sim-floor-options label:has(:checked) { background:#48654e; color:#fff2d3; border-color:#48654e; }
+.sim-floor-options input { width:22px; height:22px; accent-color:#476b50; }
+.sim-floor-options label:has(:disabled) { opacity:.65; cursor:default; }
+.sim-plan,.sim-help { font-size:14px; line-height:1.6; margin:10px 0; }
+.sim-selection-invalid { color:#9b4b31; font-size:16px; margin:10px 0; }
+.sim-floor-overview > h3,#sim-floor-detail > h3 { font-size:23px; margin:14px 0 8px; }
+.sim-floor-table { overflow:auto; }
+.sim-floor-table table { min-width:760px; width:100%; }
+.sim-floor-table th,.sim-floor-table td { white-space:nowrap; padding:8px; font-size:14px; font-variant-numeric:tabular-nums; }
+.sim-floor-table tr:has(button:focus-visible) { background:#dfd6b6; }
+.sim-filters { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:12px 0; }
+.sim-filters select { font-size:16px; }
+.sim-pagination { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:12px 0; font-size:15px; }
+.sim-pagination > span { flex:1; }
+.sim-no-samples { font-size:16px; padding:12px 0; }
+.sim-multi-progress { font-size:16px; line-height:1.5; color:#3e6551; }
+.sim-title .test-label { color:#3f5b37 !important; border:1px solid #a0ad83; background:#e2e8cb; padding:5px 8px; }
+@media(max-width:850px) { .sim-floor-options { grid-template-columns:repeat(5,minmax(0,1fr)); } }
+
+@media(max-height:560px) and (min-width:700px) {
+  .sim-progress { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 10px; }
+  .sim-progress h3 { flex:none; }
+  .sim-progress .sim-multi-progress { font-size:13px; }
+  .sim-progress progress { flex-basis:100%; margin:3px 0 8px; }
+  .sim-progress .sim-warning { flex-basis:100%; }
+  .sim-floor-overview > h3,.sim-floor-overview > .sim-help { display:none; }
+  .sim-floor-table table { margin:0; }
+  .sim-floor-table th,.sim-floor-table td { padding:3px 6px; }
+  .sim-floor-table button { padding:8px 10px; }
+}
