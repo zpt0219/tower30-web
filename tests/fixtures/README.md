@@ -23,3 +23,7 @@ dotnet run --project scripts/parity/Baseline.csproj \
 重建时写到本次NAS目录，核对再更新fixture。TS新增一次Boss战撤回/重试回归后，以相同战前状态继续对照；全量命令重放也在测试中验证。
 
 `csharp-twenty-floors.json`在M2策略上增加11层前四件正常购买的装备与后续50金币住宿，连续通过20层；生成参数 `-- --twenty`，534个样本，`-- --twenty --dense`另有8005个逐tick样本实际对照。规则与资源明细见[前20层记录](../../docs/FLOOR20-STATUS.md)。
+
+完整30层：`csharp-thirty-floors.json`用 `-- --thirty` 生成，830个样本，另实际逐tick检查12377个样本。30层前真实退还/培养、调整首发和补人、保留治疗与打断；详见[30层记录](../../docs/FULL30-STATUS.md)。`-- --thirty --wrong-party`复现满血旧阵容失败，fixture只保留该次30层样本。
+
+`v04-nightwing-save.json / v04-nightwing-expected.json`由本仓库 `07ce207` 的原TS核心实际执行正常命令后生成，在20层夜翼追击移动中保存。仅为测试产物，不是玩家存档；用于验证历史规则重放和迁移点后的继续保存。常规测试只读这两份fixture，不依赖NAS或旧源码目录。

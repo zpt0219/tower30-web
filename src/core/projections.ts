@@ -22,6 +22,8 @@ export function combatantAttributes(
     a.EnergyRegen += 0.1 * (rank >= 5 ? 2 : 1);
   if (rank >= 3 && config.Rules.Profiles[id]?.PassiveEffect === "attack_heal")
     a.Lifesteal += 0.05 * (rank >= 5 ? 2 : 1);
+  if (rank >= 3 && ["root_guard","silver"].includes(config.Rules.Profiles[id]?.PassiveEffect ?? ""))
+    a.Tenacity += 0.2;
   return capped(a);
 }
 export function enemyAttributes(
@@ -33,6 +35,8 @@ export function enemyAttributes(
     a.EnergyRegen = Math.min(1, a.EnergyRegen + 0.1 * (group.Rank >= 5 ? 2 : 1));
   if (group.Rank >= 3 && (group.ProfileOverride ?? config.Rules.Profiles[group.Species])?.PassiveEffect === "attack_heal")
     a.Lifesteal = Math.min(0.6, a.Lifesteal + 0.05 * (group.Rank >= 5 ? 2 : 1));
+  if (group.Rank >= 3 && ["root_guard","silver"].includes((group.ProfileOverride ?? config.Rules.Profiles[group.Species])?.PassiveEffect ?? ""))
+    a.Tenacity = Math.min(0.6, a.Tenacity + 0.2);
   a.MaxHp = Math.ceil(a.MaxHp * group.Health);
   a.Attack = Math.ceil(a.Attack * group.AttackScale);
   a.Magic = Math.ceil(a.Magic * group.AttackScale);

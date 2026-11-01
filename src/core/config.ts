@@ -69,7 +69,7 @@ const gearSchema = z.object({
   Effect: z.string(),
   Auto: z.string(),
   Ultimate: z.string(),
-  Role: z.string(),
+  Role: z.enum(["", "melee", "tank", "ranged", "healer"]),
   AutoLevel: integer.min(1).max(3),
   UltimateLevel: integer.min(1).max(3),
   Attributes: attributesSchema,

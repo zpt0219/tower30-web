@@ -16,6 +16,8 @@ import {
   type EditorProject,
 } from "./project";
 import "./workbench.css";
+import "./comparison.css";
+import { Comparison } from "./comparison";
 const esc = (v: unknown) =>
   String(v ?? "").replace(
     /[&<>"']/g,
@@ -56,7 +58,8 @@ type Path = (string | number)[];
 export class Workbench {
   private root: HTMLElement | null = null;
   project: EditorProject;
-  private tab: "characters" | "floors" | "skills" | "setup" = "characters";
+  private tab: "characters" | "floors" | "skills" | "setup" | "analysis" = "characters";
+  private readonly comparison: Comparison;
   private character = "hero";
   private action = "swift";
   private statTab: "Base" | "Growth" = "Base";
@@ -71,9 +74,11 @@ export class Workbench {
     baseConfig: Config,
     private readonly onPlay: (config: Config, setup: PlaytestSetup) => void,
     private readonly notify: (message: string) => void,
+    onReview: (serialized:string) => void,
   ) {
     this.project = newProject(baseline);
     this.lastValid = baseConfig;
+    this.comparison = new Comparison(baseConfig,()=>this.updateComparison(),notify,(source,name)=>this.download(source,name),onPlay,onReview);
   }
   async load() {
     try {
@@ -96,11 +101,25 @@ export class Workbench {
     } catch {
       this.notify("工作台草稿未能读取，已保留正式试跑。可重新导入导出的工程。");
     }
+    await this.comparison.load();
+  }
+  private updateComparison() {
+    const host=this.root?.isConnected?this.root.querySelector<HTMLElement>("#wb-comparison"):null;
+    if(!host)return;
+    const left=host.querySelector(".sim-controls")?.scrollTop??0,right=host.querySelector(".sim-results")?.scrollTop??0,open=host.querySelector("details")?.open??false;
+    host.innerHTML=this.comparison.render(this.project.setup,this.project.source);
+    const controls=host.querySelector(".sim-controls"),results=host.querySelector(".sim-results"),details=host.querySelector("details");
+    if(controls)controls.scrollTop=left;if(results)results.scrollTop=right;if(details)details.open=open;
   }
   attach(root: HTMLElement) {
     this.root = root;
     this.render();
     root.addEventListener("click", (e) => {
+      const simulation=(e.target as Element).closest<HTMLElement>("[data-sim-action]");
+      if(simulation){
+        if(!(simulation instanceof HTMLButtonElement)||!simulation.disabled)this.comparison.action(simulation.dataset.simAction!,this.project.source,this.project.setup,simulation.dataset.id);
+        return;
+      }
       const el = (e.target as Element).closest<HTMLElement>("[data-wb]");
       if (!el || (el instanceof HTMLButtonElement && el.disabled)) return;
       this.click(el.dataset.wb!, el.dataset.id);
@@ -376,7 +395,7 @@ export class Workbench {
   }
   render() {
     if (!this.root) return;
-    this.root.innerHTML = `<section class="workbench"><div class="wb-toolbar"><div><strong>配置工作台</strong></div><div class="wb-actions"><button data-wb="save">保存草稿</button><button data-wb="export">导出工程</button><button data-wb="export-config">导出配表</button><button data-wb="import">导入</button><button data-wb="play" class="primary">▶ Play 第${this.project.setup.floor}关</button></div></div><div class="wb-tabs"><button data-wb="characters" class="${this.tab === "characters" ? "active" : ""}">角色 · 42</button><button data-wb="floors" class="${this.tab === "floors" ? "active" : ""}">关卡 · 30</button><button data-wb="skills" class="${this.tab === "skills" ? "active" : ""}">技能 · 73</button><button data-wb="setup" class="${this.tab === "setup" ? "active" : ""}">测试设置</button><button data-wb="reset-all" class="wb-reset">恢复全部基线</button></div><div id="wb-validation" class="wb-validation" role="status"></div><div class="wb-body">${this.tab === "setup" ? "" : `<aside class="wb-sidebar">${this.tab === "characters" ? `<label class="wb-search"><span>查找角色</span><input id="wb-search" placeholder="名称 / ID" value="${esc(this.query)}"></label>` : `<p class="wb-help">${this.tab==="skills"?"选择技能，修改参数后 Play 测试。":"点击关卡即可选择测试目标；不需要先通关。"}</p>`}<div id="wb-list">${this.list()}</div></aside>`}<div class="wb-inspector">${this.tab === "characters" ? this.characters() : this.tab === "floors" ? this.floors() : this.tab === "skills" ? this.skills() : this.setup()}${(this.tab === "characters" || this.tab === "floors") ? `<button class="wb-compact-reset" data-wb="${this.tab === "characters" ? "reset-character" : "reset-floor"}">${this.tab === "characters" ? "恢复此角色基线" : "恢复本关基线"}</button>` : ""}<button class="wb-compact-reset" data-wb="reset-all">恢复全部基线</button></div><aside id="wb-preview" class="wb-preview"></aside></div><div class="wb-footer"><span id="wb-save-status">${this.status}</span> · 草稿仅保存在此浏览器；可导出／导入JSON。正式试跑与测试完全分开。</div></section>`;
+    this.root.innerHTML = `<section class="workbench"><div class="wb-toolbar"><div><strong>配置工作台</strong></div><div class="wb-actions"><button data-wb="save">保存草稿</button><button data-wb="export">导出工程</button><button data-wb="export-config">导出配表</button><button data-wb="import">导入</button><button data-wb="play" class="primary">▶ Play 第${this.project.setup.floor}关</button></div></div><div class="wb-tabs"><button data-wb="characters" class="${this.tab === "characters" ? "active" : ""}">角色 · 42</button><button data-wb="floors" class="${this.tab === "floors" ? "active" : ""}">关卡 · 30</button><button data-wb="skills" class="${this.tab === "skills" ? "active" : ""}">技能 · 73</button><button data-wb="setup" class="${this.tab === "setup" ? "active" : ""}">测试设置</button><button data-wb="analysis" class="${this.tab === "analysis" ? "active" : ""}">批量对比</button><button data-wb="reset-all" class="wb-reset">恢复全部基线</button></div><div id="wb-validation" class="wb-validation" role="status"></div><div class="wb-body ${this.tab === "analysis" ? "wb-analysis-body" : ""}">${this.tab === "analysis" ? `<div id="wb-comparison">${this.comparison.render(this.project.setup,this.project.source)}</div>` : `${this.tab === "setup" ? "" : `<aside class="wb-sidebar">${this.tab === "characters" ? `<label class="wb-search"><span>查找角色</span><input id="wb-search" placeholder="名称 / ID" value="${esc(this.query)}"></label>` : `<p class="wb-help">${this.tab==="skills"?"选择技能，修改参数后 Play 测试。":"点击关卡即可选择测试目标；不需要先通关。"}</p>`}<div id="wb-list">${this.list()}</div></aside>`}<div class="wb-inspector">${this.tab === "characters" ? this.characters() : this.tab === "floors" ? this.floors() : this.tab === "skills" ? this.skills() : this.setup()}${(this.tab === "characters" || this.tab === "floors") ? `<button class="wb-compact-reset" data-wb="${this.tab === "characters" ? "reset-character" : "reset-floor"}">${this.tab === "characters" ? "恢复此角色基线" : "恢复本关基线"}</button>` : ""}<button class="wb-compact-reset" data-wb="reset-all">恢复全部基线</button></div><aside id="wb-preview" class="wb-preview"></aside>`}</div><div class="wb-footer"><span id="wb-save-status">${this.status}</span> · 草稿仅保存在此浏览器；可导出／导入JSON。正式试跑与测试完全分开。</div></section>`;
     this.updateStatus();
   }
   private input(event: Event) {
@@ -395,6 +414,7 @@ export class Workbench {
         (el instanceof HTMLInputElement && el.type === "checkbox"))
     )
       return;
+    if(el.dataset.sim){this.comparison.input(el as HTMLInputElement|HTMLSelectElement);return;}
     if (el.id === "wb-search") {
       this.query = el.value;
       const list = this.root?.querySelector("#wb-list");
@@ -480,6 +500,7 @@ export class Workbench {
       case "floors":
       case "skills":
       case "setup":
+      case "analysis":
         if (
           action === "floors" &&
           (!Number.isInteger(this.project.setup.floor) ||
@@ -562,6 +583,7 @@ export class Workbench {
         }
         try {
           TowerEngine.createPlaytest(result.config, this.project.setup);
+          this.comparison.cancel();
           void this.save();
           this.onPlay(result.config, clone(this.project.setup));
         } catch (e) {

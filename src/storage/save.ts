@@ -60,7 +60,7 @@ export async function writeSave(
 }
 
 export async function readWorkbench(
-  key: "draft" | "session",
+  key: "draft" | "session" | "comparison",
 ): Promise<string | undefined> {
   const db = await open();
   try {
@@ -76,7 +76,7 @@ export async function readWorkbench(
   }
 }
 export async function writeWorkbench(
-  key: "draft" | "session",
+  key: "draft" | "session" | "comparison",
   value: string,
 ): Promise<void> {
   const db = await open();

@@ -77,6 +77,13 @@ export interface Unit extends Contribution {
   barrier: number;
   shield: number;
   dotTime: number;
+  dotTick: number;
+  dotPower: number;
+  dotOwner: string;
+  healBlock: number;
+  reflectCooldown: number;
+  haste: number;
+  counterReady: boolean;
   weaken: number;
   root: number;
   physicalGuard: number;
@@ -117,6 +124,7 @@ export interface Projectile {
   skill: string;
   rule: ActionRule;
   source: Attributes;
+  hpRatio: number;
   power: number;
   leech: number;
   x: number;
@@ -141,7 +149,7 @@ export interface Battle {
     rank: number;
   }[];
   projectiles: Projectile[];
-  zones: { owner: string; enemy: boolean; x: number; z: number; remaining: number; tick: number; power: number; radius: number }[];
+  zones: { owner: string; enemy: boolean; x: number; z: number; remaining: number; tick: number; power: number; radius: number; kind: string }[];
   actionId: number;
   projectileId: number;
   tickets: number;
@@ -166,12 +174,7 @@ export interface RecordEntry {
   ticks: number;
   result: "victory";
   gold: number;
-  contributions: {
-    id: string;
-    damage: number;
-    healing: number;
-    absorbed: number;
-  }[];
+  contributions: ({ id: string } & Contribution)[];
 }
 export interface Run {
   floor: number;
@@ -202,7 +205,8 @@ export const saveSchema = z
   .object({
     format: z.literal("tower30-web-command-save"),
     schemaVersion: z.literal(1),
-    engineVersion: z.literal("tower30-ts-m1-v1"),
+    engineVersion: z.enum(["tower30-ts-m1-v1", "tower30-ts-m3-v1"]),
+    legacyRulesThroughTick: z.number().int().min(0).max(200000).optional(),
     configHash: memberId,
     seed: z.number().int().min(1).max(0xffffffff),
     tick: z.number().int().min(0).max(200000),

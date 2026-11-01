@@ -227,11 +227,13 @@ test("工作台Play测试中刷新恢复同一快照，草稿修改不改变上�
   await expect(page.locator("#unit-hp-hero")).toHaveText("22345 / 22345");
   await shot(page, "editor-second-play");
 });
-test("原始第30关与高级怪兽可在数值模式测试，未迁移技能明确标出", async ({
+test("保留的旧动作ID完整模式拒绝，数值模式明确停用", async ({
   page,
 }) => {
   await page.goto("./");
   await openEditor(page);
+  await page.locator('[data-wb="character"][data-id="ember_dragon"]').click();
+  await page.getByLabel("自动技能", {exact:true}).selectOption("guard");
   await page.getByRole("button", { name: "关卡 · 30", exact: true }).click();
   await page.locator("#wb-list").getByRole("button", { name: /^30/ }).click();
   await page.getByRole("button", { name: "测试设置", exact: true }).click();

@@ -13,12 +13,22 @@ export const supportedSkills = new Set([
   "drain", "silence", "spirit_armor", "spirit_veil", "leech", "doublecut",
   "mossheal", "rooted_guard", "curse", "ice_shard", "ice_domain", "eye_ray",
   "hard_shell", "armor_front", "boss_carapace",
+  "cleanse", "cleave", "crystal_pierce", "cyclone", "dragon_claw", "dragon_sweep",
+  "dragon_wall", "draw_slash", "earth_prison", "earth_stomp", "ember", "fear_strike",
+  "forest_breath", "forest_sanctuary", "frenzy_cut", "frost_breath", "furious_assault",
+  "gloom", "holy_light", "holy_prayer", "lava_bolt", "nightmare_strike", "parry",
+  "poison", "poison_cloud", "purify_veil", "shatter_ray", "silver_guard", "silver_wall",
+  "tailwind", "boss_tempest",
 ]);
+export const supportedGearEffects = new Set(["", "emergency", "arrival", "attack_energy", "hurt_energy", "overheal", "spell_guard"]);
 export const supportedPassives = new Set([
   "slow", "heal_low", "shield_heal", "shield_targets", "damage_guard",
   "energy_attack", "execute", "armor_bonus", "burn_bonus",
   "drain", "spell_guard", "attack_heal", "combo", "self_heal", "weaken",
   "controlled_bonus", "physical_guard",
+  "controlled_leech", "shield_counter", "low_power", "root_guard", "poison",
+  "shield_break", "slow_power", "haste", "silver", "cleanse_ward", "unshielded",
+  "thorns", "flame_bonus", "shield_power", "counter",
 ]);
 export const playtestSetupSchema = z
   .object({
@@ -70,6 +80,7 @@ export function playtestWarnings(
       const w = config.Rules.Equipment.find(
         (g) => g.Id === (id === "hero" ? "traveler_sword" : "healer_staff"),
       );
+      if (w && !supportedGearEffects.has(w.Effect)) warnings.add(`${id}：装备效果 ${w.Effect}`);
       if (w?.Auto) p.Auto = w.Auto;
       if (w?.Ultimate) p.Ultimate = w.Ultimate;
     } else if (["hero", "princess"].includes(id)) p.Auto = "";

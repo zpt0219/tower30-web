@@ -33,7 +33,7 @@ it('C#对照：正常预算购买、培养、住宿、补人与手动大招连�
  expect(e.getSnapshot().battle!.result).toBe('victory');expect(e.dispatch({type:'finish'}).ok).toBe(true);
  expect(e.getSnapshot()).toMatchObject({floor:11,shopStage:1,innPrice:50});
  expect(e.getSnapshot().records).toHaveLength(10);
- expect(e.getSnapshot().playableFloors).toBe(20);
+ expect(e.getSnapshot().playableFloors).toBe(30);
  const gold=e.getSnapshot().gold;expect(e.dispatch({type:'finish'}).ok).toBe(false);expect(e.getSnapshot().gold).toBe(gold);
  expect(e.dispatch({type:'buy',id:'gear_iron_armor',quantity:1}).ok).toBe(true);expect(e.getSnapshot().gold).toBe(gold-130);expect(e.dispatch({type:'buy',id:'gear_iron_armor',quantity:1}).ok).toBe(false);
  const restored=TowerEngine.restore(validateConfig(raw),e.serialize());expect(restored.getSnapshot()).toEqual(e.getSnapshot());

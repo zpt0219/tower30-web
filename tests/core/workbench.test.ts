@@ -141,7 +141,7 @@ describe("网页工作台草稿与测试", () => {
     );
     e.advance(80);
     const oldRules = JSON.parse(e.serialize()) as { engineVersion: string };
-    oldRules.engineVersion = "tower30-ts-workbench-v2";
+    oldRules.engineVersion = "tower30-ts-workbench-v3";
     expect(() => TowerEngine.restorePlaytest(JSON.stringify(oldRules))).toThrow();
     const loaded = TowerEngine.restorePlaytest(e.serialize());
     e.advance(30);
@@ -159,22 +159,24 @@ describe("网页工作台草稿与测试", () => {
       party: ["ember_dragon"],
       rank: 5,
     };
-    expect(playtestWarnings(config, setup).length).toBeGreaterThan(0);
+    const unsupported = validateConfig(raw);unsupported.Rules.Profiles.ember_dragon!.Auto="guard";
+    expect(playtestWarnings(unsupported, setup).length).toBeGreaterThan(0);
     expect(() =>
-      TowerEngine.createPlaytest(config, { ...setup, skillPolicy: "strict" }),
+      TowerEngine.createPlaytest(unsupported, { ...setup, skillPolicy: "strict" }),
     ).toThrow("未迁移");
-    const e = TowerEngine.createPlaytest(config, setup);
+    const e = TowerEngine.createPlaytest(unsupported, setup);
     e.dispatch({ type: "begin" });
     e.dispatch({ type: "start" });
     for (let i = 0; i < 100; i++) {
       e.advance(1);
       for (const u of e.getSnapshot().battle!.units) {
-        expect(u.passiveLevel).toBe(0);
+        if(u.kind==="ember_dragon")expect(u.passiveLevel).toBeGreaterThan(0);
         if (u.action)
           expect(u.action.skill === "attack" || supportedSkills.has(u.action.skill)).toBe(true);
       }
     }
     expect(e.getSnapshot().skippedFeatures.length).toBeGreaterThan(0);
+    const gear=validateConfig(raw);gear.Rules.Equipment.find(g=>g.Id==="traveler_sword")!.Effect="unknown_effect";expect(playtestWarnings(gear,defaultPlaytestSetup())).toContain("hero：装备效果 unknown_effect");expect(()=>TowerEngine.createPlaytest(gear,{...defaultPlaytestSetup(),skillPolicy:"strict"})).toThrow("未迁移");
   });
   it("非法草稿阻止Play，错误字段可保存在浏览器草稿中，导入失败不替换现有工程", () => {
     const draft = newProject(raw);

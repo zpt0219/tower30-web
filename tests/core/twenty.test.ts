@@ -34,7 +34,7 @@ it('C#对照：正常预算前20层：含沉默、弱化、防护、连击、20�
  expect(e.getSnapshot().battle!.result).toBe('victory');expect(e.dispatch({type:'finish'}).ok).toBe(true);
  expect(e.getSnapshot()).toMatchObject({floor:21,shopStage:2,innPrice:65});
  expect(e.getSnapshot().records).toHaveLength(20);
- expect(e.dispatch({type:'begin'}).ok).toBe(false);
+ expect(e.getSnapshot().playableFloors).toBe(30);
  const gold=e.getSnapshot().gold;expect(e.dispatch({type:'finish'}).ok).toBe(false);expect(e.getSnapshot().gold).toBe(gold);
  expect(e.dispatch({type:'buy',id:'gear_iron_armor_2',quantity:1}).ok).toBe(true);expect(e.getSnapshot().gold).toBe(gold-180);expect(e.dispatch({type:'buy',id:'gear_iron_armor_2',quantity:1}).ok).toBe(false);
  const restored=TowerEngine.restore(validateConfig(raw),e.serialize());expect(restored.getSnapshot()).toEqual(e.getSnapshot());

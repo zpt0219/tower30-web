@@ -36,7 +36,7 @@ test('正常资源存档继续挑战20层Boss，结算幂等与阶段2商店解�
   const handle=setInterval(()=>{
    if(document.querySelector('.result-overlay')){clearInterval(handle);return;}
    for(const b of document.querySelectorAll<HTMLButtonElement>('.battle-unit:not(.reserve):not([disabled])')){
-    if(b.dataset.unit==='reedwing'&&!document.querySelector('#debug-events')?.textContent?.includes('charge EN-020'))continue;
+    if(b.dataset.unit==='reedwing'&&!document.querySelector('#enemy-casts')?.textContent)continue;
     b.click();
    }
    for(const b of document.querySelectorAll<HTMLButtonElement>('.battle-unit.reserve:not([disabled])'))b.click();

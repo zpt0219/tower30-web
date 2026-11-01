@@ -1,0 +1,46 @@
+.wb-body.wb-analysis-body { display:block; overflow:hidden; }
+#wb-comparison { height:100%; min-height:0; }
+.comparison { height:100%; display:grid; grid-template-columns:minmax(320px,.85fr) minmax(420px,1.15fr); min-height:0; color:#3d3b2b; }
+.sim-controls,.sim-results { padding:20px; min-width:0; overflow:auto; scrollbar-width:thin; }
+.sim-controls { border-right:1px solid #c7b28a; background:#e7d7b333; }
+.sim-title { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+.sim-title h2 { font-size:26px; margin:4px 0; }
+.sim-title .test-label { margin:0; font-size:12px; }
+.sim-context { font-size:15px; line-height:1.7; overflow-wrap:anywhere; margin:12px 0; }
+.sim-variants { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:14px 0; }
+.sim-variants > div { display:flex; align-items:flex-start; flex-direction:column; gap:9px; padding:12px; border:1px solid #bba474; background:#f8ecd2; }
+.sim-variants b { font-size:18px; }
+.sim-variants span { font-size:13px; line-height:1.5; }
+.comparison button { min-height:48px; font-size:15px; padding:10px 13px; }
+.sim-settings { display:grid; grid-template-columns:140px minmax(0,1fr); gap:12px; }
+.sim-settings select { font-size:15px; }
+.sim-check { grid-column:1/-1; display:flex; align-items:center; gap:8px; min-height:48px; font-size:16px; }
+.sim-check input { width:24px; height:24px; accent-color:#486b55; }
+.sim-buttons { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.sim-buttons .primary { flex-basis:100%; }
+.sim-message { padding:10px; border-left:3px solid #66805a; font-size:14px; line-height:1.5; background:#d5ddc355; }
+.sim-method { margin:12px 0; }
+.sim-method summary { font-size:15px; min-height:48px; padding:12px 0; cursor:pointer; }
+.sim-method p { font-size:14px; line-height:1.6; margin:10px 0; }
+.sim-progress h3 { font-size:24px; margin:0 0 8px; }
+.sim-progress p { font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+.sim-progress progress { width:100%; height:14px; margin:10px 0 15px; accent-color:#496f55; }
+.sim-metric { display:grid; grid-template-columns:1.1fr 1fr 1fr; gap:12px; padding:12px 0; align-items:center; border-bottom:1px solid #cbb88f; font-size:15px; }
+.sim-metric strong { font-size:19px; font-variant-numeric:tabular-nums; color:#3e6551; }
+.sim-metric-head { background:#decea9; padding:12px 9px; }
+.sim-metric-head b { font-size:15px; }
+.sim-paired { font-size:15px; line-height:1.6; padding:12px 0; }
+.sim-warning { background:#efdab8; padding:12px; font-size:14px; line-height:1.5; }
+.sim-table { overflow:auto; }
+.sim-table table { min-width:600px; width:100%; }
+.sim-table th,.sim-table td { font-size:14px; white-space:nowrap; padding:10px 7px; }
+.sim-table button { font-size:14px; margin:3px; }
+@media(max-width:1100px) { .comparison { grid-template-columns:minmax(310px,.9fr) minmax(420px,1.1fr); } .sim-controls,.sim-results { padding:14px; } .sim-title h2 { font-size:23px; } .sim-settings { grid-template-columns:115px minmax(0,1fr); } .sim-metric { gap:7px; font-size:14px; } .sim-metric strong { font-size:17px; } }
+@media(max-height:650px) and (min-width:700px) { .wb-tabs { width:425px; } .wb-toolbar { padding-left:430px; } .wb-tabs button { padding:8px 10px; } .sim-title .eyebrow { display:none; } .sim-controls,.sim-results { padding:13px; } }
+@media(max-width:850px) { .comparison { grid-template-columns:1fr; overflow:auto; } .sim-controls,.sim-results { overflow:visible; } .sim-controls { border-right:0; border-bottom:1px solid #c7b28a; } }
+.workbench:has(.wb-analysis-body) .wb-toolbar { display:none; }
+.workbench:has(.wb-analysis-body) .wb-validation:not(.invalid) { display:none; }
+.workbench:has(.wb-analysis-body) .wb-tabs { position:static; width:auto; min-height:56px; height:auto; background:#f5e9ce; border-bottom:1px solid #c7b28a; }
+.sim-row-actions { display:flex; width:290px; flex-wrap:wrap; gap:4px; }
+.sim-row-actions button { margin:0; }
+@media(max-height:560px) and (min-width:700px) { .sim-progress > p:not(.sim-warning) { display:none; } .sim-progress h3 { font-size:22px; margin-bottom:2px; } .sim-progress progress { height:8px; margin:6px 0 12px; } .sim-metric { padding:8px 0; } .sim-metric-head { padding:8px; } }
