@@ -1,3 +1,4 @@
+import {applyStrategy,defaultStrategy,strategySchema,type BattleStrategy} from "./strategy";
 import { z } from "zod";
 import { validateConfig, type Config } from "./config";
 import { TowerEngine } from "./engine";
@@ -33,15 +34,15 @@ export interface SimulationTrial {
 export interface SimulationPair { a: SimulationTrial; b: SimulationTrial; floor?:number }
 export interface SimulationReport {
   format: "tower30-comparison";
-  schemaVersion: 1 | 2;
+  schemaVersion: 1 | 2 | 3;
   floors?:number[];
   floorWarnings?:{floor:number;a:string[];b:string[]}[];
-  engineVersion: "tower30-ts-workbench-v4" | "tower30-ts-workbench-v5";
-  policyVersion: typeof SIMULATION_POLICY_VERSION;
+  engineVersion: "tower30-ts-workbench-v4" | "tower30-ts-workbench-v5" | "tower30-ts-workbench-v6";
+  policyVersion: typeof SIMULATION_POLICY_VERSION | "tower30-policy-v2";
   setup: PlaytestSetup;
   options: SimulationOptions;
-  a: { config: Config; hash: string; label: string; warnings: string[] };
-  b: { config: Config; hash: string; label: string; warnings: string[] };
+  a: { config: Config; hash: string; label: string; warnings: string[]; strategy?:BattleStrategy };
+  b: { config: Config; hash: string; label: string; warnings: string[]; strategy?:BattleStrategy };
   pairs: SimulationPair[];
   status: "running" | "complete" | "cancelled" | "error";
 }
@@ -51,8 +52,10 @@ export function simulationSeed(first: number, index: number) {
     throw new Error("批量种子范围无效");
   return ((first - 1 + index) % 0xffffffff) + 1;
 }
-export function createSimulationReport(a: unknown, b: unknown, setup: PlaytestSetup, options: SimulationOptions, label = "保存的配置", floors?:readonly number[]) : SimulationReport {
+export function createSimulationReport(a: unknown, b: unknown, setup: PlaytestSetup, options: SimulationOptions, label = "保存的配置", floors?:readonly number[], strategies?:{a:BattleStrategy;b:BattleStrategy}) : SimulationReport {
   const checkedSetup = playtestSetupSchema.parse(setup), checkedOptions = simulationOptionsSchema.parse(options);
+  const selectedPolicies=strategies??(checkedSetup.strategy||checkedSetup.autoPlay!==undefined?{a:checkedSetup.strategy??defaultStrategy(),b:checkedSetup.strategy??defaultStrategy()}:undefined);
+  const policies=selectedPolicies?{a:strategySchema.parse(selectedPolicies.a),b:strategySchema.parse(selectedPolicies.b)}:undefined;
   const selected=floors===undefined?[checkedSetup.floor]:simulationFloorsSchema.parse(floors).sort((a,b)=>a-b);
   const floorWarnings=selected.map(floor=>({floor,a:[] as string[],b:[] as string[]}));
   const candidate = (source: unknown, name: string,variant:"a"|"b") => {
@@ -61,7 +64,7 @@ export function createSimulationReport(a: unknown, b: unknown, setup: PlaytestSe
     const warnings:string[]=[];
     // Validate every selected floor before any trial; never validate an unrelated current Play floor.
     for(const entry of floorWarnings){
-      const input={...checkedSetup,floor:entry.floor};
+      const input={...checkedSetup,floor:entry.floor,...(policies?{strategy:policies[variant],autoPlay:true}:{})};
       try{
         const engine=TowerEngine.createPlaytest(config,input);hash=engine.configHash;
         for(const type of ["begin","start"] as const){const result=engine.dispatch({type});if(!result.ok)throw new Error(result.message);}
@@ -70,16 +73,16 @@ export function createSimulationReport(a: unknown, b: unknown, setup: PlaytestSe
       entry[variant]=playtestWarnings(config,input);
       warnings.push(...entry[variant].map(w=>selected.length>1?`第${entry.floor}关：${w}`:w));
     }
-    return { config, hash, label: name, warnings };
+    return { config, hash, label: name, warnings,...(policies?{strategy:policies[variant]}:{}) };
   };
-  const report:SimulationReport={ format: "tower30-comparison", schemaVersion: floors===undefined?1:2, engineVersion: "tower30-ts-workbench-v5", policyVersion: SIMULATION_POLICY_VERSION,
+  const report:SimulationReport={ format: "tower30-comparison", schemaVersion: policies?3:floors===undefined?1:2, engineVersion: policies?"tower30-ts-workbench-v6":"tower30-ts-workbench-v5", policyVersion: policies?"tower30-policy-v2":SIMULATION_POLICY_VERSION,
     setup: clone(checkedSetup), options: checkedOptions, a: candidate(a,label,"a"), b: candidate(b,"当前草稿","b"), pairs: [], status: "running" };
-  if(floors!==undefined){report.floors=selected;report.floorWarnings=floorWarnings;}
+  if(floors!==undefined||policies){report.floors=selected;report.floorWarnings=floorWarnings;}
   return report;
 }
 export function reportFloors(report:SimulationReport):number[]{
   if(report.schemaVersion===1)return [report.setup.floor];
-  if(report.schemaVersion!==2)throw new Error("不支持的批测报告版本");
+  if(report.schemaVersion!==2&&report.schemaVersion!==3)throw new Error("不支持的批测报告版本");
   return simulationFloorsSchema.parse(report.floors);
 }
 export const simulationTotal=(report:SimulationReport)=>reportFloors(report).length*report.options.count;
@@ -90,30 +93,19 @@ export function simulationJob(report:SimulationReport,index:number){
   return {floor:floors[index%floors.length]!,seed:simulationSeed(report.setup.seed,Math.floor(index/floors.length))};
 }
 
-// A command controller, not a second combat implementation. Every decision is submitted to TowerEngine.
-// Healing ultimates wait for a living ally below 65%; interrupts wait for an enemy charge.
-const healingUltimates = new Set(["renew", "forest_rest", "holy_prayer", "forest_sanctuary"]);
-export function simulateBattle(config: Config, input: PlaytestSetup, options: SimulationOptions): SimulationTrial {
+// Decisions submit the same commands as interactive strategy Play.
+export function simulateBattle(config: Config, input: PlaytestSetup, options: SimulationOptions, strategy?:BattleStrategy): SimulationTrial {
   const policy = simulationOptionsSchema.parse(options), engine = TowerEngine.createPlaytest(config,input);
+  const plan=strategySchema.parse(strategy??input.strategy??defaultStrategy());
+  plan.ultimates=plan.ultimates&&policy.policy==="adaptive";
+  plan.reinforce=plan.reinforce&&policy.reinforce;
   const initial = engine.getSnapshot();
   const checked = (type: "begin" | "start") => { const r = engine.dispatch({type}); if(!r.ok)throw new Error(r.message); };
   checked("begin"); checked("start");
   let reinforcements = 0;
   for (let tick = 0; tick < 6000; tick++) {
-    const battle = engine.getBattleSnapshot()!;
-    if(battle.result)break;
-    if(policy.policy === "adaptive") {
-      for(const u of battle.units.filter(u=>!u.enemy && u.hp>0 && u.entry<=0 && u.energy>=1000)) {
-        if(healingUltimates.has(u.profile.Ultimate) && !battle.units.some(v=>!v.enemy && v.hp>0 && v.hp < v.attributes.MaxHp*.65))continue;
-        if(u.profile.Ultimate==="interrupt" && !battle.units.some(v=>v.enemy && v.hp>0 && v.charge>0))continue;
-        engine.dispatch({type:"ultimate",id:u.id});
-      }
-    }
-    if(policy.reinforce && battle.tickets>0 && battle.units.filter(u=>!u.enemy && u.hp>0).length<10) {
-      for(const m of initial.members.filter(m=>!["hero","princess"].includes(m.id) && !battle.units.some(u=>u.id===m.id))) {
-        if(engine.dispatch({type:"reinforce",id:m.id}).ok){reinforcements++;break;}
-      }
-    }
+    if(engine.getBattleSnapshot()!.result)break;
+    reinforcements+=applyStrategy(engine,plan,!strategy&&!input.strategy);
     engine.advance(1);
   }
   const final = engine.getSnapshot(), battle = final.battle!;
@@ -131,8 +123,13 @@ export function simulateBattle(config: Config, input: PlaytestSetup, options: Si
 }
 export function simulatePair(report: SimulationReport, index: number): SimulationPair {
   const job=simulationJob(report,index),setup={...report.setup,...job};
-  const pair:SimulationPair={a:simulateBattle(report.a.config,setup,report.options),b:simulateBattle(report.b.config,setup,report.options)};
-  if(report.schemaVersion===2)pair.floor=job.floor;
+  const run=(variant:"a"|"b")=>{
+    if(report.schemaVersion!==3)return simulateBattle(report[variant].config,setup,report.options);
+    const strategy=effectiveStrategy(report,variant);
+    return simulateBattle(report[variant].config,{...setup,strategy,autoPlay:true},report.options,strategy);
+  };
+  const pair:SimulationPair={a:run("a"),b:run("b")};
+  if(report.schemaVersion>=2)pair.floor=job.floor;
   return pair;
 }
 export function summarizeTrials(rows: readonly SimulationTrial[]) {
@@ -154,13 +151,21 @@ export function summarizePairs(pairs: readonly SimulationPair[]) {
 export function trialSave(report: SimulationReport, variant: "a"|"b", index: number) {
   const trial=report.pairs[index]?.[variant];if(!trial)throw new Error("模拟样本不存在");
   const job=simulationJob(report,index);
-  if(trial.seed!==job.seed||report.schemaVersion===2&&report.pairs[index]!.floor!==job.floor)throw new Error("样本关卡或种子与任务不符");
+  if(trial.seed!==job.seed||report.schemaVersion>=2&&report.pairs[index]!.floor!==job.floor)throw new Error("样本关卡或种子与任务不符");
   return {format:"tower30-playtest",schemaVersion:1,engineVersion:report.engineVersion,config:report[variant].config,
-    configHash:report[variant].hash,setup:{...report.setup,...job},...trial.replay};
+    configHash:report[variant].hash,setup:{...report.setup,...job,...(report.schemaVersion===3?{strategy:effectiveStrategy(report,variant),autoPlay:true}:{})},...trial.replay};
 }
 export function summarizeFloors(report:SimulationReport){
   return reportFloors(report).map(floor=>{
     const pairs=report.pairs.filter(p=>(p.floor??report.setup.floor)===floor);
     return {floor,completed:pairs.length,requested:report.options.count,a:summarizeTrials(pairs.map(p=>p.a)),b:summarizeTrials(pairs.map(p=>p.b)),paired:summarizePairs(pairs)};
   });
+}
+
+export function effectiveStrategy(report:SimulationReport,variant:"a"|"b"):BattleStrategy {
+  if(report.schemaVersion===3&&(!report[variant].strategy||report.policyVersion!=="tower30-policy-v2"))throw new Error("缺少冻结策略或策略版本不支持");
+  const strategy=strategySchema.parse(report[variant].strategy??defaultStrategy());
+  strategy.ultimates=strategy.ultimates&&report.options.policy==="adaptive";
+  strategy.reinforce=strategy.reinforce&&report.options.reinforce;
+  return strategy;
 }

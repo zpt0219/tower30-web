@@ -66,6 +66,10 @@
 .sim-no-samples { font-size:16px; padding:12px 0; }
 .sim-multi-progress { font-size:16px; line-height:1.5; color:#3e6551; }
 .sim-title .test-label { color:#3f5b37 !important; border:1px solid #a0ad83; background:#e2e8cb; padding:5px 8px; }
+.sim-frozen-strategies { border:1px solid #bea97e; padding:0 12px; margin:12px 0; font-size:15px; line-height:1.6; }
+.sim-frozen-strategies summary { min-height:48px; padding:12px 0; cursor:pointer; }
+.sim-frozen-strategies p { padding:10px 0; overflow-wrap:anywhere; }
+.sim-variants p { font-size:14px; line-height:1.5; margin:0; }
 @media(max-width:850px) { .sim-floor-options { grid-template-columns:repeat(5,minmax(0,1fr)); } }
 
 @media(max-height:560px) and (min-width:700px) {

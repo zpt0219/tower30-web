@@ -1,3 +1,4 @@
+import {strategySchema} from "../core/strategy";
 import {effectDefinitions} from "../core/effects";
 import { z } from "zod";
 import { validateConfig, type Config } from "../core/config";
@@ -109,6 +110,10 @@ const names: Record<string, string> = {
   setup: "测试设置",
   floor: "关卡",
   party: "我方阵容",
+  strategy:"战斗策略",
+  healingHpPercent:"治疗生命阈值 %",
+  ultimateOrder:"大招优先级",
+  reinforcementOrder:"补人顺序",
 };
 function describeError(e: unknown): string[] {
   if (e instanceof z.ZodError)
@@ -152,13 +157,14 @@ export function validateProject(project: EditorProject): {
 
 export function restoreProject(text: string): EditorProject {
   if (text.length > 2000000) throw new Error("草稿过大");
-  const looseSetup = playtestSetupSchema.extend({
+  const looseSetup = playtestSetupSchema.safeExtend({
     floor: z.number().finite(),
     seed: z.number().finite(),
     level: z.number().finite(),
     rank: z.number().finite(),
     hpPercent: z.number().finite(),
     energy: z.number().finite(),
+    strategy: strategySchema.safeExtend({healingHpPercent:z.number().finite()}).optional(),
   });
   return projectSchema.extend({ setup: looseSetup }).parse(JSON.parse(text));
 }

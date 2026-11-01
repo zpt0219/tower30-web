@@ -1,3 +1,6 @@
+import {defaultStrategy,orderedIds} from "../core/strategy";
+import {renderStrategy} from "./strategy-editor";
+import "./strategy.css";
 import {effectDefinitions,resolveEffects,hasDotRatio,dotDefaults,hasShieldRatio,defaultShieldRatio,type EffectKey,type ShieldSkill} from "../core/effects";
 import { skillLabel } from "../data/skill-labels";
 import { type Attributes, type Config } from "../core/config";
@@ -59,7 +62,7 @@ type Path = (string | number)[];
 export class Workbench {
   private root: HTMLElement | null = null;
   project: EditorProject;
-  private tab: "characters" | "floors" | "skills" | "setup" | "analysis" = "characters";
+  private tab: "characters" | "floors" | "skills" | "setup" | "strategy" | "analysis" = "characters";
   private readonly comparison: Comparison;
   private character = "hero";
   private action = "swift";
@@ -413,7 +416,7 @@ export class Workbench {
   }
   render() {
     if (!this.root) return;
-    this.root.innerHTML = `<section class="workbench"><div class="wb-toolbar"><div><strong>配置工作台</strong></div><div class="wb-actions"><button data-wb="save">保存草稿</button><button data-wb="export">导出工程</button><button data-wb="export-config">导出配表</button><button data-wb="import">导入</button><button data-wb="play" class="primary">▶ Play 第${this.project.setup.floor}关</button></div></div><div class="wb-tabs"><button data-wb="characters" class="${this.tab === "characters" ? "active" : ""}">角色 · 42</button><button data-wb="floors" class="${this.tab === "floors" ? "active" : ""}">关卡 · 30</button><button data-wb="skills" class="${this.tab === "skills" ? "active" : ""}">技能 · 73</button><button data-wb="setup" class="${this.tab === "setup" ? "active" : ""}">测试设置</button><button data-wb="analysis" class="${this.tab === "analysis" ? "active" : ""}">批量对比</button><button data-wb="reset-all" class="wb-reset">恢复全部基线</button></div><div id="wb-validation" class="wb-validation" role="status"></div><div class="wb-body ${this.tab === "analysis" ? "wb-analysis-body" : ""}">${this.tab === "analysis" ? `<div id="wb-comparison">${this.comparison.render(this.project.setup,this.project.source)}</div>` : `${this.tab === "setup" ? "" : `<aside class="wb-sidebar">${this.tab === "characters" ? `<label class="wb-search"><span>查找角色</span><input id="wb-search" placeholder="名称 / ID" value="${esc(this.query)}"></label>` : `<p class="wb-help">${this.tab==="skills"?"选择技能，修改参数后 Play 测试。":"点击关卡即可选择测试目标；不需要先通关。"}</p>`}<div id="wb-list">${this.list()}</div></aside>`}<div class="wb-inspector">${this.tab === "characters" ? this.characters() : this.tab === "floors" ? this.floors() : this.tab === "skills" ? this.skills() : this.setup()}${(this.tab === "characters" || this.tab === "floors") ? `<button class="wb-compact-reset" data-wb="${this.tab === "characters" ? "reset-character" : "reset-floor"}">${this.tab === "characters" ? "恢复此角色基线" : "恢复本关基线"}</button>` : ""}<button class="wb-compact-reset" data-wb="reset-all">恢复全部基线</button></div><aside id="wb-preview" class="wb-preview"></aside>`}</div><div class="wb-footer"><span id="wb-save-status">${this.status}</span> · 草稿仅保存在此浏览器；可导出／导入JSON。正式试跑与测试完全分开。</div></section>`;
+    this.root.innerHTML = `<section class="workbench"><div class="wb-toolbar"><div><strong>配置工作台</strong></div><div class="wb-actions"><button data-wb="save">保存草稿</button><button data-wb="export">导出工程</button><button data-wb="export-config">导出配表</button><button data-wb="import">导入</button><button data-wb="play" class="primary">▶ Play 第${this.project.setup.floor}关</button></div></div><div class="wb-tabs"><button data-wb="characters" class="${this.tab === "characters" ? "active" : ""}">角色 · 42</button><button data-wb="floors" class="${this.tab === "floors" ? "active" : ""}">关卡 · 30</button><button data-wb="skills" class="${this.tab === "skills" ? "active" : ""}">技能 · 73</button><button data-wb="setup" class="${this.tab === "setup" ? "active" : ""}">测试设置</button><button data-wb="strategy" class="${this.tab === "strategy" ? "active" : ""}">战斗策略</button><button data-wb="analysis" class="${this.tab === "analysis" ? "active" : ""}">批量对比</button><button data-wb="reset-all" class="wb-reset">恢复全部基线</button></div><div id="wb-validation" class="wb-validation" role="status"></div><div class="wb-body ${this.tab === "analysis" ? "wb-analysis-body" : this.tab === "strategy" ? "wb-strategy-body" : ""}">${this.tab === "strategy" ? renderStrategy(this.project.setup,id=>this.name(id)) : this.tab === "analysis" ? `<div id="wb-comparison">${this.comparison.render(this.project.setup,this.project.source)}</div>` : `${this.tab === "setup" ? "" : `<aside class="wb-sidebar">${this.tab === "characters" ? `<label class="wb-search"><span>查找角色</span><input id="wb-search" placeholder="名称 / ID" value="${esc(this.query)}"></label>` : `<p class="wb-help">${this.tab==="skills"?"选择技能，修改参数后 Play 测试。":"点击关卡即可选择测试目标；不需要先通关。"}</p>`}<div id="wb-list">${this.list()}</div></aside>`}<div class="wb-inspector">${this.tab === "characters" ? this.characters() : this.tab === "floors" ? this.floors() : this.tab === "skills" ? this.skills() : this.setup()}${(this.tab === "characters" || this.tab === "floors") ? `<button class="wb-compact-reset" data-wb="${this.tab === "characters" ? "reset-character" : "reset-floor"}">${this.tab === "characters" ? "恢复此角色基线" : "恢复本关基线"}</button>` : ""}<button class="wb-compact-reset" data-wb="reset-all">恢复全部基线</button></div><aside id="wb-preview" class="wb-preview"></aside>`}</div><div class="wb-footer"><span id="wb-save-status">${this.status}</span> · 草稿仅保存在此浏览器；可导出／导入JSON。正式试跑与测试完全分开。</div></section>`;
     this.updateStatus();
   }
   private input(event: Event) {
@@ -440,7 +443,11 @@ export class Workbench {
       return;
     }
     try {
-      if (el.dataset.path) {
+      if (el.dataset.strategy) {
+        const strategy=this.project.setup.strategy??=defaultStrategy();
+        const key=el.dataset.strategy;
+        Object.assign(strategy,{[key]:el instanceof HTMLInputElement?el.type==="checkbox"?el.checked:Number(el.value):el.value});
+      } else if (el.dataset.path) {
         const path: unknown = JSON.parse(el.dataset.path);
         if (
           !Array.isArray(path) ||
@@ -493,6 +500,7 @@ export class Workbench {
           );
       } else if (el.dataset.party) {
         this.project.setup.party[Number(el.dataset.party)] = el.value;
+        this.pruneStrategy();
       } else if (el.dataset.reward) {
         const path: Path = [
             "Floors",
@@ -525,16 +533,36 @@ export class Workbench {
     a.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  private pruneStrategy(){
+    const s=this.project.setup.strategy;if(!s)return;
+    for(const key of ["ultimateOrder","reinforcementOrder"] as const)s[key]=s[key].filter(id=>this.project.setup.party.includes(id));
+  }
   private pruneEffects() {
     const effects=readPath(this.project.source,["Rules","Effects"]);
     if(effects&&typeof effects==="object"&&Object.keys(effects).length===0)setPath(this.project.source,["Rules","Effects"],undefined);
   }
   private click(action: string, id?: string) {
     switch (action) {
+      case "strategy-reset":
+        this.project.setup.strategy=defaultStrategy();this.render();void this.save();return;
+      case "strategy-up":
+      case "strategy-down": {
+        const [key,index]=id!.split(":") as ["ultimateOrder"|"reinforcementOrder",string];
+        const s=this.project.setup.strategy??=defaultStrategy(),ids=key==="ultimateOrder"?this.project.setup.party:this.project.setup.party.filter(id=>!["hero","princess"].includes(id));
+        const order=orderedIds(s[key],ids),i=Number(index),j=i+(action==="strategy-up"?-1:1);
+        if(i<0||i>=order.length||j<0||j>=order.length)return;
+        [order[i],order[j]]=[order[j]!,order[i]!];s[key]=order;
+        const scroll=this.root?.querySelector(".strategy-priorities")?.scrollTop??0;
+        this.render();const pane=this.root?.querySelector(".strategy-priorities");if(pane)pane.scrollTop=scroll;
+        this.root?.querySelector<HTMLElement>(`[data-wb="${action}"][data-id="${key}:${j}"]`)?.focus({preventScroll:true});
+        void this.save();return;
+      }
+
       case "characters":
       case "floors":
       case "skills":
       case "setup":
+      case "strategy":
       case "analysis":
         if (
           action === "floors" &&
@@ -688,6 +716,7 @@ export class Workbench {
       case "remove-party":
         if (this.project.setup.party.length > 1)
           this.project.setup.party.splice(Number(id), 1);
+        this.pruneStrategy();
         break;
       case "clear-override": {
         const c = this.config(),

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { strategySchema } from "./strategy";
 import type { Config, Profile } from "./config";
 export const supportedSkills = new Set([
   "swift",
@@ -32,6 +33,8 @@ export const supportedPassives = new Set([
 ]);
 export const playtestSetupSchema = z
   .object({
+    strategy: strategySchema.optional(),
+    autoPlay: z.boolean().optional(),
     floor: z.number().int().min(1).max(30),
     seed: z.number().int().min(1).max(0xffffffff),
     party: z
@@ -46,7 +49,10 @@ export const playtestSetupSchema = z
     startingGear: z.boolean(),
     skillPolicy: z.enum(["strict", "supported-only"]),
   })
-  .strict();
+  .strict().superRefine((s,ctx)=>{
+    for(const key of ["ultimateOrder","reinforcementOrder"] as const)
+      for(const id of s.strategy?.[key]??[])if(!s.party.includes(id))ctx.addIssue({code:"custom",path:["strategy",key],message:"策略顺序只能包含当前阵容成员："+id});
+  });
 export type PlaytestSetup = z.infer<typeof playtestSetupSchema>;
 export const defaultPlaytestSetup = (): PlaytestSetup => ({
   floor: 1,

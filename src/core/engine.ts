@@ -1516,7 +1516,7 @@ export class TowerEngine {
       return JSON.stringify({
         format: "tower30-playtest",
         schemaVersion: 1,
-        engineVersion: "tower30-ts-workbench-v5",
+        engineVersion: this.playtest.strategy || this.playtest.autoPlay !== undefined ? "tower30-ts-workbench-v6" : "tower30-ts-workbench-v5",
         config: this.config,
         configHash: this.configHash,
         setup: this.playtest,
@@ -1582,7 +1582,7 @@ export class TowerEngine {
       .object({
         format: z.literal("tower30-playtest"),
         schemaVersion: z.literal(1),
-        engineVersion: z.enum(["tower30-ts-workbench-v4","tower30-ts-workbench-v5"]),
+        engineVersion: z.enum(["tower30-ts-workbench-v4","tower30-ts-workbench-v5","tower30-ts-workbench-v6"]),
         config: z.unknown(),
         configHash: z.string(),
         setup: playtestSetupSchema,

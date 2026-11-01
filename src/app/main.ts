@@ -1,3 +1,4 @@
+import {advancePlaytest} from "../core/strategy";
 import { skillLabel } from "../data/skill-labels";
 import "./style.css";
 import { config as baselineConfig } from "../data/load";
@@ -901,7 +902,7 @@ async function importSave(file: File) {
 }
 function battlePage() {
   const b = snap.battle!;
-  return `<div class="battle-toolbar"><div>${snap.mode === "playtest" ? `<span class="test-label">TEST · 第${snap.floor}关</span>` : ""}<b id="battle-time">0.00s</b><span> / 300s</span><span class="battle-ticket">补人票 <b id="battle-tickets">${b.tickets}</b> / 3</span></div><div class="button-row">${snap.mode === "playtest" ? button("返回编辑", openEditor, "light") + button("重新 Play", () => startPlaytest(config, snap.playtest!), "light") : ""}${button(paused ? "继续" : "暂停", () => togglePause(), "light", !!b.result, 'id="pause-button"')}${button(
+  return `<div class="battle-toolbar"><div>${snap.mode === "playtest" ? `<span class="test-label">TEST · 第${snap.floor}关 · ${snap.playtest?.autoPlay?"策略自动执行":"手动大招"}</span>` : ""}<b id="battle-time">0.00s</b><span> / 300s</span><span class="battle-ticket">补人票 <b id="battle-tickets">${b.tickets}</b> / 3</span></div><div class="button-row">${snap.mode === "playtest" ? button("返回编辑", openEditor, "light") + button("重新 Play", () => startPlaytest(config, snap.playtest!), "light") : ""}${button(paused ? "继续" : "暂停", () => togglePause(), "light", !!b.result, 'id="pause-button"')}${button(
     `${speed}× 速度`,
     () => {
       speed = speed === 1 ? 2 : speed === 2 ? 4 : 1;
@@ -943,7 +944,7 @@ function battlePage() {
         toast("请先暂停战斗");
         return;
       }
-      engine.advance(1);
+      advancePlaytest(engine,1);
       refresh();
       updateBattleHud();
       if (snap.battle?.result) render();
@@ -971,6 +972,14 @@ function togglePause() {
 function updateBattleHud() {
   const b = snap.battle;
   if (!b) return;
+  const roster=document.querySelector<HTMLElement>(".battle-roster");
+  if(roster && b.units.some(u=>!u.enemy&&!document.getElementById(`unit-hp-${u.id}`))){
+    const scroll=roster.scrollLeft,debugOpen=document.querySelector<HTMLDetailsElement>(".debug")?.open??false;
+    render();
+    const updated=document.querySelector<HTMLElement>(".battle-roster"),debug=document.querySelector<HTMLDetailsElement>(".debug");
+    if(updated)updated.scrollLeft=scroll;if(debug)debug.open=debugOpen;
+    return;
+  }
   const time = document.querySelector("#battle-time");
   if (time) time.textContent = `${(b.tick * 0.05).toFixed(2)}s`;
   const tickets = document.querySelector("#battle-tickets");
@@ -1055,7 +1064,7 @@ function frame(time: number) {
       accumulator += delta * speed;
       const ticks = Math.min(12, Math.floor(accumulator / 0.05));
       if (ticks > 0) {
-        engine.advance(ticks);
+        advancePlaytest(engine,ticks);
         accumulator -= ticks * 0.05;
         refresh();
         updateBattleHud();

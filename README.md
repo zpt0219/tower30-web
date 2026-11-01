@@ -6,9 +6,9 @@
 
 用户决定以 **Vite + TypeScript** 为起点，先完成能够实际游玩的原生网页30层试炼，再考虑将同一份 TypeScript 玩法核心接入 Godot。网页用于快速试玩、修改配表、检查战斗和经济流程。
 
-**当前为 v0.8：正式1—30层完整可玩；42角色、30关、技能及效果参数可编辑。A/B批测现支持多选关卡、逐关统计、未胜样本筛选、分页、正确关卡的战果/Play和整组报告导出。各关独立开局；连续30层自动经济策略、可编辑自动策略和任意效果编排尚未实现。3个未使用旧动作仍明确阻止或停用。**
+**当前为 v0.9：正式1—30层完整可玩；42角色、30关、技能及效果参数可编辑。新增自动战斗策略编辑：治疗阈值、打断条件、大招优先级与补人顺序可调整，同一控制器驱动策略Play和A/B多关批测。支持策略快照、手动/策略Play及命令重放。连续30层自动经济策略与任意效果编排尚未实现；3个未使用旧动作仍明确阻止或停用。**
 
-启动后点击首页“编辑属性与关卡 ▶ Play”或侧栏“工作台”。使用与检查见 [工作台说明](docs/WORKBENCH.md)，本次多关工具见 [多关批测说明](docs/MULTI-FLOOR-STATUS.md)，效果编辑见 [效果参数说明](docs/EFFECTS-STATUS.md)，批量工具见 [M4交付记录](docs/M4-STATUS.md)，规则与正常资源验证见 [完整30层记录](docs/FULL30-STATUS.md)，前20层见 [前20层记录](docs/FLOOR20-STATUS.md)，前10层见 [M2交付记录](docs/M2-STATUS.md)，早期试玩记录见 [首版交付记录](docs/V1-STATUS.md)。
+启动后点击首页“编辑属性与关卡 ▶ Play”或侧栏“工作台”。使用与检查见 [工作台说明](docs/WORKBENCH.md)，本次策略编辑见 [策略说明](docs/STRATEGY-STATUS.md)，多关工具见 [多关批测说明](docs/MULTI-FLOOR-STATUS.md)，效果编辑见 [效果参数说明](docs/EFFECTS-STATUS.md)，批量工具见 [M4交付记录](docs/M4-STATUS.md)，规则与正常资源验证见 [完整30层记录](docs/FULL30-STATUS.md)，前20层见 [前20层记录](docs/FLOOR20-STATUS.md)，前10层见 [M2交付记录](docs/M2-STATUS.md)，早期试玩记录见 [首版交付记录](docs/V1-STATUS.md)。
 
 ```sh
 npm ci

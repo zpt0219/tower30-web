@@ -8,7 +8,7 @@ const scope = globalThis as unknown as {
 scope.onmessage = (event) => {
   try {
     const r=event.data;
-    const report=createSimulationReport(r.a.config,r.b.config,r.setup,r.options,r.a.label,r.schemaVersion===2?r.floors:undefined);
+    const report=createSimulationReport(r.a.config,r.b.config,r.setup,r.options,r.a.label,r.schemaVersion>=2?r.floors:undefined,r.schemaVersion===3?{a:r.a.strategy!,b:r.b.strategy!}:undefined);
     for(let i=0;i<simulationTotal(report);i++)scope.postMessage({type:"pair",pair:simulatePair(report,i)});
     scope.postMessage({type:"complete"});
   } catch(e) {
