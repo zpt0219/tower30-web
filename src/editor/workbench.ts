@@ -1,3 +1,4 @@
+import {inspectProject} from "../core/project";
 import {defaultStrategy,orderedIds} from "../core/strategy";
 import {renderStrategy} from "./strategy-editor";
 import "./strategy.css";
@@ -78,7 +79,7 @@ export class Workbench {
     baseConfig: Config,
     private readonly onPlay: (config: Config, setup: PlaytestSetup) => void,
     private readonly notify: (message: string) => void,
-    onReview: (serialized:string) => void,
+    private readonly onReview: (serialized:string) => void,
   ) {
     this.project = newProject(baseline);
     this.lastValid = baseConfig;
@@ -195,7 +196,7 @@ export class Workbench {
           : `<b>✓ 配置校验通过</b><span>42角色 · 30关 · ${result.warnings.length}项未迁移功能${result.warnings.length ? "将在测试中停用" : ""}</span>`;
     validation?.classList.toggle("invalid", !!result.errors.length || (this.tab!=="analysis" && !!strict));
     this.root
-      .querySelectorAll<HTMLButtonElement>('[data-wb="play"]')
+      .querySelectorAll<HTMLButtonElement>('[data-wb="play"],[data-wb="export-godot"]')
       .forEach((b) => (b.disabled = !!result.errors.length || !!strict));
     const preview = this.root.querySelector("#wb-preview");
     if (preview)
@@ -416,7 +417,7 @@ export class Workbench {
   }
   render() {
     if (!this.root) return;
-    this.root.innerHTML = `<section class="workbench"><div class="wb-toolbar"><div><strong>配置工作台</strong></div><div class="wb-actions"><button data-wb="save">保存草稿</button><button data-wb="export">导出工程</button><button data-wb="export-config">导出配表</button><button data-wb="import">导入</button><button data-wb="play" class="primary">▶ Play 第${this.project.setup.floor}关</button></div></div><div class="wb-tabs"><button data-wb="characters" class="${this.tab === "characters" ? "active" : ""}">角色 · 42</button><button data-wb="floors" class="${this.tab === "floors" ? "active" : ""}">关卡 · 30</button><button data-wb="skills" class="${this.tab === "skills" ? "active" : ""}">技能 · 73</button><button data-wb="setup" class="${this.tab === "setup" ? "active" : ""}">测试设置</button><button data-wb="strategy" class="${this.tab === "strategy" ? "active" : ""}">战斗策略</button><button data-wb="analysis" class="${this.tab === "analysis" ? "active" : ""}">批量对比</button><button data-wb="reset-all" class="wb-reset">恢复全部基线</button></div><div id="wb-validation" class="wb-validation" role="status"></div><div class="wb-body ${this.tab === "analysis" ? "wb-analysis-body" : this.tab === "strategy" ? "wb-strategy-body" : ""}">${this.tab === "strategy" ? renderStrategy(this.project.setup,id=>this.name(id)) : this.tab === "analysis" ? `<div id="wb-comparison">${this.comparison.render(this.project.setup,this.project.source)}</div>` : `${this.tab === "setup" ? "" : `<aside class="wb-sidebar">${this.tab === "characters" ? `<label class="wb-search"><span>查找角色</span><input id="wb-search" placeholder="名称 / ID" value="${esc(this.query)}"></label>` : `<p class="wb-help">${this.tab==="skills"?"选择技能，修改参数后 Play 测试。":"点击关卡即可选择测试目标；不需要先通关。"}</p>`}<div id="wb-list">${this.list()}</div></aside>`}<div class="wb-inspector">${this.tab === "characters" ? this.characters() : this.tab === "floors" ? this.floors() : this.tab === "skills" ? this.skills() : this.setup()}${(this.tab === "characters" || this.tab === "floors") ? `<button class="wb-compact-reset" data-wb="${this.tab === "characters" ? "reset-character" : "reset-floor"}">${this.tab === "characters" ? "恢复此角色基线" : "恢复本关基线"}</button>` : ""}<button class="wb-compact-reset" data-wb="reset-all">恢复全部基线</button></div><aside id="wb-preview" class="wb-preview"></aside>`}</div><div class="wb-footer"><span id="wb-save-status">${this.status}</span> · 草稿仅保存在此浏览器；可导出／导入JSON。正式试跑与测试完全分开。</div></section>`;
+    this.root.innerHTML = `<section class="workbench"><div class="wb-toolbar"><div><strong>配置工作台</strong></div><div class="wb-actions"><button data-wb="save">保存草稿</button><button data-wb="export">导出工程</button><button data-wb="export-godot">导出Godot试跑</button><button data-wb="export-config">导出配表</button><button data-wb="import">导入</button><button data-wb="import-record">导入测试记录</button><button data-wb="play" class="primary">▶ Play 第${this.project.setup.floor}关</button></div></div><div class="wb-tabs"><button data-wb="characters" class="${this.tab === "characters" ? "active" : ""}">角色 · 42</button><button data-wb="floors" class="${this.tab === "floors" ? "active" : ""}">关卡 · 30</button><button data-wb="skills" class="${this.tab === "skills" ? "active" : ""}">技能 · 73</button><button data-wb="setup" class="${this.tab === "setup" ? "active" : ""}">测试设置</button><button data-wb="strategy" class="${this.tab === "strategy" ? "active" : ""}">战斗策略</button><button data-wb="analysis" class="${this.tab === "analysis" ? "active" : ""}">批量对比</button><button data-wb="reset-all" class="wb-reset">恢复全部基线</button></div><div id="wb-validation" class="wb-validation" role="status"></div><div class="wb-body ${this.tab === "analysis" ? "wb-analysis-body" : this.tab === "strategy" ? "wb-strategy-body" : ""}">${this.tab === "strategy" ? renderStrategy(this.project.setup,id=>this.name(id)) : this.tab === "analysis" ? `<div id="wb-comparison">${this.comparison.render(this.project.setup,this.project.source)}</div>` : `${this.tab === "setup" ? "" : `<aside class="wb-sidebar">${this.tab === "characters" ? `<label class="wb-search"><span>查找角色</span><input id="wb-search" placeholder="名称 / ID" value="${esc(this.query)}"></label>` : `<p class="wb-help">${this.tab==="skills"?"选择技能，修改参数后 Play 测试。":"点击关卡即可选择测试目标；不需要先通关。"}</p>`}<div id="wb-list">${this.list()}</div></aside>`}<div class="wb-inspector">${this.tab === "characters" ? this.characters() : this.tab === "floors" ? this.floors() : this.tab === "skills" ? this.skills() : this.setup()}${(this.tab === "characters" || this.tab === "floors") ? `<button class="wb-compact-reset" data-wb="${this.tab === "characters" ? "reset-character" : "reset-floor"}">${this.tab === "characters" ? "恢复此角色基线" : "恢复本关基线"}</button>` : ""}<button class="wb-compact-reset" data-wb="reset-all">恢复全部基线</button></div><aside id="wb-preview" class="wb-preview"></aside>`}</div><div class="wb-footer"><span id="wb-save-status">${this.status}</span> · 草稿仅保存在此浏览器；可导出／导入JSON。Godot：导出试跑后在原生“工程 / Play”页导入；测试与正式进度分开。</div></section>`;
     this.updateStatus();
   }
   private input(event: Event) {
@@ -607,6 +608,16 @@ export class Workbench {
       case "export":
         this.download(this.project, "tower30-editor-project.json");
         return;
+      case "export-godot": {
+        try {const p=inspectProject(this.project);this.download(p.project,`tower30-godot-F${p.info.setup.floor}-${p.info.launchHash}.json`);this.notify(`已导出Godot试跑 · ${p.info.configHash} · 种子${p.info.setup.seed}`);}
+        catch(e){this.notify(e instanceof Error?e.message:"工程不能开始测试");}return;
+      }
+      case "import-record": {
+        const input=document.createElement("input");input.type="file";input.accept=".json,application/json";
+        input.addEventListener("change",()=>{const file=input.files?.[0];if(!file)return;if(file.size>2000000){this.notify("测试记录不能超过2MB");return;}
+          void file.text().then(text=>{TowerEngine.restorePlaytest(text);this.onReview(text);this.notify("已导入测试记录，当前暂停；可导出核对或继续。");}).catch(e=>this.notify("测试记录导入失败，当前状态未改变："+(e instanceof Error?e.message:"格式错误")));
+        });input.click();return;
+      }
       case "export-config":
         this.download(this.project.source, "thirty-floor-trial-draft.json");
         return;

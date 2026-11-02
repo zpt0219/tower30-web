@@ -1,7 +1,7 @@
 import {it,expect} from 'vitest';
 import raw from '../../data/tower/thirty-floor-trial.json';
 import {validateConfig} from '../../src/core/config';
-import {TowerEngine} from '../../src/core/engine';
+import {LegacyEngine as TowerEngine} from '../helpers/legacy-engine';
 import {clone} from '../../src/core/math';
 import {defaultPlaytestSetup} from '../../src/core/playtest';
 function arena(skill:string,hero='hero',rank=1){

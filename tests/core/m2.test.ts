@@ -3,7 +3,7 @@ import {it,expect} from 'vitest';
 import trace from '../fixtures/csharp-ten-floors.json';
 import raw from '../../data/tower/thirty-floor-trial.json';
 import {validateConfig} from '../../src/core/config';
-import {TowerEngine} from '../../src/core/engine';
+import {LegacyEngine as TowerEngine} from '../helpers/legacy-engine';
 import {commandSchema} from '../../src/core/model';
 it('C#对照：正常预算购买、培养、住宿、补人与手动大招连续通过10层Boss',()=>{
  const e=new TowerEngine(validateConfig(raw));let floor=0,tick=0;

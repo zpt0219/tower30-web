@@ -1,7 +1,7 @@
 import {it,expect} from 'vitest';
 import raw from '../../data/tower/thirty-floor-trial.json';
 import {attributesSchema,validateConfig} from '../../src/core/config';
-import {TowerEngine} from '../../src/core/engine';
+import {LegacyEngine as TowerEngine} from '../helpers/legacy-engine';
 import {defaultPlaytestSetup} from '../../src/core/playtest';
 function scene(auto='swift',enemyAuto=''){
  const c=validateConfig(raw);

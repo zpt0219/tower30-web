@@ -1,6 +1,6 @@
 {
   "name": "tower30-web",
-  "version": "0.9.0",
+  "version": "0.13.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,15 @@
     "test": "vitest",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "build:core": "node scripts/godot/bundle.mjs",
+    "build:godot": "npm run build:core && bash scripts/godot/native.sh && dotnet build integrations/godot/Tower30Proof.csproj -c Debug",
+    "godot": "bash scripts/godot/run.sh",
+    "test:godot": "bash scripts/godot/check.sh",
+    "test:godot:ui": "bash scripts/godot/ui.sh",
+    "test:godot:project": "bash scripts/godot/project-check.sh",
+    "deploy:lan": "npm run build && python3 scripts/deploy-lan.py",
+    "verify:lan": "node scripts/verify-lan.mjs"
   },
   "engines": {
     "node": ">=22.12"

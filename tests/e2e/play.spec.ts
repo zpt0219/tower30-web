@@ -162,11 +162,14 @@ test("战中刷新保持轨迹、切后台暂停、单步不突跳", async ({
   });
   await expect(page.locator("#battle-time")).toHaveText(hiddenTime!);
   await page.getByText("调试 · 固定步长 / 战斗事件").click();
-  await page.getByRole("button", { name: "单步 0.05秒" }).click();
+  const beforeTick=Number(await page.locator("#debug-tick").textContent());
+  await page.getByRole("button", { name: "单步 1/60秒" }).click();
+  expect(Number(await page.locator("#debug-tick").textContent())).toBe(beforeTick+1);
   const next = Number(
     (await page.locator("#battle-time").textContent())!.slice(0, -1),
   );
-  expect(next - Number(hiddenTime!.slice(0, -1))).toBeCloseTo(0.05, 5);
+  // Display is rounded to 3 decimals; the difference of two rounded values can differ by up to 1ms.
+  expect(Math.abs(next-Number(hiddenTime!.slice(0,-1))-1/60)).toBeLessThanOrEqual(.001);
   await screenshot(page, "paused", info.project.name);
   await context.clearCookies();
 });

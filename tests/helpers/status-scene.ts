@@ -1,5 +1,5 @@
 import {validateConfig,attributesSchema} from "../../src/core/config";
-import {TowerEngine} from "../../src/core/engine";
+import {LegacyEngine as TowerEngine} from "./legacy-engine";
 import {defaultPlaytestSetup} from "../../src/core/playtest";
 export function scene(raw:unknown,auto:string,enemyAuto=''){
  const c=validateConfig(raw);

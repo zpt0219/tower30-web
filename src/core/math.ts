@@ -1,5 +1,11 @@
 import type { Attributes } from "./config";
-export const STEP = 0.05;
+export const LOGIC_HZ = 60;
+export const STEP = 1 / LOGIC_HZ;
+export const LEGACY_STEP = 0.05;
+export const MAX_TICKS = 600000;
+export function elapsedSeconds(tick:number, legacy20ThroughTick=0) {
+  return Math.min(tick,legacy20ThroughTick)*LEGACY_STEP + Math.max(0,tick-legacy20ThroughTick)*STEP;
+}
 export function roundAway(v: number): number {
   return Math.sign(v) * Math.floor(Math.abs(v) + 0.5);
 }

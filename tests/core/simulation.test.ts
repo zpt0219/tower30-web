@@ -46,7 +46,7 @@ it('补人策略遵循真实票数；超时与严格校验有明确结果，零�
  const withReserve=simulateBattle(config,party,options),withoutReserve=simulateBattle(config,party,{...options,reinforce:false});
  expect(withReserve.reinforcements).toBe(1);expect(withoutReserve.reinforcements).toBe(0);
  const durable=structuredClone(raw);for(const id of ['hero','princess','slime_dusk'] as const)durable.Rules.Combatants[id].Base.MaxHp=1000000;
- expect(simulateBattle(validateConfig(durable),setup,{...options,policy:'no-ultimates'})).toMatchObject({result:'flee',ticks:6000});
- const record=TowerEngine.restorePlaytest(JSON.stringify({...trialSave({...createSimulationReport(config,config,party,options),pairs:[{a:withReserve,b:withReserve}]},'a',0)})).getSnapshot();
+ expect(simulateBattle(validateConfig(durable),setup,{...options,policy:'no-ultimates'})).toMatchObject({result:'flee',ticks:18000});
+ const record=TowerEngine.restorePlaytest(JSON.stringify({...trialSave({...createSimulationReport(config,config,party,options),pairs:[{floor:party.floor,a:withReserve,b:withReserve}]},'a',0)})).getSnapshot();
  expect(record.battle!.units.some(u=>u.id==='boar')).toBe(true);
-});
+},20000);

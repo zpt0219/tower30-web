@@ -38,3 +38,5 @@
 }
 
 .workbench:has(.wb-strategy-body) .wb-validation:not(.invalid) { display:none; }
+
+.strategy-buttons { flex-wrap:wrap; }

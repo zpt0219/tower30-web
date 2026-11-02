@@ -1,4 +1,5 @@
 import type { Snapshot } from "../core/engine";
+import {battlePose} from "./pose";
 import type { Event, Unit } from "../core/model";
 import { config as visualConfig } from "../data/load";
 const sizes = new Map(
@@ -22,10 +23,12 @@ export function sprite(
   size: number,
   frame = 1,
   enemy = false,
+  row = 0,
 ) {
   const img = images.get(id);
   if (!img?.complete || !img.naturalWidth) return;
-  const sy = id === "hero" || id === "princess" ? 16 : 0;
+  const human=id==="hero"||id==="princess";
+  const sy=row*(human?32:(sizes.get(id)??16))+(human?16:0);
   const sh = sizes.get(id) ?? 16;
   const height = size;
   ctx.save();
@@ -70,10 +73,11 @@ function tree(
 export function drawBattle(
   canvas: HTMLCanvasElement,
   s: Snapshot,
-  previous: Snapshot | null,
+  previous: Snapshot["battle"],
   alpha: number,
   paused: boolean,
   names: (id: string) => string,
+  visualSeconds=0,
 ) {
   const rect = canvas.getBoundingClientRect(),
     dpr = Math.min(devicePixelRatio, 2),
@@ -154,7 +158,7 @@ export function drawBattle(
     c.fill(); c.stroke();
   }
   const interp = (u: Unit) => {
-    const prev = previous?.battle?.units.find((v) => v.id === u.id);
+    const prev = previous?.units.find((v) => v.id === u.id);
     return {
       x: prev ? prev.x + (u.x - prev.x) * alpha : u.x,
       z: prev ? prev.z + (u.z - prev.z) * alpha : u.z,
@@ -188,14 +192,16 @@ export function drawBattle(
       );
       c.stroke();
     }
+    const pose=battlePose(u,previous?.units.find(v=>v.id===u.id),b.units,b.result,visualSeconds,sizes.get(u.kind)??16);
     sprite(
       c,
       u.kind,
       x,
       y,
       size,
-      b.tick % 12 < 4 ? 0 : b.tick % 12 < 8 ? 1 : 2,
-      u.enemy,
+      pose.frame,
+      false,
+      pose.row,
     );
     if (u.hp > 0 && u.barrier > 0) {
       c.strokeStyle = "#c6f4e7"; c.lineWidth = 2;
@@ -253,12 +259,13 @@ export function drawBattle(
     c.shadowColor = c.fillStyle;
     c.shadowBlur = 10;
     c.beginPath();
-    c.arc(px(p.x), pz(p.z) - unitSize * 0.4, 4, 0, Math.PI * 2);
+    const old=previous?.projectiles.find(v=>v.id===p.id),x=old?old.x+(p.x-old.x)*alpha:p.x,z=old?old.z+(p.z-old.z)*alpha:p.z;
+    c.arc(px(x), pz(z) - unitSize * 0.4, 4, 0, Math.PI * 2);
     c.fill();
     c.shadowBlur = 0;
   }
   for (const e of s.events.filter(
-    (e) => ["hit", "heal", "dodge"].includes(e.kind) && s.tick - e.tick < 16,
+    (e) => ["hit", "heal", "dodge"].includes(e.kind) && visualSeconds-(e.seconds-(s.seconds-b.seconds)) < .8,
   )) {
     const target = b.units.find((u) => u.id === e.target);
     if (!target) continue;
@@ -266,8 +273,8 @@ export function drawBattle(
       c,
       e,
       px(target.x),
-      pz(target.z) - unitSize * 1.4 - (s.tick - e.tick) * 2,
-      s.tick,
+      pz(target.z) - unitSize * 1.4 - Math.max(0,visualSeconds-(e.seconds-(s.seconds-b.seconds))) * 40,
+      Math.max(0,visualSeconds-(e.seconds-(s.seconds-b.seconds))),
     );
   }
   c.font = "13px sans-serif";
@@ -300,10 +307,10 @@ function floating(
   e: Event,
   x: number,
   y: number,
-  tick: number,
+  ageSeconds: number,
 ) {
   c.save();
-  c.globalAlpha = 1 - (tick - e.tick) / 16;
+  c.globalAlpha = 1 - ageSeconds/.8;
   c.textAlign = "center";
   c.font = `bold ${e.critical ? 24 : 20}px sans-serif`;
   c.lineWidth = 3;

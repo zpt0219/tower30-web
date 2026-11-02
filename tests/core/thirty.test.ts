@@ -3,7 +3,7 @@ import {it,expect} from 'vitest';
 import trace from '../fixtures/csharp-thirty-floors.json';
 import raw from '../../data/tower/thirty-floor-trial.json';
 import {validateConfig} from '../../src/core/config';
-import {TowerEngine} from '../../src/core/engine';
+import {LegacyEngine as TowerEngine} from '../helpers/legacy-engine';
 import {commandSchema} from '../../src/core/model';
 it('C#对照：正常预算连续30层：首发/退还培养、风暴Boss、完成状态、奖励幂等与重放',()=>{
  const e=new TowerEngine(validateConfig(raw));let floor=0,tick=0;

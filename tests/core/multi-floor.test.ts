@@ -11,14 +11,14 @@ function completed(){
  return structuredClone(cached);
 }
 it('10/20/30关按同种子逐关运行，每关独立开局，逐场复现使用实际关卡与种子',()=>{
- const normal=new TowerEngine(config),before=normal.serialize(),r=completed();expect(r.schemaVersion).toBe(2);expect(r.floors).toEqual([10,20,30]);expect(simulationTotal(r)).toBe(6);
+ const normal=new TowerEngine(config),before=normal.serialize(),r=completed();expect(r.schemaVersion).toBe(4);expect(r.floors).toEqual([10,20,30]);expect(simulationTotal(r)).toBe(6);
  expect(r.pairs.map(p=>[p.floor,p.a.seed])).toEqual([[10,0xffffffff],[20,0xffffffff],[30,0xffffffff],[10,1],[20,1],[30,1]]);
  for(let i=0;i<r.pairs.length;i++){
   const p=r.pairs[i]!,single=createSimulationReport(config,config,{...setup,floor:p.floor!,seed:p.a.seed},{...options,count:1});expect(simulatePair(single,0).a).toEqual(p.a);expect(p.b).toEqual(p.a);
   const e=TowerEngine.restorePlaytest(JSON.stringify(trialSave(r,'b',i))),s=e.getSnapshot();expect(s.floor).toBe(p.floor);expect(s.seed).toBe(p.b.seed);expect(s.battle!.tick).toBe(p.b.ticks);expect(s.battle!.result).toBe(p.b.result);expect(s.records).toEqual([]);expect(s.gold).toBe(0);
  }
  expect(normal.serialize()).toBe(before);
-},20000);
+},60000);
 it('取消或部分结果逐关使用真实分母，未运行的关卡胜率为空且不补造样本',()=>{
  const r=completed();r.status='cancelled';r.pairs=r.pairs.slice(0,4);
  const summaries=summarizeFloors(r);expect(summaries.map(s=>s.completed)).toEqual([2,1,1]);expect(summaries.map(s=>s.requested)).toEqual([2,2,2]);expect(summaries.reduce((n,s)=>n+s.completed,0)).toBe(r.pairs.length);
@@ -44,6 +44,7 @@ it('开始时冻结选关、配置和设置；错位样本不能错误地复现�
  const copy=completed();copy.pairs[1]!.floor=10;expect(()=>trialSave(copy,'b',1)).toThrow(/关卡或种子/);
  const seed=completed();seed.pairs[1]!.b.seed=123;expect(()=>trialSave(seed,'b',1)).toThrow(/关卡或种子/);
 });
-it('旧单关报告v1仍可模拟、统计和导出复现，不要求补写多关字段',()=>{
- const r=createSimulationReport(config,config,{...defaultPlaytestSetup(),floor:2},{...options,count:1});expect(r.schemaVersion).toBe(1);expect(r.floors).toBeUndefined();r.pairs.push(simulatePair(r,0));expect(r.pairs[0]!.floor).toBeUndefined();expect(reportFloors(r)).toEqual([2]);expect(summarizeFloors(r)[0]!.completed).toBe(1);expect(trialSave(r,'a',0).setup.floor).toBe(2);
+it('旧单关报告v1仍按20Hz模拟、统计和重放，不要求补写多关字段',()=>{
+ const r=createSimulationReport(config,config,{...defaultPlaytestSetup(),floor:2},{...options,count:1});r.schemaVersion=1;r.engineVersion="tower30-ts-workbench-v5";r.policyVersion="tower30-policy-v1";delete r.floors;delete r.a.strategy;delete r.b.strategy;
+ r.pairs.push(simulatePair(r,0));expect(r.pairs[0]!.floor).toBeUndefined();expect(reportFloors(r)).toEqual([2]);expect(summarizeFloors(r)[0]!.completed).toBe(1);const e=TowerEngine.restorePlaytest(JSON.stringify(trialSave(r,'a',0)));expect(e.logicHz).toBe(20);expect(e.getBattleSnapshot()!.result).toBe(r.pairs[0]!.a.result);
 });

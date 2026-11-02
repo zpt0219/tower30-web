@@ -1,3 +1,4 @@
+import {FixedClock} from "./fixed-clock";
 import {advancePlaytest} from "../core/strategy";
 import { skillLabel } from "../data/skill-labels";
 import "./style.css";
@@ -27,7 +28,7 @@ let config: Config = baselineConfig;
 let booted = false;
 let engine = new TowerEngine(config),
   snap: Snapshot = engine.getSnapshot(),
-  previous: Snapshot | null = null;
+  previous: ReturnType<TowerEngine["getBattleSnapshot"]> = null;
 let normalEngine = engine;
 let lastTestJson: string | null = null;
 let testWrites: Promise<void> = Promise.resolve();
@@ -38,6 +39,9 @@ const workbench = new Workbench(
   toast,
   reviewPlaytest,
 );
+const clock=new FixedClock();
+let visualSeconds=0;
+let frameFps=0,logicMs=0;
 let showClearedFloor=false;
 let eventKindFilter="all", eventActorFilter="";
 let page = "tower",
@@ -53,7 +57,7 @@ let page = "tower",
   damagedSave: string | null = null,
   keepBackupOnce = false,
   lastTime = 0,
-  accumulator = 0,
+
   lastSaveTick = -1;
 const actions = new Map<string, () => void>();
 let actionId = 0;
@@ -233,7 +237,7 @@ function back() {
   } else navigate("tower", false);
 }
 function refresh() {
-  previous = snap;
+  previous = null;
   snap = engine.getSnapshot();
 }
 function send(c: Command) {
@@ -246,7 +250,8 @@ function send(c: Command) {
   if (c.type === "begin" || c.type === "start") {
     page = "battle";
     paused = c.type === "begin";
-    accumulator = 0;
+    visualSeconds=0;lastTime=0;
+    clock.reset();
   }
   if(c.type==="finish"&&snap.completed)showClearedFloor=false;
   if (c.type === "finish" || c.type === "retry") {
@@ -284,7 +289,7 @@ function saveTest(active: boolean) {
 }
 function openEditor() {
   paused = true;
-  accumulator = 0;
+  clock.reset();
   lastTime = 0;
   if (snap.mode === "playtest") {
     saveTest(false);
@@ -307,12 +312,12 @@ function startPlaytest(nextConfig: Config, setup: PlaytestSetup) {
       if (!result.ok) throw new Error(result.message);
     }
     if (snap.mode === "run") normalEngine = engine;
-    engine = next;
+    engine = next;visualSeconds=0;
     config = next.getConfigSnapshot();
     refresh();
     page = "battle";
     paused = false;
-    accumulator = 0;
+    clock.reset();
     lastTime = 0;
     lastSaveTick = 0;
     render();
@@ -325,7 +330,7 @@ function reviewPlaytest(serialized:string) {
   try {
     const restored=TowerEngine.restorePlaytest(serialized);
     if(snap.mode==="run")normalEngine=engine;
-    engine=restored;config=restored.getConfigSnapshot();refresh();page="battle";paused=true;accumulator=0;lastTime=0;lastSaveTick=snap.tick;render();queueSave();
+    engine=restored;visualSeconds=restored.getBattleSnapshot()?.seconds??0;config=restored.getConfigSnapshot();refresh();page="battle";paused=true;clock.reset();lastTime=0;lastSaveTick=snap.tick;render();queueSave();
   } catch(e) {toast(e instanceof Error?e.message:"测试记录无法恢复");}
 }
 let pendingSave: string | null = null,
@@ -527,7 +532,7 @@ function content(): string {
 }
 function completionPage() {
   const c=snap.completion!;
-  return `<section class="completion-layout"><div class="completion-banner"><p class="eyebrow">THIRTY FLOORS CLEARED</p><h2>30层试炼已完成</h2><p>风暴祭司已被击败。每一层胜利、消耗与掉落，都保存在这次试跑中。</p><span class="tag">正式通关 · 3位守关首领</span></div><div class="completion-metrics"><article><span>已通过</span><strong>${c.floors} / 30 层</strong><p>完整战报可逐层回看</p></article><article><span>累计战斗</span><strong>${(c.ticks*.05/60).toFixed(1)} 分钟</strong><p>固定步长下的实际胜利用时</p></article><article><span>当前金币</span><strong>◈ ${c.gold}</strong><p>商店阶段 ${c.bosses} 已开放</p></article><article><span>收集伙伴</span><strong>${c.members} 位</strong><p>${c.alive} 位存活，生命与能量按战后状态保留</p></article></div><div class="hint"><span>✧</span><p>通关不提供免费恢复。可以继续整备、付费住宿，或进入工作台独立测试任意关卡。</p></div><div class="button-row">${nav("records","查看30层战报","primary")}${button("进入配置工作台",openEditor)}${button("回顾关卡",()=>{showClearedFloor=true;selectedFloor=30;render();})}${nav("settings","存档与新试跑")}</div></section>`;
+  return `<section class="completion-layout"><div class="completion-banner"><p class="eyebrow">THIRTY FLOORS CLEARED</p><h2>30层试炼已完成</h2><p>风暴祭司已被击败。每一层胜利、消耗与掉落，都保存在这次试跑中。</p><span class="tag">正式通关 · 3位守关首领</span></div><div class="completion-metrics"><article><span>已通过</span><strong>${c.floors} / 30 层</strong><p>完整战报可逐层回看</p></article><article><span>累计战斗</span><strong>${(c.seconds/60).toFixed(1)} 分钟</strong><p>固定步长下的实际胜利用时</p></article><article><span>当前金币</span><strong>◈ ${c.gold}</strong><p>商店阶段 ${c.bosses} 已开放</p></article><article><span>收集伙伴</span><strong>${c.members} 位</strong><p>${c.alive} 位存活，生命与能量按战后状态保留</p></article></div><div class="hint"><span>✧</span><p>通关不提供免费恢复。可以继续整备、付费住宿，或进入工作台独立测试任意关卡。</p></div><div class="button-row">${nav("records","查看30层战报","primary")}${button("进入配置工作台",openEditor)}${button("回顾关卡",()=>{showClearedFloor=true;selectedFloor=30;render();})}${nav("settings","存档与新试跑")}</div></section>`;
 }
 function towerPage() {
   if(snap.completed&&!showClearedFloor)return completionPage();
@@ -791,7 +796,7 @@ function codexCards() {
   );
 }
 function recordsPage() {
-  return `<div class="section-intro"><p>仅记录实际胜利并确认的楼层；独立Play不计入正式通关。</p><span class="tag">${snap.records.length} 层实际通过</span></div>${snap.records.length ? snap.records.map((r) => `<article class="info-card"><div class="card-heading"><h3>第${r.floor}层 · ${config.Encounters.find((e) => e.Id === config.Floors[r.floor - 1]!.Encounter)!.Title}</h3><span class="tag">胜利 · ${(r.ticks * 0.05).toFixed(2)}秒</span></div><p>金币 +${r.gold} · 奖励已结算</p>${contributions(r.contributions)}${button("查看行动明细",()=>recordDetails(r),"subtle")}</article>`).join("") : '<div class="empty"><span>✧</span><h2>第一场胜利，尚在前方。</h2><p>从试炼之塔开始，战斗结果会记在这里。</p></div>'}`;
+  return `<div class="section-intro"><p>仅记录实际胜利并确认的楼层；独立Play不计入正式通关。</p><span class="tag">${snap.records.length} 层实际通过</span></div>${snap.records.length ? snap.records.map((r) => `<article class="info-card"><div class="card-heading"><h3>第${r.floor}层 · ${config.Encounters.find((e) => e.Id === config.Floors[r.floor - 1]!.Encounter)!.Title}</h3><span class="tag">胜利 · ${(r.seconds??r.ticks*.05).toFixed(2)}秒</span></div><p>金币 +${r.gold} · 奖励已结算</p>${contributions(r.contributions)}${button("查看行动明细",()=>recordDetails(r),"subtle")}</article>`).join("") : '<div class="empty"><span>✧</span><h2>第一场胜利，尚在前方。</h2><p>从试炼之塔开始，战斗结果会记在这里。</p></div>'}`;
 }
 function recordDetails(r:Snapshot["records"][number]) {
   dialog(`第${r.floor}层 · 行动明细`,`<p>能量为实际获得量；大招、暴击、闪避和受打断次数由战斗核心记录。</p><div class="table-scroll"><table><thead><tr><th>伙伴</th><th>出手回能</th><th>受击回能</th><th>击杀回能</th><th>大招</th><th>暴击</th><th>闪避</th><th>受打断</th><th>硬直</th></tr></thead><tbody>${r.contributions.map(u=>`<tr><th>${name(u.id)}</th><td>${Math.floor(u.attackEnergy)}</td><td>${Math.floor(u.hurtEnergy)}</td><td>${Math.floor(u.killEnergy)}</td><td>${u.ultimates}</td><td>${u.criticals}</td><td>${u.dodges}</td><td>${u.interrupts}</td><td>${u.staggers}</td></tr>`).join("")}</tbody></table></div>`,d=>d.classList.add("record-detail-dialog"));
@@ -855,7 +860,7 @@ function settingsPage() {
       );
     },
     "danger",
-  )}</article></section><section><div class="section-caption">首版试玩说明</div><article class="info-card"><h3>M3 · 完整30层资源流程</h3><p>已接通：固定20 tick/秒、移动碰撞、动作前后摇、在途投射物、普攻与自动技能、1000能量手动大招、收集、战报与操作重放存档。</p><p>可试用：基础商店、装备对比、道具、付费旅馆、药水升级与找零。正式30层及全部现行装备已开放。</p><p>尚未完成：批量模拟、胜率统计与配置方案对比。</p></article><article class="info-card"><h3>操作方式</h3><p>自动普攻和自动技能不需要操作。能量达到1000时，点击伙伴卡片施放大招。暂停后可在调试栏单步推进；倍速只改变调度速度。</p><p>键盘：Tab切换焦点，Enter确认，Esc关闭弹窗；战场按空格暂停。切到后台后保持暂停，返回时手动继续。</p><p>所有资源与胜负均由本机核心计算，无游戏后端。</p></article></section></div>`;
+  )}</article></section><section><div class="section-caption">首版试玩说明</div><article class="info-card"><h3>M3 · 完整30层资源流程</h3><p>已接通：固定60 tick/秒、移动碰撞、动作前后摇、在途投射物、普攻与自动技能、1000能量手动大招、收集、战报与操作重放存档。</p><p>可试用：基础商店、装备对比、道具、付费旅馆、药水升级与找零。正式30层及全部现行装备已开放。</p><p>已支持：配表与策略编辑、多关批量模拟、胜率统计与配置对比。</p></article><article class="info-card"><h3>操作方式</h3><p>自动普攻和自动技能不需要操作。能量达到1000时，点击伙伴卡片施放大招。暂停后可在调试栏单步推进；倍速只改变调度速度。</p><p>键盘：Tab切换焦点，Enter确认，Esc关闭弹窗；战场按空格暂停。切到后台后保持暂停，返回时手动继续。</p><p>所有资源与胜负均由本机核心计算，无游戏后端。</p></article></section></div>`;
 }
 function downloadJson(json: string, filename: string) {
   const blob = new Blob([json], { type: "application/json" }),
@@ -881,14 +886,14 @@ async function importSave(file: File) {
       "导入存档",
       `将替换为第${s.floor}层、${s.gold}金币的试跑。导入后战斗保持暂停。`,
       () => {
-        engine = restored;
+        engine = restored.upgradeTo60Hz();
         saveHold = false;
         refresh();
         page = snap.battle ? "battle" : "tower";
         selectedFloor = Math.min(snap.floor, 30);
         showClearedFloor=false;
         paused = true;
-        accumulator = 0;
+        clock.reset();
         history.length = 0;
         render();
         queueSave();
@@ -902,11 +907,11 @@ async function importSave(file: File) {
 }
 function battlePage() {
   const b = snap.battle!;
-  return `<div class="battle-toolbar"><div>${snap.mode === "playtest" ? `<span class="test-label">TEST · 第${snap.floor}关 · ${snap.playtest?.autoPlay?"策略自动执行":"手动大招"}</span>` : ""}<b id="battle-time">0.00s</b><span> / 300s</span><span class="battle-ticket">补人票 <b id="battle-tickets">${b.tickets}</b> / 3</span></div><div class="button-row">${snap.mode === "playtest" ? button("返回编辑", openEditor, "light") + button("重新 Play", () => startPlaytest(config, snap.playtest!), "light") : ""}${button(paused ? "继续" : "暂停", () => togglePause(), "light", !!b.result, 'id="pause-button"')}${button(
+  return `<div class="battle-toolbar"><div>${snap.mode === "playtest" ? `<span class="test-label">TEST · 第${snap.floor}关 · ${snap.playtest?.autoPlay?"策略自动执行":"手动大招"}</span>` : ""}<b id="battle-time">0.00s</b><span> / 300s</span><span class="battle-ticket">补人票 <b id="battle-tickets">${b.tickets}</b> / 3</span></div><div class="button-row">${snap.mode === "playtest" ? button("返回编辑", openEditor, "light") + button("重新 Play", () => startPlaytest(config, snap.playtest!), "light") + (!b.result?button("导出测试记录",()=>{paused=true;clock.reset();render();exportSave();},"light"):"") : ""}${button(paused ? "继续" : "暂停", () => togglePause(), "light", !!b.result, 'id="pause-button"')}${button(
     `${speed}× 速度`,
     () => {
       speed = speed === 1 ? 2 : speed === 2 ? 4 : 1;
-      accumulator = 0;
+      clock.reset();
       const el = document.querySelector("#speed-button");
       if (el) el.textContent = `${speed}× 速度`;
     },
@@ -938,36 +943,36 @@ function battlePage() {
     .join(
       "",
     )}</div><details class="debug"><summary>调试 · 固定步长 / 战斗事件</summary><div class="debug-content">${button(
-    "单步 0.05秒",
+    "单步 1/60秒",
     () => {
       if (!paused) {
         toast("请先暂停战斗");
         return;
       }
       advancePlaytest(engine,1);
-      refresh();
+      refresh();visualSeconds=snap.battle?.seconds??visualSeconds;
       updateBattleHud();
       if (snap.battle?.result) render();
       queueSave();
     },
     "light",
     !b.started || !!b.result,
-  )}<span>tick <b id="debug-tick">${snap.tick}</b> · seed ${snap.seed}</span><label>事件类型<select id="event-kind" aria-label="事件类型">${[["all","全部事件"],["hit","命中"],["heal","治疗"],["ward","护盾"],["charge","大招吟唱"],["cancel","动作打断"],["control","控制"],["launch","弹道发射"]].map(([v,l])=>`<option value="${v}" ${eventKindFilter===v?"selected":""}>${l}</option>`).join("")}</select></label><label>角色 / 目标<input id="event-actor" aria-label="事件角色或目标" placeholder="名称或ID" maxlength="100" value="${esc(eventActorFilter)}"></label><span class="event-window">最近64条事件 · 暂停可查看</span><code id="debug-events" role="log"></code></div></details>`;
+  )}<span id="frame-metrics">逻辑60Hz</span><span>tick <b id="debug-tick">${snap.tick}</b> · seed ${snap.seed}</span><label>事件类型<select id="event-kind" aria-label="事件类型">${[["all","全部事件"],["hit","命中"],["heal","治疗"],["ward","护盾"],["charge","大招吟唱"],["cancel","动作打断"],["control","控制"],["launch","弹道发射"]].map(([v,l])=>`<option value="${v}" ${eventKindFilter===v?"selected":""}>${l}</option>`).join("")}</select></label><label>角色 / 目标<input id="event-actor" aria-label="事件角色或目标" placeholder="名称或ID" maxlength="100" value="${esc(eventActorFilter)}"></label><span class="event-window">最近64条事件 · 暂停可查看</span><code id="debug-events" role="log"></code></div></details>`;
 }
 function resultOverlay() {
   const b = snap.battle!,
     win = b.result === "victory";
   if (snap.mode === "playtest")
-    return `<div class="result-overlay"><div class="result-card"><p class="eyebrow">PLAYTEST RESULT · ${snap.configHash}</p><h2>${win ? "测试胜利" : b.result === "loss" ? "测试失败" : "测试已撤回"}</h2><p>第${snap.floor}关 · ${(b.tick * 0.05).toFixed(2)}秒 · 独立测试，不发放奖励或推进正式进度</p>${contributions(b.units.filter((u) => !u.enemy))}<p>${snap.skippedFeatures.length ? `本次停用了${snap.skippedFeatures.length}项未迁移功能。` : "本次使用的技能均已实现。"}</p><div class="button-row">${button("返回编辑", openEditor, "primary")}${button("重新 Play", () => startPlaytest(config, snap.playtest!))}${button("导出测试记录", exportSave)}</div></div></div>`;
-  return `<div class="result-overlay"><div class="result-card"><p class="eyebrow">${win ? "FLOOR CLEARED" : "TRIAL PAUSED"}</p><h2>${win ? (snap.floor===30?"风暴祭司已击败":"赢下这一战。") : b.result === "loss" ? "队伍暂时倒下。" : "已撤回战斗。"}</h2><p>第${snap.floor}层 · ${(b.tick * 0.05).toFixed(2)}秒${win ? ` · 通关金币 +${config.Encounters.find((e) => e.Id === config.Floors[snap.floor - 1]!.Encounter)!.Gold}` : " · 未发放奖励"}</p>${contributions(b.units.filter((u) => !u.enemy).map((u) => ({ id: u.id, damage: u.damage, healing: u.healing, absorbed: u.absorbed })))}${win ? `<p>魂魄、药水与首次收集已按规则结算。<br>${snap.floor===30?"生命不恢复；确认后领取金币并记录30层通关。":"生命不恢复；确认后领取金币并进入下一层。"}</p>${command({ type: "finish" }, snap.floor===30?"确认通关 · 查看记录":"确认战果 · 返回整备", undefined, "primary large")}` : `<p>返回该层战前检查点；战前已确认的交易保留。</p>${command({ type: "retry" }, "返回战前整备", undefined, "primary large")}`}</div></div>`;
+    return `<div class="result-overlay"><div class="result-card"><p class="eyebrow">PLAYTEST RESULT · ${snap.configHash}</p><h2>${win ? "测试胜利" : b.result === "loss" ? "测试失败" : "测试已撤回"}</h2><p>第${snap.floor}关 · ${b.seconds.toFixed(3)}秒 · 独立测试，不发放奖励或推进正式进度</p>${contributions(b.units.filter((u) => !u.enemy))}<p>${snap.skippedFeatures.length ? `本次停用了${snap.skippedFeatures.length}项未迁移功能。` : "本次使用的技能均已实现。"}</p><div class="button-row">${button("返回编辑", openEditor, "primary")}${button("重新 Play", () => startPlaytest(config, snap.playtest!))}${button("导出测试记录", exportSave)}</div></div></div>`;
+  return `<div class="result-overlay"><div class="result-card"><p class="eyebrow">${win ? "FLOOR CLEARED" : "TRIAL PAUSED"}</p><h2>${win ? (snap.floor===30?"风暴祭司已击败":"赢下这一战。") : b.result === "loss" ? "队伍暂时倒下。" : "已撤回战斗。"}</h2><p>第${snap.floor}层 · ${b.seconds.toFixed(3)}秒${win ? ` · 通关金币 +${config.Encounters.find((e) => e.Id === config.Floors[snap.floor - 1]!.Encounter)!.Gold}` : " · 未发放奖励"}</p>${contributions(b.units.filter((u) => !u.enemy).map((u) => ({ id: u.id, damage: u.damage, healing: u.healing, absorbed: u.absorbed })))}${win ? `<p>魂魄、药水与首次收集已按规则结算。<br>${snap.floor===30?"生命不恢复；确认后领取金币并记录30层通关。":"生命不恢复；确认后领取金币并进入下一层。"}</p>${command({ type: "finish" }, snap.floor===30?"确认通关 · 查看记录":"确认战果 · 返回整备", undefined, "primary large")}` : `<p>返回该层战前检查点；战前已确认的交易保留。</p>${command({ type: "retry" }, "返回战前整备", undefined, "primary large")}`}</div></div>`;
 }
 function togglePause() {
   if (!snap.battle?.started || snap.battle.result) return;
   paused = !paused;
-  accumulator = 0;
+  clock.reset();
   const el = document.querySelector("#pause-button");
   if (el) el.textContent = paused ? "继续" : "暂停";
-  if (paused) queueSave();
+  if (paused) {visualSeconds=snap.battle?.seconds??visualSeconds;queueSave();}
 }
 function updateBattleHud() {
   const b = snap.battle;
@@ -981,7 +986,7 @@ function updateBattleHud() {
     return;
   }
   const time = document.querySelector("#battle-time");
-  if (time) time.textContent = `${(b.tick * 0.05).toFixed(2)}s`;
+  if (time) time.textContent = `${b.seconds.toFixed(3)}s`;
   const tickets = document.querySelector("#battle-tickets");
   if (tickets) tickets.textContent = String(b.tickets);
   for (const u of b.units.filter((u) => !u.enemy)) {
@@ -1038,6 +1043,8 @@ function updateBattleHud() {
     enemyCasts.hidden=casts.length===0;
     enemyCasts.textContent=casts.slice(0,3).map(u=>`${rawName(u.kind)} · ${skill(u.action!.skill)} · ${u.charge.toFixed(1)}秒`).join(" / ");
   }
+  const metrics=document.querySelector("#frame-metrics");
+  if(metrics)metrics.textContent=`逻辑 ${snap.logicHz}Hz · 画面 ${Math.round(frameFps)}FPS · 每步 ${logicMs.toFixed(2)}ms`;
   const debug = document.querySelector("#debug-tick");
   if (debug) debug.textContent = String(snap.tick);
   const events = document.querySelector("#debug-events");
@@ -1052,42 +1059,32 @@ function updateBattleHud() {
       .join("\n");
 }
 function frame(time: number) {
-  const delta = lastTime ? Math.min(0.15, (time - lastTime) / 1000) : 0;
-  lastTime = time;
-  if (page === "battle" && snap.battle) {
-    if (
-      snap.battle.started &&
-      !snap.battle.result &&
-      !paused &&
-      !document.hidden
-    ) {
-      accumulator += delta * speed;
-      const ticks = Math.min(12, Math.floor(accumulator / 0.05));
-      if (ticks > 0) {
-        advancePlaytest(engine,ticks);
-        accumulator -= ticks * 0.05;
-        refresh();
-        updateBattleHud();
-        if (snap.battle?.result) {
-          paused = true;
-          render();
-          queueSave();
-        } else if (snap.tick - lastSaveTick >= 20) {
-          lastSaveTick = snap.tick;
-          queueSave();
+  const delta = lastTime ? Math.max(0,(time-lastTime)/1000) : 0;
+  lastTime=time;
+  if(delta>0)frameFps=frameFps?frameFps*.9+(.1/delta):1/delta;
+  if(page==="battle"&&snap.battle){
+    if(snap.battle.started&&!snap.battle.result&&!paused&&!document.hidden){
+      // An unserviceable interruption is an explicit pause, never skipped simulation ticks.
+      if(delta>.5){paused=true;visualSeconds=snap.battle.seconds;clock.reset();render();queueSave();toast("画面长时间停顿，战斗已暂停；点击继续。");}
+      else {
+        clock.add(delta,speed);visualSeconds+=delta*speed;
+        const ticks=clock.take();
+        if(ticks>0){
+          const start=performance.now();
+          if(ticks>1)advancePlaytest(engine,ticks-1);
+          const beforeLastTick=engine.getBattleSnapshot();
+          advancePlaytest(engine,1);logicMs=(performance.now()-start)/ticks;
+          refresh();previous=beforeLastTick;
+          updateBattleHud();
+          if(snap.battle?.result){paused=true;visualSeconds=snap.battle.seconds;render();queueSave();}
+          else if(snap.tick-lastSaveTick>=60){lastSaveTick=snap.tick;queueSave();}
         }
+        if(clock.pendingSeconds>.5){paused=true;visualSeconds=snap.battle.seconds;clock.reset();render();queueSave();toast("逻辑处理未能跟上，已暂停；可降低倍速后继续。");}
       }
     }
-    const canvas = document.querySelector<HTMLCanvasElement>("#battle-canvas");
-    if (canvas)
-      drawBattle(
-        canvas,
-        snap,
-        previous,
-        paused ? 1 : Math.min(1, accumulator / 0.05),
-        paused && !!snap.battle?.started,
-        rawName,
-      );
+    if(snap.battle.result==="victory"&&!document.hidden)visualSeconds+=delta;
+    const canvas=document.querySelector<HTMLCanvasElement>("#battle-canvas");
+    if(canvas)drawBattle(canvas,snap,previous,paused?1:clock.alpha,paused&&!!snap.battle?.started,rawName,visualSeconds);
   }
   requestAnimationFrame(frame);
 }
@@ -1095,7 +1092,7 @@ app.addEventListener("pointerdown", () => {}, { passive: true });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     paused = true;
-    accumulator = 0;
+    clock.reset();
     lastTime = 0;
     const el = document.querySelector("#pause-button");
     if (el) el.textContent = "继续";
@@ -1123,7 +1120,7 @@ async function boot() {
     for (const [index, json] of [saves.current, saves.backup].entries()) {
       if (!json) continue;
       try {
-        engine = TowerEngine.restore(config, json);
+        engine = TowerEngine.restore(config, json).upgradeTo60Hz();
         saveStatus = index === 0 ? "已恢复本机存档" : "已从备份恢复";
         keepBackupOnce = index === 1;
         loadError = false;
@@ -1158,9 +1155,9 @@ async function boot() {
         typeof session.serialized === "string"
       ) {
         const restored = TowerEngine.restorePlaytest(session.serialized);
-        engine = restored;
+        engine = restored.upgradeTo60Hz();
         config = restored.getConfigSnapshot();
-        lastTestJson = session.serialized;
+        lastTestJson = engine.serialize();
         saveStatus = "已恢复独立测试";
       }
     }
@@ -1168,6 +1165,7 @@ async function boot() {
     toast("上次测试记录无法恢复，正式试跑和草稿仍保留。");
   }
   refresh();
+  visualSeconds=snap.battle?.seconds??0;
   booted = true;
   page = snap.battle ? "battle" : "tower";
   selectedFloor = Math.min(snap.floor, 30);

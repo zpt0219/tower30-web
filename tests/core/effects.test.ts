@@ -1,7 +1,7 @@
 import {expect,it} from 'vitest';
 import raw from '../../data/tower/thirty-floor-trial.json';
 import old from '../fixtures/v06-effects-compatibility.json';
-import {TowerEngine} from '../../src/core/engine';
+import {LegacyEngine as TowerEngine} from '../helpers/legacy-engine';
 import {validateConfig,fingerprint} from '../../src/core/config';
 import {defaultPlaytestSetup} from '../../src/core/playtest';
 import {effectDefinitions,resolveEffects,shieldDefaults,defaultShieldRatio} from '../../src/core/effects';
@@ -10,7 +10,8 @@ import {scene as sceneFromConfig,start} from '../helpers/status-scene';
 const scene=(auto:string,enemyAuto='')=>sceneFromConfig(raw,auto,enemyAuto);
 it('19bd885的真实v0.6战中记录精确恢复，默认配表指纹不变，继续并升级v5可重放',()=>{
  const e=TowerEngine.restorePlaytest(old.serialized);
- expect(e.getSnapshot()).toEqual(old.expected);
+ const expected={...old.expected,logicHz:20,stepSeconds:.05,seconds:old.expected.tick*.05,battle:{...old.expected.battle,seconds:old.expected.battle.tick*.05},events:old.expected.events.map(v=>({...v,seconds:v.tick*.05}))};
+ expect(e.getSnapshot()).toEqual(expected);
  const normalized=validateConfig(raw);expect(normalized.Rules.Effects).toBeUndefined();expect(fingerprint(normalized)).toBe('fnv1a-1713cdf4');
  e.advance(70);expect(JSON.parse(e.serialize()).engineVersion).toBe('tower30-ts-workbench-v5');
  const restored=TowerEngine.restorePlaytest(e.serialize());e.advance(40);restored.advance(40);expect(restored.getSnapshot()).toEqual(e.getSnapshot());
@@ -66,4 +67,4 @@ it('参数经严格验证，未知或不适用的效果不能被静默吞掉；�
  expect(Object.keys(resolveEffects())).toHaveLength(Object.keys(effectDefinitions).length);
  const a=scene('swift');a.Rules.Profiles.boar!.PassiveEffect='thorns';a.Encounters[0]!.Enemies[0]!.Rank=3;const b=structuredClone(a);b.Rules.Effects={ReflectionRatio:.5};
  const setup={...defaultPlaytestSetup(),party:['hero'],hpPercent:50,skillPolicy:'strict' as const};const r=createSimulationReport(a,b,setup,{count:1,policy:'no-ultimates',reinforce:false});r.pairs.push(simulatePair(r,0));expect(r.a.hash).not.toBe(r.b.hash);expect(r.pairs[0]!.a.hpRemaining).not.toBe(r.pairs[0]!.b.hpRemaining);const restored=TowerEngine.restorePlaytest(JSON.stringify(trialSave(r,'b',0)));expect(restored.getConfigSnapshot().Rules.Effects!.ReflectionRatio).toBe(.5);expect(restored.getBattleSnapshot()!.tick).toBe(r.pairs[0]!.b.ticks);
-});
+},20000);

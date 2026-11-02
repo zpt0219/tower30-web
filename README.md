@@ -1,23 +1,25 @@
 # 网页30层试炼 · 开发与交接文档
 
-更新时间：2026-10-31。项目目录：`/home/pt/Desktop/tower30-web`。
+更新时间：2026-11-01。项目目录：`/home/pt/Desktop/tower30-web`。
 
 ## 1. 已确认的目标与当前状态
 
 用户决定以 **Vite + TypeScript** 为起点，先完成能够实际游玩的原生网页30层试炼，再考虑将同一份 TypeScript 玩法核心接入 Godot。网页用于快速试玩、修改配表、检查战斗和经济流程。
 
-**当前为 v0.9：正式1—30层完整可玩；42角色、30关、技能及效果参数可编辑。新增自动战斗策略编辑：治疗阈值、打断条件、大招优先级与补人顺序可调整，同一控制器驱动策略Play和A/B多关批测。支持策略快照、手动/策略Play及命令重放。连续30层自动经济策略与任意效果编排尚未实现；3个未使用旧动作仍明确阻止或停用。**
+**当前为 v0.13：新增“网页导出Godot试跑 → 原生工程预览 → Play”与测试记录回到网页的往返流程。角色、关卡、技能、策略、固定种子和配置快照共用；重新导入不会热换正在运行的旧测试。Godot整备/战斗/战报/下一层闭环、独立存档与网页完整30层继续保留。原Godot角色场景、完整动画特效、Android导出与真机验证仍待接入。**
 
-启动后点击首页“编辑属性与关卡 ▶ Play”或侧栏“工作台”。使用与检查见 [工作台说明](docs/WORKBENCH.md)，本次策略编辑见 [策略说明](docs/STRATEGY-STATUS.md)，多关工具见 [多关批测说明](docs/MULTI-FLOOR-STATUS.md)，效果编辑见 [效果参数说明](docs/EFFECTS-STATUS.md)，批量工具见 [M4交付记录](docs/M4-STATUS.md)，规则与正常资源验证见 [完整30层记录](docs/FULL30-STATUS.md)，前20层见 [前20层记录](docs/FLOOR20-STATUS.md)，前10层见 [M2交付记录](docs/M2-STATUS.md)，早期试玩记录见 [首版交付记录](docs/V1-STATUS.md)。
+启动后点击首页“编辑属性与关卡 ▶ Play”或侧栏“工作台”。使用与检查见 [工作台说明](docs/WORKBENCH.md)，网页到Godot联调见 [工程试跑记录](docs/PROJECT-HANDOFF-STATUS.md)，Godot流程见 [原生闭环记录](docs/GODOT-FLOW-STATUS.md)，首次接入验证见 [接入记录](docs/GODOT-BRIDGE-STATUS.md) 和 [工程运行说明](integrations/godot/README.md)，60Hz改造见 [60Hz说明](docs/60HZ-STATUS.md)，策略编辑见 [策略说明](docs/STRATEGY-STATUS.md)，多关工具见 [多关批测说明](docs/MULTI-FLOOR-STATUS.md)，效果编辑见 [效果参数说明](docs/EFFECTS-STATUS.md)，批量工具见 [M4交付记录](docs/M4-STATUS.md)，规则与正常资源验证见 [完整30层记录](docs/FULL30-STATUS.md)，前20层见 [前20层记录](docs/FLOOR20-STATUS.md)，前10层见 [M2交付记录](docs/M2-STATUS.md)，早期试玩记录见 [首版交付记录](docs/V1-STATUS.md)。
 
 ```sh
 npm ci
 npm run dev -- --host 0.0.0.0
 ```
 
-浏览器打开终端打印的地址。`npm run build`生成可独立静态托管的`dist/`；无需Godot或游戏后端。Node要求>=22.12。Playwright浏览器首次安装：`npx playwright install chromium`。
+内网入口：[30层试炼](http://192.168.68.108/tower30/)，也可从 [内网主页](http://192.168.68.108/) 的“30层试炼 · 编辑与试玩”卡片进入。部署与回滚说明见 [内网部署记录](docs/LAN-DEPLOY.md)。
 
-已提供：`npm run typecheck`、`npm run test -- --run`、`npm run build`、`npm run test:e2e`。浏览器检查产物写入`.artifact-dir`指定的NAS目录（未配置时自动生成本地时区时间戳目录），也可传入`TOWER_ARTIFACT_DIR`。写入后执行`chmod -R 777 "$TOWER_ARTIFACT_DIR"`。
+本地开发时，浏览器打开终端打印的地址。`npm run build`生成可独立静态托管的`dist/`；无需Godot或游戏后端。Node要求>=22.12。Playwright浏览器首次安装：`npx playwright install chromium`。
+
+已提供：`npm run typecheck`、`npm run test -- --run`、`npm run build`、`npm run test:e2e`。独立Godot样机启动为 `npm run godot`，正常资源跨宿主对照为 `npm run test:godot`，编辑工程往返验证为 `npm run test:godot:project`（需要Godot 4.6.2 .NET与.NET 9/GCC）。浏览器检查产物写入`.artifact-dir`指定的NAS目录（未配置时自动生成本地时区时间戳目录），也可传入`TOWER_ARTIFACT_DIR`。写入后执行`chmod -R 777 "$TOWER_ARTIFACT_DIR"`。
 
 这里是与 Godot 项目同级的独立网页项目。第一版的运行与构建必须自包含，浏览器本地完成玩法计算，不依赖 Godot、C#服务、Node服务端或兄弟项目路径。Vite/Node只用于开发、测试和构建；生产构建是可静态托管的网页。
 
@@ -32,7 +34,7 @@ npm run dev -- --host 0.0.0.0
 - 核心只能使用可移植的同步JavaScript能力和JSON数据。不得依赖 `window`、DOM、Canvas、浏览器存储、网络、Node内置模块、Vite API、Godot对象或界面组件。
 - 核心通过命令改变状态，通过快照和事件提供结果。界面不直接改生命、金币、能量、库存、掉落或胜负。
 - 网页依赖核心，核心不依赖网页。核心公开接口只能接收/返回可明确序列化的数据，不穿过DOM节点、函数或引擎对象。
-- 先保留未来导出可嵌入JS bundle的条件。Godot通过 Jint 或 QuickJS 运行同一份逻辑属于后续阶段，不在第一版实现运行时桥接、TS转C++或TS转.NET编译链。
+- 先保留未来导出可嵌入JS bundle的条件。Godot接入在网页30层完成后由用户追加推进；当前通过QuickJS嵌入同一份JS bundle的独立样机已验证。没有实现TS转C++、TS转.NET编译链，也未替换原Godot项目。
 - 可共用的是玩法、配表、存档模型、测试和事件协议。原生网页UI与Godot节点/动画分别实现。
 
 ## 3. 起始数据及权威参考
@@ -89,7 +91,7 @@ npm run dev -- --host 0.0.0.0
 - 按现有动作时间轴处理前摇、执行、后摇、冷却、控制与打断。不能把攻击简化成按秒扣血，或把弹道变成无状态的视觉动画。
 - 保留当前属性模型：MaxHp、Attack、Defense、Magic、Resistance，以及暴击、穿透、急速、闪避、吸血、韧性、充能效率。能量是独立资源，上限1000；其它移动/行动参数按原定义迁移，不自行添加MP等新规则。
 - 存活者跨战保留能量。回能仅来自现行出手、受击、击杀机制及其合法加成，不增加按时间自动回能。倒下成员及旅馆复活按原规则处理能量。
-- 核心初期使用当前 `LiveStep = 0.05秒`，即20个逻辑tick/秒。画面可用requestAnimationFrame插值，帧率不能改变战斗结果。
+- 核心现使用固定 `1/60秒`，即60个逻辑tick/秒。画面通过requestAnimationFrame独立更新并插值；20Hz仅用于旧记录历史重放和C#归档对照。
 - 暂停、单步与倍速改变推进的tick数或调度，不改变逻辑步长。后台页面默认暂停，不在恢复可见后突跳追算一大段时间。
 - 超时、全灭、无可补人及撤回结果遵循现行核心；当前战斗超时基线300秒。
 
@@ -246,4 +248,4 @@ npm run test:e2e
 - [Vitest入门](https://vitest.dev/guide/)
 - [Playwright浏览器测试](https://playwright.dev/docs/intro)
 - [Jint（后续候选）](https://github.com/sebastienros/jint)
-- [QuickJS（后续候选）](https://bellard.org/quickjs/)
+- [QuickJS（当前验证运行时）](https://bellard.org/quickjs/)

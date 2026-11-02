@@ -3,7 +3,7 @@ import trace from "../fixtures/csharp-first-two-floors.json";
 import ultimateTrace from "../fixtures/csharp-ultimates.json";
 import raw from "../../data/tower/thirty-floor-trial.json";
 import { validateConfig } from "../../src/core/config";
-import { TowerEngine } from "../../src/core/engine";
+import {LegacyEngine as TowerEngine} from "../helpers/legacy-engine";
 it("与只读C#基线：两层正常初始资源、每20tick的移动/生命/能量/动作/随机状态对照", () => {
   const engine = new TowerEngine(validateConfig(raw));
   let floor = 0,

@@ -18,7 +18,7 @@ function healingScene(){
 function start(c=healingScene(),extra:Partial<PlaytestSetup>={}){
   const e=TowerEngine.createPlaytest(c,{...defaultPlaytestSetup(),party:["hero"],energy:1000,hpPercent:50,startingGear:false,...extra});
   for(const type of ["begin","start"] as const)expect(e.dispatch({type}).ok).toBe(true);
-  e.advance(8);return e;
+  e.advance(24);return e;
 }
 const commands=(e:TowerEngine)=>JSON.parse(e.serialize()).journal.filter((r:{command:{type:string}})=>r.command.type==="ultimate"||r.command.type==="reinforce");
 it("治疗阈值严格低于时触发；立即、禁用和全局大招开关执行真实命令",()=>{
@@ -47,22 +47,22 @@ it("Play单tick和批量推进一致，保存中途恢复不重复决策；旧�
   const setup={strategy:{...defaultStrategy(),healing:"immediate" as const},autoPlay:true};
   const a=start(healingScene(),setup),b=start(healingScene(),setup);
   advancePlaytest(a,50);for(let i=0;i<50;i++)advancePlaytest(b,1);expect(a.getSnapshot()).toEqual(b.getSnapshot());
-  expect(commands(a)).toHaveLength(1);expect(JSON.parse(a.serialize()).engineVersion).toBe("tower30-ts-workbench-v6");
+  expect(commands(a)).toHaveLength(1);expect(JSON.parse(a.serialize()).engineVersion).toBe("tower30-ts-workbench-v7");
   const resumed=TowerEngine.restorePlaytest(a.serialize());expect(resumed.getSnapshot()).toEqual(a.getSnapshot());
   advancePlaytest(a,70);advancePlaytest(resumed,70);expect(resumed.serialize()).toBe(a.serialize());
-  const manual=start();advancePlaytest(manual,50);expect(commands(manual)).toHaveLength(0);expect(JSON.parse(manual.serialize()).engineVersion).toBe("tower30-ts-workbench-v5");
+  const manual=start();advancePlaytest(manual,50);expect(commands(manual)).toHaveLength(0);expect(JSON.parse(manual.serialize()).engineVersion).toBe("tower30-ts-workbench-v7");
   expect(()=>advancePlaytest(a,-1)).toThrow();
 });
 it("同属性A/B使用独立冻结策略，批测与策略Play终局/命令完全一致，旧报告仍可重放",()=>{
   const c=healingScene(),setup={...defaultPlaytestSetup(),party:["hero"],energy:1000,hpPercent:50,startingGear:false};
   const a={...defaultStrategy(),ultimates:false},b={...defaultStrategy(),healing:"immediate" as const};
   const report=createSimulationReport(c,c,setup,{count:1,policy:"adaptive",reinforce:true},"A",[1],{a,b});
-  b.ultimates=false;expect(report.schemaVersion).toBe(3);expect(report.policyVersion).toBe("tower30-policy-v2");
+  b.ultimates=false;expect(report.schemaVersion).toBe(4);expect(report.policyVersion).toBe("tower30-policy-v3");
   expect(report.a.hash).toBe(report.b.hash);report.pairs.push(simulatePair(report,0));expect(report.pairs[0]!.a.ultimates).toBe(0);expect(report.pairs[0]!.b.ultimates).toBeGreaterThan(0);
-  const record=trialSave(report,"b",0),play=TowerEngine.createPlaytest(c,record.setup);play.dispatch({type:"begin"});play.dispatch({type:"start"});advancePlaytest(play,6000);
+  const record=trialSave(report,"b",0),play=TowerEngine.createPlaytest(c,record.setup);play.dispatch({type:"begin"});play.dispatch({type:"start"});advancePlaytest(play,18000);
   expect(JSON.parse(play.serialize()).journal).toEqual(record.journal);expect(TowerEngine.restorePlaytest(JSON.stringify(record)).getSnapshot()).toEqual(play.getSnapshot());
   report.options.policy="no-ultimates";report.options.reinforce=false;expect(effectiveStrategy(report,"b")).toMatchObject({ultimates:false,reinforce:false});
-},15000);
+},45000);
 it("非法阈值、重复顺序与阵容外引用被拒绝；草稿可保留越界值供修复，旧工程缺省策略",()=>{
   expect(()=>strategySchema.parse({...defaultStrategy(),healingHpPercent:101})).toThrow();expect(()=>strategySchema.parse({...defaultStrategy(),ultimateOrder:["hero","hero"]})).toThrow();
   const setup={...defaultPlaytestSetup(),strategy:{...defaultStrategy(),ultimateOrder:["boar"]}};expect(()=>playtestSetupSchema.parse(setup)).toThrow(/当前阵容/);

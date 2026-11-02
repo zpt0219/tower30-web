@@ -1,4 +1,5 @@
 import { z } from "zod";
+import {MAX_TICKS} from "./math";
 import type { ActionRule, Attributes, Profile } from "./config";
 const memberId = z.string().min(1).max(100),
   quantity = z.number().int().min(1).max(100);
@@ -172,6 +173,7 @@ export interface Event {
 export interface RecordEntry {
   floor: number;
   ticks: number;
+  seconds?:number;
   result: "victory";
   gold: number;
   contributions: ({ id: string } & Contribution)[];
@@ -205,15 +207,16 @@ export const saveSchema = z
   .object({
     format: z.literal("tower30-web-command-save"),
     schemaVersion: z.literal(1),
-    engineVersion: z.enum(["tower30-ts-m1-v1", "tower30-ts-m3-v1"]),
-    legacyRulesThroughTick: z.number().int().min(0).max(200000).optional(),
+    engineVersion: z.enum(["tower30-ts-m1-v1", "tower30-ts-m3-v1","tower30-ts-m3-v2"]),
+    legacy20ThroughTick:z.number().int().min(0).max(MAX_TICKS).optional(),
+    legacyRulesThroughTick: z.number().int().min(0).max(MAX_TICKS).optional(),
     configHash: memberId,
     seed: z.number().int().min(1).max(0xffffffff),
-    tick: z.number().int().min(0).max(200000),
+    tick: z.number().int().min(0).max(MAX_TICKS),
     journal: z
       .array(
         z.object({
-          tick: z.number().int().min(0).max(200000),
+          tick: z.number().int().min(0).max(MAX_TICKS),
           command: commandSchema,
         }),
       )

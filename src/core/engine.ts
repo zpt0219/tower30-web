@@ -6,7 +6,7 @@ import {
   type Config,
   type Gear,
 } from "./config";
-import { clone, damage, nextRandom, roundAway, roundEven, STEP } from "./math";
+import { clone, damage, nextRandom, roundAway, roundEven, STEP, LEGACY_STEP, MAX_TICKS, elapsedSeconds } from "./math";
 import {
   commandSchema,
   saveSchema,
@@ -59,11 +59,22 @@ export class TowerEngine {
   private state: State;
   private playtest: PlaytestSetup | null = null;
   private legacyRulesThroughTick = 0;
+  private clockHz:20|60;
+  private executionStep=STEP;
+  private legacy20ThroughTick=0;
+  get logicHz():20|60 {return this.clockHz;}
+  get stepSeconds(){return this.clockHz===20?LEGACY_STEP:STEP;}
+  private seconds(tick:number){return this.clockHz===20?tick*LEGACY_STEP:elapsedSeconds(tick,this.legacy20ThroughTick);}
+  private battleSeconds(b:Battle){return this.seconds(this.state.tick)-this.seconds(this.state.tick-b.tick);}
+  getPlaytestSetup(){return clone(this.playtest);}
+  upgradeTo60Hz(){if(this.clockHz===20){this.legacy20ThroughTick=this.state.tick;this.clockHz=60;}return this;}
+
   private legacyRules() { return !this.playtest && this.legacyRulesThroughTick > 0 && this.state.tick <= this.legacyRulesThroughTick; }
   readonly configHash: string;
   private readonly config: Config;
   private readonly effects: Effects;
-  constructor(config: Config, seed = 2463534242) {
+  constructor(config: Config, seed = 2463534242, referenceHz:20|60=60) {
+    this.clockHz=referenceHz;this.executionStep=this.stepSeconds;
     this.config = clone(config);
     this.effects = resolveEffects(this.config.Rules.Effects);
     if (!Number.isInteger(seed) || seed <= 0 || seed > 0xffffffff)
@@ -112,6 +123,10 @@ export class TowerEngine {
     return clone({
       ...this.state,
       configHash: this.configHash,
+      logicHz:this.clockHz, stepSeconds:this.stepSeconds,
+      seconds:this.seconds(this.state.tick),
+      battle:this.getBattleSnapshot(),
+      events:this.state.events.map(e=>({...e,seconds:this.seconds(e.tick)})),
       arenaBackground: this.current()?.Background ?? "forest",
       mode: this.playtest ? ("playtest" as const) : ("run" as const),
       playtest: this.playtest,
@@ -147,13 +162,25 @@ export class TowerEngine {
       completion: !this.playtest && this.state.floor > this.config.Floors.length ? {
         floors: this.state.records.length, bosses: this.shopStage(),
         ticks: this.state.records.reduce((sum,r)=>sum+r.ticks,0),
+        seconds:this.state.records.reduce((sum,r)=>sum+(r.seconds??r.ticks*LEGACY_STEP),0),
         gold: this.state.gold, members: this.state.members.length,
         alive: this.state.members.filter(m=>m.hp>0).length,
       } : null,
     });
   }
+  getFloorSnapshot() {
+    const encounter=this.current(),floor=this.config.Floors[this.state.floor-1];
+    if(!encounter||!floor)return null;
+    return clone({number:floor.Number,title:encounter.Title,hint:encounter.Hint,boss:encounter.Boss,background:encounter.Background,
+      gold:encounter.Gold,equipment:floor.Equipment,
+      enemies:encounter.Enemies.map(group=>({kind:group.Species,count:group.Count,level:group.Level,rank:group.Rank,attributes:enemyAttributes(this.config,group)}))});
+  }
+  getShopSnapshot(){
+    return clone(this.config.Economy.Offers.map(offer=>({id:offer.Id,item:offer.Item,stage:offer.Stage,amount:offer.Amount,unitPrice:offer.Price,
+      unlocked:offer.Stage<=this.shopStage(),quote:this.quoteBuy(offer.Id,1),gear:this.config.Rules.Equipment.find(g=>g.Id===offer.Item)??null})));
+  }
   getBattleSnapshot() {
-    return clone(this.state.battle);
+    const b=this.state.battle;return b?clone({...b,seconds:this.battleSeconds(b)}):null;
   }
   takeEvents(): readonly Event[] {
     return clone(this.state.events);
@@ -307,7 +334,7 @@ export class TowerEngine {
   dispatch(input: Command): Result {
     const parsed = commandSchema.safeParse(input);
     if (!parsed.success) return { ok: false, message: "命令格式无效" };
-    if (this.state.journal.length >= 5000 || this.state.tick >= 200000)
+    if (this.state.journal.length >= 5000 || this.state.tick >= MAX_TICKS)
       return { ok: false, message: "本试跑记录已满，请导出存档并开始新试跑" };
     const c = parsed.data,
       err = this.execute(c);
@@ -465,6 +492,7 @@ export class TowerEngine {
         s.records.push({
           floor: s.floor,
           ticks: b.tick,
+          ...(this.clockHz===60?{seconds:this.battleSeconds(b)}:{}),
           result: "victory",
           gold: this.current().Gold,
           contributions: b.units
@@ -1040,7 +1068,7 @@ export class TowerEngine {
       if(v.hp<=0)return;
       if(power<=0)return;
       if(power>=v.dotPower||v.dotTime<=0){v.dotOwner=u.id;v.dotPower=power;}
-      v.dotTime=Math.max(v.dotTime,duration(seconds));v.dotTick=Math.max(.05,v.dotTick);
+      v.dotTime=Math.max(v.dotTime,duration(seconds));v.dotTick=Math.max(this.executionStep,v.dotTick);
     };
     let leechAmount=0;
     const strike = (v: Unit) => {
@@ -1216,6 +1244,8 @@ export class TowerEngine {
   }
 
   private step() {
+    const STEP=this.clockHz===20||this.state.tick<this.legacy20ThroughTick?LEGACY_STEP:this.stepSeconds;
+    this.executionStep=STEP;
     const s = this.state,
       b = s.battle!;
     s.tick++;
@@ -1403,7 +1433,7 @@ export class TowerEngine {
         continue;
       }
       if (!target) continue;
-      if (gap(u, target) > u.range) { if(u.root<=0) move(u, target, b.units, this.legacyRules(),this.effects); }
+      if (gap(u, target) > u.range) { if(u.root<=0) move(u, target, b.units, this.legacyRules(),this.effects,STEP); }
       else if (u.cooldown <= 0) this.startAction(u, "basic", "attack", target);
     }
     for (const zone of [...b.zones]) {
@@ -1445,7 +1475,7 @@ export class TowerEngine {
         this.emit("loss");
       }
     } else b.wipe = 0;
-    if (b.tick >= 6000 && b.result === "") {
+    if (this.battleSeconds(b)+1e-8 >= 300 && b.result === "") {
       b.result = "flee";
       this.emit("timeout");
     }
@@ -1499,13 +1529,13 @@ export class TowerEngine {
       u.attributes.MaxHp = this.attributes(this.member(u.id)!).MaxHp;
   }
   advance(ticks: number) {
-    if (!Number.isInteger(ticks) || ticks < 0 || ticks > 200000)
+    if (!Number.isInteger(ticks) || ticks < 0 || ticks > MAX_TICKS)
       throw new Error("tick数量无效");
     for (let i = 0; i < ticks; i++) {
       if (
         !this.state.battle?.started ||
         this.state.battle.result ||
-        this.state.tick >= 200000
+        this.state.tick >= MAX_TICKS
       )
         break;
       this.step();
@@ -1516,7 +1546,8 @@ export class TowerEngine {
       return JSON.stringify({
         format: "tower30-playtest",
         schemaVersion: 1,
-        engineVersion: this.playtest.strategy || this.playtest.autoPlay !== undefined ? "tower30-ts-workbench-v6" : "tower30-ts-workbench-v5",
+        engineVersion: this.clockHz===60?"tower30-ts-workbench-v7":this.playtest.strategy || this.playtest.autoPlay !== undefined ? "tower30-ts-workbench-v6" : "tower30-ts-workbench-v5",
+        ...(this.clockHz===60?{legacy20ThroughTick:this.legacy20ThroughTick}:{}),
         config: this.config,
         configHash: this.configHash,
         setup: this.playtest,
@@ -1526,7 +1557,8 @@ export class TowerEngine {
     return JSON.stringify({
       format: "tower30-web-command-save",
       schemaVersion: 1,
-      engineVersion: "tower30-ts-m3-v1",
+      engineVersion: this.clockHz===60?"tower30-ts-m3-v2":"tower30-ts-m3-v1",
+      ...(this.clockHz===60?{legacy20ThroughTick:this.legacy20ThroughTick}:{}),
       legacyRulesThroughTick: this.legacyRulesThroughTick,
       configHash: this.configHash,
       seed: this.state.seed,
@@ -1537,13 +1569,13 @@ export class TowerEngine {
   getConfigSnapshot() {
     return clone(this.config);
   }
-  static createPlaytest(config: Config, input: PlaytestSetup) {
+  static createPlaytest(config: Config, input: PlaytestSetup, referenceHz:20|60=60) {
     const setup = playtestSetupSchema.parse(input),
       checked = validateConfig(config),
       warnings = playtestWarnings(checked, setup);
     if (setup.skillPolicy === "strict" && warnings.length)
       throw new Error("存在未迁移功能：" + warnings.join("；"));
-    const engine = new TowerEngine(checked, setup.seed);
+    const engine = new TowerEngine(checked, setup.seed,referenceHz);
     engine.playtest = clone(setup);
     const s = engine.state;
     s.floor = setup.floor;
@@ -1582,7 +1614,8 @@ export class TowerEngine {
       .object({
         format: z.literal("tower30-playtest"),
         schemaVersion: z.literal(1),
-        engineVersion: z.enum(["tower30-ts-workbench-v4","tower30-ts-workbench-v5","tower30-ts-workbench-v6"]),
+        engineVersion: z.enum(["tower30-ts-workbench-v4","tower30-ts-workbench-v5","tower30-ts-workbench-v6","tower30-ts-workbench-v7"]),
+        legacy20ThroughTick: z.number().int().min(0).max(MAX_TICKS).optional(),
         config: z.unknown(),
         configHash: z.string(),
         setup: playtestSetupSchema,
@@ -1593,11 +1626,16 @@ export class TowerEngine {
     const save = schema.parse(JSON.parse(json)),
       engine = TowerEngine.createPlaytest(
         validateConfig(save.config),
-        save.setup,
+        save.setup,save.engineVersion==="tower30-ts-workbench-v7"?60:20,
       );
+    engine.readClockBoundary(save.engineVersion==="tower30-ts-workbench-v7",save.tick,save.legacy20ThroughTick);
     if (engine.configHash !== save.configHash)
       throw new Error("测试配置指纹不匹配");
     return TowerEngine.replay(engine, save.tick, save.journal);
+  }
+  private readClockBoundary(current:boolean,tick:number,boundary?:number){
+    if(current){if(boundary===undefined||boundary>tick||boundary>200000)throw new Error("逻辑时钟迁移边界无效");this.legacy20ThroughTick=boundary;}
+    else if(boundary!==undefined||tick>200000)throw new Error("旧记录不能携带新时钟边界");
   }
   private static replay(
     engine: TowerEngine,
@@ -1619,7 +1657,8 @@ export class TowerEngine {
   static restore(config: Config, json: string) {
     if (json.length > 2_000_000) throw new Error("存档过大");
     const save = saveSchema.parse(JSON.parse(json)),
-      engine = new TowerEngine(config, save.seed);
+      engine = new TowerEngine(config, save.seed,save.engineVersion==="tower30-ts-m3-v2"?60:20);
+    engine.readClockBoundary(save.engineVersion==="tower30-ts-m3-v2",save.tick,save.legacy20ThroughTick);
     if (engine.configHash !== save.configHash)
       throw new Error("存档配表版本不匹配");
     if(save.engineVersion==="tower30-ts-m1-v1"){

@@ -2,7 +2,7 @@ import {it,expect} from 'vitest';
 import raw from '../../data/tower/thirty-floor-trial.json';
 import prefix from '../fixtures/csharp-thirty-floors.json';
 import bad from '../fixtures/csharp-thirty-wrong-party.json';
-import {TowerEngine} from '../../src/core/engine';
+import {LegacyEngine as TowerEngine} from '../helpers/legacy-engine';
 import {validateConfig} from '../../src/core/config';
 import {commandSchema} from '../../src/core/model';
 it('旧阵容满血仍输30层：正常账本、真实失败、重试只恢复该次战前检查点',()=>{

@@ -253,7 +253,7 @@ it("补人消耗唯一初始票，8秒回票，未参战伙伴不被误算入场
     e.getSnapshot().battle!.units.find((u) => u.id === "slime_dusk")!.entry,
   ).toBe(0.9);
   expect(e.dispatch({ type: "reinforce", id: "slime_dusk" }).ok).toBe(false);
-  e.advance(159);
+  e.advance(479);
   expect(e.getSnapshot().battle!.tickets).toBe(0);
   e.advance(1);
   expect(e.getSnapshot().battle!.tickets).toBe(1);

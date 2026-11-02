@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {artifactDirectory} from '../../scripts/artifacts';
-const trace=JSON.parse(readFileSync("tests/fixtures/csharp-thirty-floors.json","utf8")) as {floor:number;tick:number;setupCommands:unknown[]|null;commands:string[];reinforcements:string[]}[];
+const trace=JSON.parse(readFileSync("tests/fixtures/ts60-thirty-floors.json","utf8")) as {floor:number;tick:number;setupCommands:unknown[]|null;commands:string[];reinforcements:string[]}[];
 const raw:unknown=JSON.parse(readFileSync("data/tower/thirty-floor-trial.json","utf8"));
 import {TowerEngine} from '../../src/core/engine';
 import {validateConfig} from '../../src/core/config';
@@ -43,7 +43,7 @@ test('正常资源存档继续挑战30层Boss，结算幂等与阶段3商店解�
   let index=0;
   const act=()=>{
    if(document.querySelector('.result-overlay'))return;
-   const tick=Math.round(parseFloat(document.querySelector('#battle-time')!.textContent!)*20);
+   const tick=Math.round(parseFloat(document.querySelector('#battle-time')!.textContent!)*60);
    while(index<schedule.length&&schedule[index]!.tick<=tick){
     const s=schedule[index++]!;
     if(s.tick!==tick)throw new Error(`UI command missed tick ${s.tick}, got ${tick}`);

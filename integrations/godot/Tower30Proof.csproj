@@ -1,0 +1,7 @@
+<Project Sdk="Godot.NET.Sdk/4.6.2">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework><EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable><EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup><Compile Include="*.cs"/><Compile Include="host/QuickJsSession.cs"/><Compile Include="host/Verify.cs"/></ItemGroup>
+</Project>

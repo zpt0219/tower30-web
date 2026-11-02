@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "humanRowStride": 32,
+  "humanCropY": 16,
+  "sideLeftRow": 1,
+  "sideRightRow": 2,
+  "frontRow": 0,
+  "walkFrames": [0, 1, 2, 1],
+  "fps": 5
+}

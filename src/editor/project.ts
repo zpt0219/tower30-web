@@ -7,22 +7,9 @@ import {
   defaultPlaytestSetup,
   playtestSetupSchema,
   playtestWarnings,
-  type PlaytestSetup,
 } from "../core/playtest";
-export interface EditorProject {
-  format: "tower30-editor-project";
-  schemaVersion: 1;
-  source: unknown;
-  setup: PlaytestSetup;
-}
-const projectSchema = z
-  .object({
-    format: z.literal("tower30-editor-project"),
-    schemaVersion: z.literal(1),
-    source: z.unknown(),
-    setup: playtestSetupSchema,
-  })
-  .strict();
+import {editorProjectSchema as projectSchema,type EditorProject} from "../core/project";
+export type {EditorProject} from "../core/project";
 export const newProject = (source: unknown): EditorProject => ({
   format: "tower30-editor-project",
   schemaVersion: 1,

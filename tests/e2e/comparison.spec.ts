@@ -58,7 +58,7 @@ test('批量模拟可取消、无样本不伪造胜率，非法设置被阻止�
  if(!report.pairs.length){await expect(page.locator('.sim-summary')).toContainText('—');expect(summarizeTrials([]).winRate).toBeNull();}
  await page.getByRole('button',{name:'▶ Play 第1关',exact:true}).click();await page.getByRole('button',{name:'暂停',exact:true}).click();
  await page.getByText('调试 · 固定步长 / 战斗事件',{exact:true}).click();
- for(let i=0;i<160;i++){if((await page.locator('#debug-events').textContent())?.includes('hit hero'))break;await page.getByRole('button',{name:'单步 0.05秒',exact:true}).click();}
+ for(let i=0;i<8*60;i++){if((await page.locator('#debug-events').textContent())?.includes('hit hero'))break;await page.getByRole('button',{name:'单步 1/60秒',exact:true}).click();}
  const tick=await page.locator('#debug-tick').textContent();await page.getByLabel('事件类型',{exact:true}).selectOption('hit');await page.getByLabel('事件角色或目标',{exact:true}).fill('hero');
  const text=await page.locator('#debug-events').textContent();expect(text).toContain('hit');expect(text).toContain('hero');expect(text!.split('\n').filter(Boolean).every(line=>line.includes('hit')&&line.includes('hero'))).toBe(true);
  await page.getByLabel('事件角色或目标',{exact:true}).fill('not-an-actor');await expect(page.locator('#debug-events')).toHaveText('');await expect(page.locator('#debug-tick')).toHaveText(tick!);

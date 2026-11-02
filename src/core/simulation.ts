@@ -2,7 +2,7 @@ import {applyStrategy,defaultStrategy,strategySchema,type BattleStrategy} from "
 import { z } from "zod";
 import { validateConfig, type Config } from "./config";
 import { TowerEngine } from "./engine";
-import { clone, STEP } from "./math";
+import { clone, LEGACY_STEP } from "./math";
 import type { State } from "./model";
 import { playtestSetupSchema, playtestWarnings, type PlaytestSetup } from "./playtest";
 
@@ -19,6 +19,7 @@ export interface SimulationTrial {
   seed: number;
   result: "victory" | "loss" | "flee";
   ticks: number;
+  seconds?:number;
   fallen: number;
   hpRemaining: number;
   hpInitial: number;
@@ -34,11 +35,11 @@ export interface SimulationTrial {
 export interface SimulationPair { a: SimulationTrial; b: SimulationTrial; floor?:number }
 export interface SimulationReport {
   format: "tower30-comparison";
-  schemaVersion: 1 | 2 | 3;
+  schemaVersion: 1 | 2 | 3 | 4;
   floors?:number[];
   floorWarnings?:{floor:number;a:string[];b:string[]}[];
-  engineVersion: "tower30-ts-workbench-v4" | "tower30-ts-workbench-v5" | "tower30-ts-workbench-v6";
-  policyVersion: typeof SIMULATION_POLICY_VERSION | "tower30-policy-v2";
+  engineVersion: "tower30-ts-workbench-v4" | "tower30-ts-workbench-v5" | "tower30-ts-workbench-v6" | "tower30-ts-workbench-v7";
+  policyVersion: typeof SIMULATION_POLICY_VERSION | "tower30-policy-v2" | "tower30-policy-v3";
   setup: PlaytestSetup;
   options: SimulationOptions;
   a: { config: Config; hash: string; label: string; warnings: string[]; strategy?:BattleStrategy };
@@ -55,7 +56,7 @@ export function simulationSeed(first: number, index: number) {
 export function createSimulationReport(a: unknown, b: unknown, setup: PlaytestSetup, options: SimulationOptions, label = "保存的配置", floors?:readonly number[], strategies?:{a:BattleStrategy;b:BattleStrategy}) : SimulationReport {
   const checkedSetup = playtestSetupSchema.parse(setup), checkedOptions = simulationOptionsSchema.parse(options);
   const selectedPolicies=strategies??(checkedSetup.strategy||checkedSetup.autoPlay!==undefined?{a:checkedSetup.strategy??defaultStrategy(),b:checkedSetup.strategy??defaultStrategy()}:undefined);
-  const policies=selectedPolicies?{a:strategySchema.parse(selectedPolicies.a),b:strategySchema.parse(selectedPolicies.b)}:undefined;
+  const policies={a:strategySchema.parse(selectedPolicies?.a??defaultStrategy()),b:strategySchema.parse(selectedPolicies?.b??defaultStrategy())};
   const selected=floors===undefined?[checkedSetup.floor]:simulationFloorsSchema.parse(floors).sort((a,b)=>a-b);
   const floorWarnings=selected.map(floor=>({floor,a:[] as string[],b:[] as string[]}));
   const candidate = (source: unknown, name: string,variant:"a"|"b") => {
@@ -75,14 +76,14 @@ export function createSimulationReport(a: unknown, b: unknown, setup: PlaytestSe
     }
     return { config, hash, label: name, warnings,...(policies?{strategy:policies[variant]}:{}) };
   };
-  const report:SimulationReport={ format: "tower30-comparison", schemaVersion: policies?3:floors===undefined?1:2, engineVersion: policies?"tower30-ts-workbench-v6":"tower30-ts-workbench-v5", policyVersion: policies?"tower30-policy-v2":SIMULATION_POLICY_VERSION,
+  const report:SimulationReport={ format: "tower30-comparison", schemaVersion:4, engineVersion:"tower30-ts-workbench-v7", policyVersion:"tower30-policy-v3",
     setup: clone(checkedSetup), options: checkedOptions, a: candidate(a,label,"a"), b: candidate(b,"当前草稿","b"), pairs: [], status: "running" };
   if(floors!==undefined||policies){report.floors=selected;report.floorWarnings=floorWarnings;}
   return report;
 }
 export function reportFloors(report:SimulationReport):number[]{
   if(report.schemaVersion===1)return [report.setup.floor];
-  if(report.schemaVersion!==2&&report.schemaVersion!==3)throw new Error("不支持的批测报告版本");
+  if(report.schemaVersion!==2&&report.schemaVersion!==3&&report.schemaVersion!==4)throw new Error("不支持的批测报告版本");
   return simulationFloorsSchema.parse(report.floors);
 }
 export const simulationTotal=(report:SimulationReport)=>reportFloors(report).length*report.options.count;
@@ -94,8 +95,8 @@ export function simulationJob(report:SimulationReport,index:number){
 }
 
 // Decisions submit the same commands as interactive strategy Play.
-export function simulateBattle(config: Config, input: PlaytestSetup, options: SimulationOptions, strategy?:BattleStrategy): SimulationTrial {
-  const policy = simulationOptionsSchema.parse(options), engine = TowerEngine.createPlaytest(config,input);
+export function simulateBattle(config: Config, input: PlaytestSetup, options: SimulationOptions, strategy?:BattleStrategy,referenceHz:20|60=60): SimulationTrial {
+  const policy = simulationOptionsSchema.parse(options), engine = TowerEngine.createPlaytest(config,input,referenceHz);
   const plan=strategySchema.parse(strategy??input.strategy??defaultStrategy());
   plan.ultimates=plan.ultimates&&policy.policy==="adaptive";
   plan.reinforce=plan.reinforce&&policy.reinforce;
@@ -103,7 +104,7 @@ export function simulateBattle(config: Config, input: PlaytestSetup, options: Si
   const checked = (type: "begin" | "start") => { const r = engine.dispatch({type}); if(!r.ok)throw new Error(r.message); };
   checked("begin"); checked("start");
   let reinforcements = 0;
-  for (let tick = 0; tick < 6000; tick++) {
+  for (let tick = 0; tick < 300*referenceHz; tick++) {
     if(engine.getBattleSnapshot()!.result)break;
     reinforcements+=applyStrategy(engine,plan,!strategy&&!input.strategy);
     engine.advance(1);
@@ -113,7 +114,7 @@ export function simulateBattle(config: Config, input: PlaytestSetup, options: Si
   const units = battle.units.filter(u=>!u.enemy);
   const sum = (key: "ultimates" | "damage" | "healing" | "absorbed" | "attackEnergy" | "hurtEnergy" | "killEnergy") => units.reduce((s,u)=>s+u[key],0);
   const record = JSON.parse(engine.serialize()) as { tick: number; journal: State["journal"] };
-  return { seed: input.seed, result: battle.result, ticks: battle.tick, fallen: units.filter(u=>u.hp<=0).length,
+  return { seed: input.seed, result: battle.result, ticks: battle.tick, ...(referenceHz===60?{seconds:battle.seconds}:{}), fallen: units.filter(u=>u.hp<=0).length,
     hpInitial: initial.members.reduce((s,m)=>s+m.hp,0),
     // Include unused reserves at their real initial health; no reward or healing is applied.
     hpRemaining: initial.members.reduce((s,m)=>s+(units.find(u=>u.id===m.id)?.hp??m.hp),0),
@@ -124,9 +125,9 @@ export function simulateBattle(config: Config, input: PlaytestSetup, options: Si
 export function simulatePair(report: SimulationReport, index: number): SimulationPair {
   const job=simulationJob(report,index),setup={...report.setup,...job};
   const run=(variant:"a"|"b")=>{
-    if(report.schemaVersion!==3)return simulateBattle(report[variant].config,setup,report.options);
+    if(report.schemaVersion<3)return simulateBattle(report[variant].config,setup,report.options,undefined,20);
     const strategy=effectiveStrategy(report,variant);
-    return simulateBattle(report[variant].config,{...setup,strategy,autoPlay:true},report.options,strategy);
+    return simulateBattle(report[variant].config,{...setup,strategy,autoPlay:true},report.options,strategy,report.schemaVersion===4?60:20);
   };
   const pair:SimulationPair={a:run("a"),b:run("b")};
   if(report.schemaVersion>=2)pair.floor=job.floor;
@@ -135,8 +136,8 @@ export function simulatePair(report: SimulationReport, index: number): Simulatio
 export function summarizeTrials(rows: readonly SimulationTrial[]) {
   const n=rows.length, wins=rows.filter(r=>r.result==="victory"), total=(key:"ticks"|"fallen"|"reinforcements"|"energySpent"|"energyGained"|"hpRemaining"|"hpInitial"|"damage"|"healing"|"absorbed")=>rows.reduce((s,r)=>s+r[key],0);
   return {count:n,wins:wins.length,losses:rows.filter(r=>r.result==="loss").length,timeouts:rows.filter(r=>r.result==="flee").length,
-    winRate:n?wins.length/n:null,seconds:n?total("ticks")*STEP/n:null,
-    victorySeconds:wins.length?wins.reduce((s,r)=>s+r.ticks,0)*STEP/wins.length:null,
+    winRate:n?wins.length/n:null,seconds:n?rows.reduce((s,r)=>s+(r.seconds??r.ticks*LEGACY_STEP),0)/n:null,
+    victorySeconds:wins.length?wins.reduce((s,r)=>s+(r.seconds??r.ticks*LEGACY_STEP),0)/wins.length:null,
     fallen:n?total("fallen")/n:null,reinforcements:n?total("reinforcements")/n:null,
     energySpent:n?total("energySpent")/n:null,energyGained:n?total("energyGained")/n:null,
     hpRemaining:total("hpInitial")?total("hpRemaining")/total("hpInitial"):null,
@@ -153,7 +154,7 @@ export function trialSave(report: SimulationReport, variant: "a"|"b", index: num
   const job=simulationJob(report,index);
   if(trial.seed!==job.seed||report.schemaVersion>=2&&report.pairs[index]!.floor!==job.floor)throw new Error("样本关卡或种子与任务不符");
   return {format:"tower30-playtest",schemaVersion:1,engineVersion:report.engineVersion,config:report[variant].config,
-    configHash:report[variant].hash,setup:{...report.setup,...job,...(report.schemaVersion===3?{strategy:effectiveStrategy(report,variant),autoPlay:true}:{})},...trial.replay};
+    configHash:report[variant].hash,...(report.schemaVersion===4?{legacy20ThroughTick:0}:{}),setup:{...report.setup,...job,...(report.schemaVersion>=3?{strategy:effectiveStrategy(report,variant),autoPlay:true}:{})},...trial.replay};
 }
 export function summarizeFloors(report:SimulationReport){
   return reportFloors(report).map(floor=>{
@@ -163,7 +164,7 @@ export function summarizeFloors(report:SimulationReport){
 }
 
 export function effectiveStrategy(report:SimulationReport,variant:"a"|"b"):BattleStrategy {
-  if(report.schemaVersion===3&&(!report[variant].strategy||report.policyVersion!=="tower30-policy-v2"))throw new Error("缺少冻结策略或策略版本不支持");
+  if(report.schemaVersion>=3&&(!report[variant].strategy||report.policyVersion!==(report.schemaVersion===4?"tower30-policy-v3":"tower30-policy-v2")))throw new Error("缺少冻结策略或策略版本不支持");
   const strategy=strategySchema.parse(report[variant].strategy??defaultStrategy());
   strategy.ultimates=strategy.ultimates&&report.options.policy==="adaptive";
   strategy.reinforce=strategy.reinforce&&report.options.reinforce;

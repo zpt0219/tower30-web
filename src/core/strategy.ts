@@ -1,4 +1,5 @@
 import { z } from "zod";
+import {MAX_TICKS} from "./math";
 import type { TowerEngine } from "./engine";
 
 const orderSchema = z.array(z.string().min(1).max(100)).max(10)
@@ -54,8 +55,8 @@ export function applyStrategy(engine: TowerEngine, strategy: BattleStrategy, leg
 
 // Scheduling only. Replay uses raw advance() plus the saved commands, so decisions never run twice.
 export function advancePlaytest(engine: TowerEngine, ticks: number) {
-  if (!Number.isInteger(ticks) || ticks < 0 || ticks > 200000) throw new Error("tick数量无效");
-  const setup = engine.getSnapshot().playtest;
+  if (!Number.isInteger(ticks) || ticks < 0 || ticks > MAX_TICKS) throw new Error("tick数量无效");
+  const setup = engine.getPlaytestSetup();
   if (!setup?.autoPlay) { engine.advance(ticks); return; }
   const strategy = setup.strategy ?? defaultStrategy();
   for (let i = 0; i < ticks; i++) {

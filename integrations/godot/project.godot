@@ -1,0 +1,21 @@
+config_version=5
+[application]
+config/name="30层试炼 · 共享核心"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="tower30-web-shared-core"
+run/main_scene="res://Main.tscn"
+config/features=PackedStringArray("4.6", "C#", "GL Compatibility")
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+[dotnet]
+project/assembly_name="Tower30Proof"
+[physics]
+common/physics_ticks_per_second=60
+common/max_physics_steps_per_frame=8
+[rendering]
+renderer/rendering_method="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+textures/canvas_textures/default_texture_filter=0
