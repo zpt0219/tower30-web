@@ -1,0 +1,30 @@
+dialog.monster-dialog { width:min(1040px,calc(100vw - 24px)); height:min(670px,calc(100dvh - 24px)); max-width:none; max-height:none; padding:0; border:3px double #9b7b43; background:#f5e8ca; color:#3e3221; box-shadow:0 12px 60px #102f29aa; }
+.monster-dialog::backdrop { background:#102f29c9; }
+.monster-dialog form { display:flex; flex-direction:column; height:100%; min-height:0; }
+.monster-dialog header { display:flex; justify-content:space-between; gap:16px; align-items:center; flex:none; padding:12px 22px; border-bottom:1px solid #c4ad80; background:#ead9b4; }
+.monster-dialog header p { margin:0 0 3px; font-size:14px; color:#7b6847; }
+.monster-dialog h2 { font-size:26px; margin:0; }
+.monster-dialog button { min-height:48px; min-width:84px; font-size:16px; padding:9px 18px; }
+.monster-dialog-body { display:grid; grid-template-columns:1.15fr 1fr; flex:1; min-height:0; overflow-y:auto; }
+.monster-create-fields, .monster-dialog aside { min-width:0; padding:18px 22px; }
+.monster-create-fields { border-right:1px solid #c4ad80; }
+.monster-create-fields label { display:block; font-size:16px; font-weight:600; margin-bottom:13px; }
+.monster-dialog input, .monster-dialog select { display:block; width:100%; min-height:48px; margin-top:6px; padding:8px 10px; font-size:16px; border:1px solid #bea777; background:#fffaed; color:#3e3221; box-sizing:border-box; }
+.monster-dialog input[type=file] { font-size:14px; }
+.monster-dialog input::file-selector-button { min-height:40px; background:#536b4c; color:#fff7e4; border:0; margin-right:10px; padding:6px 10px; cursor:pointer; }
+.monster-upload-help, .monster-template-note { font-size:14px; line-height:1.5; color:#796547; margin:0 0 14px; }
+.monster-image-stage { position:relative; height:145px; display:grid; place-items:center; border:1px solid #c4ad80; background:repeating-conic-gradient(#e2d3b5 0% 25%,#eee1c6 0% 50%) 0 0/20px 20px; }
+.monster-image-preview { width:128px; height:128px; background-position:center; background-size:contain; background-repeat:no-repeat; image-rendering:pixelated; }
+.monster-image-preview.is-sheet { width:96px; height:96px; background-size:288px 384px; background-position:0 0; }
+.monster-image-placeholder { position:absolute; color:#746449; }
+.monster-image-info { margin:8px 0 14px; min-height:21px; font-size:14px; }
+.monster-template-preview h3 { margin:8px 0; font-size:19px; }
+.monster-template-preview dl { margin:0 0 10px; }
+.monster-template-preview dl div { display:flex; justify-content:space-between; gap:12px; padding:4px 0; border-bottom:1px solid #d7c5a0; font-size:15px; }
+.monster-template-preview dd { margin:0; font-weight:600; }
+.monster-template-preview p { margin:5px 0; font-size:15px; }
+.monster-dialog footer { flex:none; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:10px 22px; background:#ead9b4; border-top:1px solid #c4ad80; }
+.monster-dialog footer>div { display:flex; gap:12px; flex:none; }
+.monster-create-error { margin:0; color:#9b3b25; font-size:15px; line-height:1.4; }
+@media(max-height:550px) { .monster-dialog header { padding:6px 16px; } .monster-dialog header p { display:none; } .monster-dialog h2 { font-size:23px; } .monster-create-fields,.monster-dialog aside { padding:12px 16px; } .monster-image-stage { height:100px; } .monster-image-preview { width:88px; height:88px; } .monster-image-preview.is-sheet { width:80px; height:80px; background-size:240px 320px; } .monster-dialog footer { padding:6px 16px; } }
+@media(max-width:650px) { .monster-dialog-body { display:block; } .monster-create-fields { border-right:0; } .monster-dialog footer { align-items:flex-start; flex-direction:column; } .monster-dialog footer>div { align-self:flex-end; } }

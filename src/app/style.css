@@ -2716,3 +2716,4 @@ dialog.record-detail-dialog { width: min(1100px, calc(100vw - 32px)); max-width:
 .debug[open] { position:absolute; left:0; right:0; bottom:0; z-index:4; border-top:1px solid #80906a; max-height:calc(100% - 65px); overflow:auto; }
 .debug[open] summary { min-height:48px; display:flex; align-items:center; font-size:14px; }
 .debug[open] .light { min-height:48px; }
+.portrait.portrait-single { background-size:contain; background-position:center; }

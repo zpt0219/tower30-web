@@ -95,11 +95,10 @@ export function playtestWarnings(
   const encounter = config.Encounters.find(
     (e) => e.Id === config.Floors[setup.floor - 1]!.Encounter,
   )!;
-  for (const e of encounter.Enemies)
-    check(
-      e.Species,
-      e.ProfileOverride ?? config.Rules.Profiles[e.Species]!,
-      e.Rank,
-    );
+  for (const e of encounter.Enemies) {
+    const profile = e.ProfileOverride ?? config.Rules.Profiles[e.Species];
+    if (profile) check(e.Species, profile, e.Rank);
+    else warnings.add(`第${setup.floor}关敌人 [${e.Species}] 未在角色库注册`);
+  }
   return [...warnings];
 }

@@ -29,6 +29,7 @@ const profileSchema = z.object({
   PassiveDescription: z.string().default(""),
   Cooldown: n.min(1).max(30),
   Interval: n.min(0.4).max(5),
+  LeechMoveMultiplier: n.min(1).max(3).optional(),
 });
 const enemySchema = z.object({
   Species: id,
@@ -85,11 +86,13 @@ export const configSchema = z.object({
         Id: id,
         Name: id,
         Sprite: id,
+        SpriteLayout: z.enum(["sheet", "single"]).optional(),
         FrameSize: z.union([z.literal(16), z.literal(32), z.literal(64)]),
         VisualScale: n.positive(),
       }),
     )
-    .length(40),
+    .min(1)
+    .max(200),
   Rules: z.object({
     CombatVersion: z.literal(2),
     PersistentEnergy: z.literal(true),
@@ -217,10 +220,10 @@ export function validateConfig(input: unknown): Config {
     "xp_potion_l",
   ]);
   check(
-    Object.keys(c.Rules.Combatants).length === 42 &&
-      Object.keys(c.Rules.Species).length === 40 &&
-      Object.keys(c.Rules.Profiles).length === 42,
-    "40物种与2人类",
+    Object.keys(c.Rules.Combatants).length === c.Species.length + 2 &&
+      Object.keys(c.Rules.Species).length === c.Species.length &&
+      Object.keys(c.Rules.Profiles).length === c.Species.length + 2,
+    "物种与人类数量对齐",
   );
   for (const s of [...species, "hero", "princess"]) {
     const p = c.Rules.Profiles[s],
@@ -251,7 +254,7 @@ export function validateConfig(input: unknown): Config {
   c.Encounters.forEach((e) => {
     check(e.Enemies.reduce((s, v) => s + v.Count, 0) <= 16, e.Id);
     e.Enemies.forEach((v) => {
-      check(species.has(v.Species), v.Species);
+      check(species.has(v.Species), `${e.Id}：未知物种 ${v.Species}`);
       if (v.ProfileOverride)
         check(
           !!c.Rules.Actions[v.ProfileOverride.Ultimate] &&

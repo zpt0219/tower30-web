@@ -125,6 +125,7 @@
   border-right: 1px solid #c7b28a;
   padding: 12px 9px;
   background: #e7d7b33b;
+  min-height: 0;
 }
 .wb-sidebar > .wb-help {
   padding: 0 8px;
@@ -148,6 +149,7 @@
 .wb-sidebar #wb-list {
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
   scrollbar-width: thin;
 }
 .wb-entity {
@@ -561,7 +563,25 @@
     font-size: 15px;
   }
   .wb-sidebar {
-    padding: 9px 6px;
+    padding: 7px 5px;
+    min-height: 0;
+  }
+  .wb-sidebar-header {
+    margin-bottom: 4px;
+    gap: 3px;
+  }
+  .wb-sidebar-header .wb-search input {
+    min-height: 28px;
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+  .wb-add-character-btn {
+    min-height: 26px;
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+  .wb-sidebar #wb-list {
+    min-height: 0;
   }
   .wb-section-title h2 {
     font-size: 22px;
@@ -765,11 +785,14 @@
   }
   .editor-page .page-heading {
     padding: 2px 14px;
-    min-height: 52px;
+    min-height: 36px;
+  }
+  .editor-page .page-heading h1 {
+    font-size: 18px;
   }
   .wb-toolbar {
-    padding: 5px 12px;
-    min-height: 54px;
+    padding: 3px 10px;
+    min-height: 42px;
   }
   .wb-toolbar > div:first-child {
     display: none;
@@ -783,21 +806,45 @@
     padding-bottom: 2px;
   }
   .wb-tabs button {
-    min-height: 48px;
+    min-height: 34px;
+    padding: 4px 8px;
+    font-size: 11px;
   }
   .wb-validation {
-    min-height: 27px;
-    padding-top: 4px;
-    padding-bottom: 4px;
+    min-height: 22px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    font-size: 11px;
   }
   .wb-inspector > .wb-section-title {
-    display: none;
+    display: flex;
+    margin-bottom: 6px;
+    gap: 8px;
+    align-items: center;
+  }
+  .wb-inspector > .wb-section-title h2 {
+    font-size: 19px;
+  }
+  .wb-inspector > .wb-section-title .eyebrow {
+    font-size: 9px;
+    margin-bottom: 2px;
+  }
+  .wb-title-actions {
+    gap: 5px;
+  }
+  .wb-title-actions button {
+    padding: 5px 8px;
+    min-height: 32px;
+    font-size: 11px;
   }
   .wb-inspector > .wb-help:first-of-type {
     display: none;
   }
   .wb-stat-tabs {
     margin-bottom: 8px;
+  }
+  .wb-inspector > .wb-section-label:first-of-type {
+    margin-top: 2px;
   }
   .wb-inspector .wb-fields {
     margin-top: 9px;
@@ -845,24 +892,28 @@
     position: relative;
   }
   .wb-toolbar {
-    min-height: 56px;
+    min-height: 40px;
     flex-direction: row;
-    padding-left: 320px;
+    padding-left: 300px;
+    padding-top: 2px;
+    padding-bottom: 2px;
   }
   .wb-tabs {
     position: absolute;
     left: 0;
     top: 0;
-    height: 56px;
-    width: 315px;
-    min-height: 56px;
-    padding: 4px 7px;
+    height: 40px;
+    width: 295px;
+    min-height: 40px;
+    padding: 2px 4px;
     z-index: 1;
     border: 0;
     background: transparent;
   }
   .wb-tabs button {
-    padding: 8px 12px;
+    padding: 4px 8px;
+    min-height: 32px;
+    font-size: 11px;
     white-space: nowrap;
   }
   .wb-tabs .wb-reset {
@@ -870,15 +921,45 @@
   }
   .wb-actions {
     justify-content: flex-end;
+    gap: 4px;
   }
   .wb-toolbar .wb-actions button {
-    padding: 8px 10px;
+    padding: 4px 8px;
+    min-height: 32px;
+    font-size: 11px;
   }
   .wb-validation {
-    min-height: 27px;
+    min-height: 22px;
   }
   .wb-toolbar > div:first-child {
     display: none;
+  }
+  .wb-sidebar-header {
+    margin-bottom: 4px;
+    gap: 3px;
+  }
+  .wb-sidebar-header .wb-search input {
+    min-height: 26px;
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+  .wb-add-character-btn {
+    min-height: 26px;
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+  .wb-sidebar #wb-list {
+    flex: 1;
+    min-height: 60px;
+    overflow-y: auto;
+  }
+}
+@media (max-height: 520px) {
+  .editor-page .page-scroll {
+    overflow-y: auto;
+  }
+  .workbench {
+    min-height: 440px;
   }
 }
 @media (max-width: 699px) {
@@ -901,3 +982,269 @@
 
 .wb-actions button[data-wb="export-godot"],
 .wb-actions button[data-wb="import-record"] { min-height: 48px; }
+
+.wb-sidebar-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.wb-sidebar-header .wb-search {
+  margin-bottom: 0;
+}
+.wb-add-character-btn {
+  width: 100%;
+  min-height: 38px;
+  background: #5b7354;
+  color: #fff7e4;
+  border: 1px solid #4a6144;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 6px 10px;
+}
+.wb-add-character-btn:hover {
+  background: #4c6246;
+}
+.workbench .wb-add-character-btn:hover,
+.workbench .wb-add-character-btn:focus-visible {
+  background: #4c6246;
+  color: #fff7e4;
+}
+.wb-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wb-subtle-btn {
+  font-size: 11px;
+  padding: 2px 7px;
+  min-height: 24px;
+  background: #ecdcb9;
+  border: 1px solid #beab7d;
+  color: #6c5a3d;
+  cursor: pointer;
+  border-radius: 3px;
+  margin-left: 6px;
+}
+.wb-danger-btn {
+  background: #a84632;
+  color: #fff4ea;
+  border: 1px solid #8e3826;
+  font-size: 12px;
+  padding: 7px 11px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.wb-danger-btn:hover {
+  background: #933825;
+}
+.wb-actions .primary-zip {
+  background: #466352;
+  color: #fff5dc;
+  border-color: #385243;
+  font-weight: 600;
+}
+.wb-avatar.wb-avatar-32 {
+  background-size: 192px 256px;
+}
+
+/* Tier badges */
+.wb-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  flex: none;
+}
+.wb-tier-normal {
+  background: #ede3cc;
+  color: #665b46;
+  border: 1px solid #d3c4a2;
+}
+.wb-tier-elite {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+.wb-tier-legendary {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  box-shadow: 0 0 3px rgba(245, 158, 11, 0.3);
+}
+.wb-tier-hero {
+  background: #e2e8f0;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+.wb-tier-lg {
+  font-size: 12px;
+  padding: 3px 8px;
+}
+
+/* Sidebar entity layout */
+.wb-entity-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+.wb-entity-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.wb-entity-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2b251a;
+}
+.wb-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Paired attribute card grid */
+.wb-attr-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 10px 0 16px;
+}
+.wb-attr-card {
+  background: #fbf5e6;
+  border: 1px solid #c9b48c;
+  border-radius: 4px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.wb-attr-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eadbbf;
+  padding-bottom: 4px;
+}
+.wb-attr-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: #3e3221;
+}
+.wb-attr-unit {
+  font-size: 11px;
+  color: #8c734b;
+  background: #eeddbd;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.wb-attr-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.wb-attr-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.wb-attr-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: #635541;
+}
+.wb-attr-input-group input {
+  width: 100%;
+  min-height: 34px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 6px;
+  border: 1px solid #c4b087;
+  border-radius: 3px;
+  background: #fffdf8;
+  color: #2c251a;
+  box-sizing: border-box;
+}
+.wb-attr-input-group input:focus {
+  border-color: #536b4c;
+  outline: none;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(83, 107, 76, 0.2);
+}
+
+@media (max-width: 950px) {
+  .wb-attr-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .wb-attr-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-height: 650px) and (min-width: 700px) {
+  .wb-attr-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin: 6px 0 10px;
+  }
+  .wb-attr-card {
+    padding: 5px 8px;
+    gap: 3px;
+  }
+  .wb-attr-card-header {
+    padding-bottom: 2px;
+  }
+  .wb-attr-name {
+    font-size: 12px;
+  }
+  .wb-attr-tag {
+    font-size: 10px;
+  }
+  .wb-attr-input-group input {
+    min-height: 28px;
+    font-size: 12px;
+    padding: 2px 4px;
+  }
+}
+
+/* Keep controls in normal flow: the previous short-screen absolute tabs
+   overlapped the sticky heading and shrank primary touch targets to 32px. */
+.workbench { min-height: 0; }
+.wb-toolbar, .wb-tabs, .wb-validation, .wb-footer { flex-shrink: 0; }
+.wb-attr-input-group input { min-height: 48px; font-size: 14px; }
+.wb-subtle-btn { min-height: 48px; font-size: 14px; }
+@media (max-height: 650px) and (min-width: 700px) {
+  .editor-page .page-scroll { overflow: hidden; }
+  .workbench .wb-toolbar { padding: 5px 10px; min-height: 58px; }
+  .wb-toolbar .wb-actions button { min-height: 48px; font-size: 14px; padding: 6px 10px; }
+  .workbench .wb-tabs { position: static; width: auto; height: auto; min-height: 52px; padding: 2px 10px; overflow-x: auto; background: #f5e9ce; }
+  .wb-tabs button { flex-shrink: 0; min-height: 48px; font-size: 14px; padding: 6px 12px; }
+  .wb-sidebar-header .wb-search input, .wb-add-character-btn { min-height: 48px; font-size: 14px; }
+  .wb-sidebar-header { display: grid; grid-template-columns: minmax(0, 1fr) 48px; gap: 4px; }
+  .wb-sidebar-header .wb-search { margin: 0; min-width: 0; }
+  .wb-sidebar-header .wb-search > span { display: none; }
+  .wb-sidebar-header .wb-search input { margin-top: 0; }
+  .wb-sidebar-header .wb-add-character-btn { font-size: 0; padding: 0; }
+  .wb-sidebar-header .wb-add-character-btn::after { content: "＋"; font-size: 24px; }
+  .wb-sidebar #wb-list { min-height: 0; }
+  .wb-title-actions button { min-height: 48px; font-size: 14px; }
+  .wb-attr-input-group input { min-height: 48px; font-size: 14px; }
+}
+.wb-avatar.wb-avatar-single { background-size:contain; background-position:center; background-repeat:no-repeat; }

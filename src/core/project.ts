@@ -6,6 +6,8 @@ import {TowerEngine} from './engine';
 
 export const editorProjectSchema=z.object({
  format:z.literal('tower30-editor-project'),schemaVersion:z.literal(1),source:z.unknown(),setup:playtestSetupSchema,
+ // Uploaded monster sprite sheets (PNG data URLs keyed by species ID). Presentation-only: never read by the combat core.
+ sprites:z.record(z.string().regex(/^[A-Za-z0-9_]{1,100}$/),z.string().max(300_000).regex(/^data:image\/png;base64,[A-Za-z0-9+/=]+$/)).optional(),
 }).strict();
 export type EditorProject=z.infer<typeof editorProjectSchema>;
 export const MAX_PROJECT_TEXT=2_000_000;

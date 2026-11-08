@@ -203,7 +203,7 @@ export function move(u: Unit, target: Unit, units: Unit[], legacy = false, effec
     u.blockedFor = Math.min(4, u.blockedFor + dt);
     return;
   }
-  const travel = Math.min(length, dt * u.moveSpeed * (u.haste>0?(effects?.HasteMoveMultiplier??1.15):1) * (!legacy&&u.kind==="nightwing"&&u.leech>0?1.4:1) * (u.slow > 0 ? (effects?.SlowMoveMultiplier??.6) : 1)),
+  const travel = Math.min(length, dt * u.moveSpeed * (u.haste>0?(effects?.HasteMoveMultiplier??1.15):1) * (!legacy&&u.leech>0?(u.profile.LeechMoveMultiplier??(u.kind==="nightwing"?1.4:1)):1) * (u.slow > 0 ? (effects?.SlowMoveMultiplier??.6) : 1)),
     direction = Math.atan2(dz, dx),
     side =
       (u.slot % 2 === 0 ? 1 : -1) *

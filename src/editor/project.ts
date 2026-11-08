@@ -101,6 +101,13 @@ const names: Record<string, string> = {
   healingHpPercent:"治疗生命阈值 %",
   ultimateOrder:"大招优先级",
   reinforcementOrder:"补人顺序",
+  Name: "名称",
+  PrimaryRole: "主职责标签",
+  Specialty: "怪物介绍与定位",
+  Profiles: "技能配置",
+  AutoDescription: "自动技能介绍",
+  UltimateDescription: "手动大招介绍",
+  PassiveDescription: "被动介绍",
 };
 function describeError(e: unknown): string[] {
   if (e instanceof z.ZodError)
@@ -136,6 +143,17 @@ export function validateProject(project: EditorProject): {
   if (config && setup.success)
     try {
       warnings = playtestWarnings(config, setup.data);
+      const speciesSet = new Set(config.Species.map((s) => s.Id));
+      for (const floor of config.Floors) {
+        const encounter = config.Encounters.find((e) => e.Id === floor.Encounter);
+        for (const enemy of encounter?.Enemies ?? []) {
+          if (!speciesSet.has(enemy.Species)) {
+            warnings.push(
+              `第${floor.Number}关包含未注册怪兽 [${enemy.Species}]（可在关卡页替换或删除）`,
+            );
+          }
+        }
+      }
     } catch (e) {
       errors.push(...describeError(e));
     }

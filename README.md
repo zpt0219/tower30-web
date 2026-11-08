@@ -8,6 +8,8 @@
 
 **当前为 v0.13：新增“网页导出Godot试跑 → 原生工程预览 → Play”与测试记录回到网页的往返流程。角色、关卡、技能、策略、固定种子和配置快照共用；重新导入不会热换正在运行的旧测试。Godot整备/战斗/战报/下一层闭环、独立存档与网页完整30层继续保留。原Godot角色场景、完整动画特效、Android导出与真机验证仍待接入。**
 
+2026-11-09 停机后接续检查与工作台修复见 [接续记录](docs/RECOVERY-STATUS.md)，包含当时的验证结果与待办。新怪兽的名字、PNG上传、模板选择及保存试玩往返现已接通，见 [新怪兽制作说明](docs/MONSTER-CREATION.md)。
+
 启动后点击首页“编辑属性与关卡 ▶ Play”或侧栏“工作台”。使用与检查见 [工作台说明](docs/WORKBENCH.md)，网页到Godot联调见 [工程试跑记录](docs/PROJECT-HANDOFF-STATUS.md)，Godot流程见 [原生闭环记录](docs/GODOT-FLOW-STATUS.md)，首次接入验证见 [接入记录](docs/GODOT-BRIDGE-STATUS.md) 和 [工程运行说明](integrations/godot/README.md)，60Hz改造见 [60Hz说明](docs/60HZ-STATUS.md)，策略编辑见 [策略说明](docs/STRATEGY-STATUS.md)，多关工具见 [多关批测说明](docs/MULTI-FLOOR-STATUS.md)，效果编辑见 [效果参数说明](docs/EFFECTS-STATUS.md)，批量工具见 [M4交付记录](docs/M4-STATUS.md)，规则与正常资源验证见 [完整30层记录](docs/FULL30-STATUS.md)，前20层见 [前20层记录](docs/FLOOR20-STATUS.md)，前10层见 [M2交付记录](docs/M2-STATUS.md)，早期试玩记录见 [首版交付记录](docs/V1-STATUS.md)。
 
 ```sh

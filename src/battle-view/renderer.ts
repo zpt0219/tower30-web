@@ -2,18 +2,45 @@ import type { Snapshot } from "../core/engine";
 import {battlePose} from "./pose";
 import type { Event, Unit } from "../core/model";
 import { config as visualConfig } from "../data/load";
+import type { Config } from "../core/config";
+import { spriteFileName } from "../data/sprite-files";
 const sizes = new Map(
   visualConfig.Species.map((s) => [s.Id, s.FrameSize as number]),
 );
 const images = new Map<string, HTMLImageElement>();
+const layouts = new Map<string, "sheet" | "single">();
+/** `file` is a bundled asset name (with or without .png) or an uploaded `data:image/png` URL. */
+export function spriteUrl(file: string) {
+  if (file.startsWith("data:")) return file;
+  const fileName = file.endsWith(".png") ? file : `${file}.png`;
+  return `${import.meta.env.BASE_URL}assets/${fileName}`;
+}
+export function registerSprite(id: string, file: string, frameSize = 16) {
+  sizes.set(id, frameSize);
+  const src = spriteUrl(file);
+  let img = images.get(id);
+  if (!img || img.getAttribute("src") !== src) {
+    img = new Image();
+    img.src = src;
+    images.set(id, img);
+  }
+}
+/** Registered sheet URL for a unit, for DOM portraits that must match the battlefield. */
+export function spriteSource(id: string): string | undefined {
+  return images.get(id)?.getAttribute("src") ?? undefined;
+}
+export function configureSprites(config: Config, assets: Record<string,string> = {}) {
+  for (const s of config.Species) {
+    layouts.set(s.Id,s.SpriteLayout ?? "sheet");
+    registerSprite(s.Id, assets[s.Sprite] ?? spriteFileName(s.Sprite), s.FrameSize);
+  }
+}
 for (const id of [
   "hero",
   "princess",
   ...visualConfig.Species.map((s) => s.Id),
 ]) {
-  const i = new Image();
-  i.src = `${import.meta.env.BASE_URL}assets/${id}.png`;
-  images.set(id, i);
+  registerSprite(id, `${id}.png`, sizes.get(id) ?? 16);
 }
 export function sprite(
   ctx: CanvasRenderingContext2D,
@@ -25,8 +52,19 @@ export function sprite(
   enemy = false,
   row = 0,
 ) {
-  const img = images.get(id);
+  let img = images.get(id);
+  if (!img) {
+    registerSprite(id, `${id}.png`, sizes.get(id) ?? 16);
+    img = images.get(id);
+  }
   if (!img?.complete || !img.naturalWidth) return;
+  if (layouts.get(id) === "single") {
+    const scale = size / Math.max(img.naturalWidth,img.naturalHeight);
+    const w = img.naturalWidth*scale, h = img.naturalHeight*scale;
+    ctx.save();ctx.imageSmoothingEnabled=false;
+    ctx.translate(x,y);if(enemy)ctx.scale(-1,1);
+    ctx.drawImage(img,-w/2,-h,w,h);ctx.restore();return;
+  }
   const human=id==="hero"||id==="princess";
   const sy=row*(human?32:(sizes.get(id)??16))+(human?16:0);
   const sh = sizes.get(id) ?? 16;

@@ -15,6 +15,7 @@ import {
   type Snapshot,
 } from "../core/engine";
 import type { Attributes, Gear, Config } from "../core/config";
+import { editorProjectSchema } from "../core/project";
 import type { Command } from "../core/model";
 import {
   readSaves,
@@ -22,7 +23,7 @@ import {
   readWorkbench,
   writeWorkbench,
 } from "../storage/save";
-import { drawBattle } from "../battle-view/renderer";
+import { drawBattle, configureSprites, spriteSource } from "../battle-view/renderer";
 const app = document.querySelector<HTMLDivElement>("#app")!;
 let config: Config = baselineConfig;
 let booted = false;
@@ -31,6 +32,7 @@ let engine = new TowerEngine(config),
   previous: ReturnType<TowerEngine["getBattleSnapshot"]> = null;
 let normalEngine = engine;
 let lastTestJson: string | null = null;
+let testSprites: Record<string,string> = {};
 let testWrites: Promise<void> = Promise.resolve();
 const workbench = new Workbench(
   baselineSource,
@@ -161,9 +163,9 @@ function portrait(id: string) {
   return [
     "hero",
     "princess",
-    ...baselineConfig.Species.map((s) => s.Id),
+    ...config.Species.map((s) => s.Id),
   ].includes(id)
-    ? `<div class="portrait ${isHuman(id) ? "human" : ""}" style="background-image:url('${import.meta.env.BASE_URL}assets/${id}.png')" aria-hidden="true"></div>`
+    ? `<div class="portrait ${isHuman(id) ? "human" : ""} ${config.Species.find(s=>s.Id===id)?.SpriteLayout === "single" ? "portrait-single" : ""}" style="background-image:url('${esc(spriteSource(id))}')" aria-hidden="true"></div>`
     : `<div class="portrait rune" aria-hidden="true">${esc(name(id).slice(0, 1))}</div>`;
 }
 function bar(hp: number, max: number, cls = "health") {
@@ -186,7 +188,8 @@ function bonuses(g: Gear) {
   );
 }
 function memberCard(m: Snapshot["members"][number], compact = false) {
-  return `<article class="member-card ${m.hp === 0 ? "fallen" : ""}"><div class="member-top">${portrait(m.id)}<div><h3>${name(m.id)} <small>Lv.${m.level}</small></h3><p>${isHuman(m.id) ? roleNames[m.profile.Role] : `${"★".repeat(m.rank)} · ${config.Rules.Species[m.id]!.PrimaryRole}`}</p></div></div><div class="metric"><span>生命</span><b>${m.hp} / ${m.attributes.MaxHp}</b></div>${bar(m.hp, m.attributes.MaxHp)}<div class="metric energy-text"><span>能量</span><b>${Math.floor(m.energy)} / 1000</b></div>${bar(m.energy, 1000, "energy")}${
+  const spTier = config.Rules.Species[m.id]?.Tier;
+  return `<article class="member-card ${m.hp === 0 ? "fallen" : ""}"><div class="member-top">${portrait(m.id)}<div><h3>${name(m.id)} <small>Lv.${m.level}</small></h3><p>${isHuman(m.id) ? roleNames[m.profile.Role] : `${spTier ? `[${spTier}] ` : ""}${"★".repeat(m.rank)} · ${config.Rules.Species[m.id]!.PrimaryRole}`}</p></div></div><div class="metric"><span>生命</span><b>${m.hp} / ${m.attributes.MaxHp}</b></div>${bar(m.hp, m.attributes.MaxHp)}<div class="metric energy-text"><span>能量</span><b>${Math.floor(m.energy)} / 1000</b></div>${bar(m.energy, 1000, "energy")}${
     compact
       ? ""
       : `<p class="small">自动：${esc(skill(m.profile.Auto))} · 大招：${esc(skill(m.profile.Ultimate))}</p>${button(
@@ -265,7 +268,7 @@ function send(c: Command) {
 function saveTest(active: boolean) {
   if (snap.mode === "playtest") lastTestJson = engine.serialize();
   if (!lastTestJson) return;
-  const json = JSON.stringify({ active, serialized: lastTestJson });
+  const json = JSON.stringify({ active, serialized: lastTestJson, sprites: testSprites });
   if (active) {
     saveStatus = "正在保存测试…";
     updateSaveLabel();
@@ -304,7 +307,7 @@ function openEditor() {
   page = "editor";
   render();
 }
-function startPlaytest(nextConfig: Config, setup: PlaytestSetup) {
+function startPlaytest(nextConfig: Config, setup: PlaytestSetup, assets?: Record<string,string>) {
   try {
     const next = TowerEngine.createPlaytest(nextConfig, setup);
     for (const type of ["begin", "start"] as const) {
@@ -313,6 +316,7 @@ function startPlaytest(nextConfig: Config, setup: PlaytestSetup) {
     }
     if (snap.mode === "run") normalEngine = engine;
     engine = next;visualSeconds=0;
+    testSprites = structuredClone(assets ?? testSprites);
     config = next.getConfigSnapshot();
     refresh();
     page = "battle";
@@ -432,6 +436,7 @@ function confirmAction(title: string, body: string, accept: () => void) {
   );
 }
 function render() {
+  configureSprites(config,snap.mode === "playtest" ? testSprites : {});
   actions.clear();
   const inBattle = page === "battle";
   app.innerHTML = `<header class="topbar"><a class="brand" href="#" aria-label="试炼之塔首页"><span class="brand-seal">塔</span><div>翠庭试炼<small>THIRTY FLOORS</small></div></a><div class="run-status"><span>第 <b id="floor-counter">${String(Math.min(snap.floor, 30)).padStart(2, "0")}</b> / 30 层</span><span class="gold">${snap.mode === "playtest" ? '<b id="gold-counter">TEST</b> <small>不计奖励</small>' : `◈ <b id="gold-counter">${snap.gold}</b> <small>金币</small>`}</span></div><div class="save-indicator"><span class="version">${snap.mode === "playtest" ? "独立测试 · 不计通关" : snap.completed ? "已通关 · 30 / 30" : "正式试跑 · 全30层"}</span><button id="save-status" class="text-button">${saveStatus}</button></div></header><div class="workspace"><nav class="sidebar" aria-label="主要功能">${[
@@ -560,7 +565,7 @@ function towerPage() {
     },
   ).join(
     "",
-  )}</aside><section class="floor-detail"><div class="floor-detail-scroll"><div class="floor-banner"><div><span class="tag">${e.Boss ? "BOSS · 守关" : esc(f.Theme)}</span><p class="eyebrow">FLOOR ${String(selectedFloor).padStart(2, "0")}</p><h2>${esc(e.Title)}</h2><p>${cleared ? "这一层的奖励已经领取。" : supported ? "整理队伍，准备踏入林间战场。" : "楼层资料已载入，技能迁移完成后开放挑战。"}</p></div><div class="tower-emblem" aria-hidden="true"><div class="tower-top"></div><div class="tower-body"><i></i><i></i><i></i></div><span>${String(selectedFloor).padStart(2, "0")}</span></div></div><div class="floor-info"><section><div class="section-caption">敌方阵容 <span>${e.Difficulty}</span></div><div class="enemy-line">${e.Enemies.map((g) => `<div class="enemy-entry">${portrait(g.Species)}<div><h3>${name(g.Species)} <small>×${g.Count}</small></h3><p>Lv.${g.Level} · ${g.Rank}阶 · ${roleNames[config.Rules.Profiles[g.Species]!.Role]}</p><p class="small">${esc(config.Rules.Profiles[g.Species]!.AutoDescription || skill(config.Rules.Profiles[g.Species]!.Auto))}</p></div></div>`).join("")}</div></section><section class="rewards"><div class="section-caption">首次胜利奖励</div><strong class="reward-gold">◈ ${e.Gold} <small>金币</small></strong><p>击败敌人后获得魂魄、经验药水与战利品</p><p class="small">首次收集消耗1魂魄 · 新伙伴半血加入</p></section></div><div class="hint"><span>✧</span><p>${esc(e.Hint)}</p></div></div><div class="section-caption">我的队伍 <span>${snap.members.length} 位伙伴 · 最多5首发</span></div><div class="party-preview">${snap.members.map((m) => `<div>${portrait(m.id)}<div><b>${name(m.id)} <small>Lv.${m.level}</small></b><p>${m.hp} / ${m.attributes.MaxHp}</p>${bar(m.hp, m.attributes.MaxHp)}</div></div>`).join("")}</div><div class="page-actions">${snap.completed?button("返回通关页",()=>{showClearedFloor=false;render();}):""}<div class="small">${selectedFloor > snap.playableFloors ? "当前楼层尚未开放。" : cleared ? "已通关楼层不能重复领取奖励。" : "进入后先选首发，再开始交战。生命与能量跨战保留。"}</div>${button(cleared ? "已通过本层" : !supported ? "后续版本开放" : !current ? "请先通过前层" : "准备挑战 →", () => send({ type: "begin" }), "primary large", !current || !supported || cleared)}</div></section></div>`;
+  )}</aside><section class="floor-detail"><div class="floor-detail-scroll"><div class="floor-banner"><div><span class="tag">${e.Boss ? "BOSS · 守关" : esc(f.Theme)}</span><p class="eyebrow">FLOOR ${String(selectedFloor).padStart(2, "0")}</p><h2>${esc(e.Title)}</h2><p>${cleared ? "这一层的奖励已经领取。" : supported ? "整理队伍，准备踏入林间战场。" : "楼层资料已载入，技能迁移完成后开放挑战。"}</p></div><div class="tower-emblem" aria-hidden="true"><div class="tower-top"></div><div class="tower-body"><i></i><i></i><i></i></div><span>${String(selectedFloor).padStart(2, "0")}</span></div></div><div class="floor-info"><section><div class="section-caption">敌方阵容 <span>${e.Difficulty}</span></div><div class="enemy-line">${e.Enemies.map((g) => `<div class="enemy-entry">${portrait(g.Species)}<div><h3>${name(g.Species)} <small>×${g.Count}</small></h3><p>${config.Rules.Species[g.Species]?.Tier ? `[${config.Rules.Species[g.Species]!.Tier}] · ` : ""}Lv.${g.Level} · ${g.Rank}阶 · ${roleNames[config.Rules.Profiles[g.Species]!.Role]}</p><p class="small">${esc(config.Rules.Profiles[g.Species]!.AutoDescription || skill(config.Rules.Profiles[g.Species]!.Auto))}</p></div></div>`).join("")}</div></section><section class="rewards"><div class="section-caption">首次胜利奖励</div><strong class="reward-gold">◈ ${e.Gold} <small>金币</small></strong><p>击败敌人后获得魂魄、经验药水与战利品</p><p class="small">首次收集消耗1魂魄 · 新伙伴半血加入</p></section></div><div class="hint"><span>✧</span><p>${esc(e.Hint)}</p></div></div><div class="section-caption">我的队伍 <span>${snap.members.length} 位伙伴 · 最多5首发</span></div><div class="party-preview">${snap.members.map((m) => `<div>${portrait(m.id)}<div><b>${name(m.id)} <small>Lv.${m.level}</small></b><p>${m.hp} / ${m.attributes.MaxHp}</p>${bar(m.hp, m.attributes.MaxHp)}</div></div>`).join("")}</div><div class="page-actions">${snap.completed?button("返回通关页",()=>{showClearedFloor=false;render();}):""}<div class="small">${selectedFloor > snap.playableFloors ? "当前楼层尚未开放。" : cleared ? "已通关楼层不能重复领取奖励。" : "进入后先选首发，再开始交战。生命与能量跨战保留。"}</div>${button(cleared ? "已通过本层" : !supported ? "后续版本开放" : !current ? "请先通过前层" : "准备挑战 →", () => send({ type: "begin" }), "primary large", !current || !supported || cleared)}</div></section></div>`;
 }
 function partyPage() {
   return `<div class="section-intro"><div><h2>一路同行的伙伴</h2><p>人类通过战斗经验成长；怪兽使用经验药水。满能量时，点击战场卡片释放大招。</p></div><span class="tag">${snap.members.length} 位已收集</span></div><div class="cards-grid">${snap.members.map((m) => memberCard(m)).join("")}</div>`;
@@ -1155,7 +1160,9 @@ async function boot() {
         typeof session.serialized === "string"
       ) {
         const restored = TowerEngine.restorePlaytest(session.serialized);
+        const sprites = editorProjectSchema.shape.sprites.parse("sprites" in session ? session.sprites : undefined) ?? {};
         engine = restored.upgradeTo60Hz();
+        testSprites = sprites;
         config = restored.getConfigSnapshot();
         lastTestJson = engine.serialize();
         saveStatus = "已恢复独立测试";

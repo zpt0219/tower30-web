@@ -2,6 +2,7 @@ import { TowerEngine } from "../../src/core/engine";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { artifactDirectory } from "../../scripts/artifacts";
+import { readZip } from "../../src/editor/zip";
 const artifacts = artifactDirectory();
 async function openEditor(page: Page) {
   await page
@@ -154,14 +155,14 @@ test("非法属性阻止Play，草稿刷新可恢复，工程导出导入保留�
     "0",
   );
   await page.getByLabel("基础 · 生命", { exact: true }).fill("12345");
-  await page.getByRole("button", { name: "每级成长", exact: true }).click();
   await page.getByLabel("成长 · 攻击", { exact: true }).fill("21");
   await saveReady(page);
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "导出工程", exact: true }).click();
-  const file = `${artifacts}/${test.info().project.name}-editor-project.json`;
+  await page.getByRole("button", { name: "导出工程 (ZIP)", exact: true }).click();
+  const file = `${artifacts}/${test.info().project.name}-editor-project.zip`;
   await (await download).saveAs(file);
-  const exported = JSON.parse(readFileSync(file, "utf8"));
+  const zip = readZip(new Uint8Array(readFileSync(file)));
+  const exported = JSON.parse(new TextDecoder().decode(zip.get("tower30-editor-project.json")!));
   expect(exported.source.Rules.Combatants.hero.Base.MaxHp).toBe(12345);
   expect(exported.source.Rules.Combatants.hero.Growth.Attack).toBe(21);
   expect(exported.source.Rules.SoulMultipliers).toEqual([1, 1.5, 2, 2.5, 3]);
@@ -325,4 +326,176 @@ test('11层完整Play：新增沉默技能的射程与持续参数生效',async(
  const session=JSON.parse(await readSession(page));const engine=TowerEngine.restorePlaytest(session.serialized),snapshot=engine.getSnapshot();
  expect(snapshot.skippedFeatures).toEqual([]);expect(snapshot.battle!.units.some(u=>u.enemy&&u.silence>5)).toBe(true);expect(engine.getConfigSnapshot().Rules.Actions.silence!.Duration).toBe(7);expect(snapshot.mode).toBe('playtest');
  await shot(page,'editor-silence-active');
+});
+
+test("怪物名称与介绍编辑实时同步列表与预览，保存导出与恢复角色基线均生效", async ({
+  page,
+}) => {
+  await page.goto("./");
+  await openEditor(page);
+  await page.locator('[data-wb="character"][data-id="slime_dusk"]').click();
+  await expect(
+    page.locator(".wb-inspector .wb-section-title h2"),
+  ).toHaveText("史莱姆");
+  await page.getByLabel("怪物名称", { exact: true }).fill("剧毒孢子菇");
+  await page.getByLabel("品阶稀有度", { exact: true }).selectOption("传说");
+  await page.getByLabel("主职责标签", { exact: true }).fill("持续减益");
+  await page
+    .getByLabel("怪物介绍与功能定位", { exact: true })
+    .fill("释放剧毒孢子造成持续伤害并抑制敌方恢复，适合后排消耗。");
+  await page
+    .getByLabel("自动技能介绍", { exact: true })
+    .fill("喷吐孢子雾造成持续伤害并减疗。");
+  await expect(
+    page.locator(".wb-inspector .wb-section-title h2"),
+  ).toHaveText("剧毒孢子菇");
+  await expect(
+    page.locator('#wb-list>[data-wb="character"][data-id="slime_dusk"] .wb-tier-badge'),
+  ).toHaveText("传说");
+  await expect(
+    page.locator('#wb-list>[data-wb="character"][data-id="slime_dusk"]'),
+  ).toContainText("剧毒孢子菇");
+  await expect(
+    page.locator('#wb-list>[data-wb="character"][data-id="slime_dusk"]'),
+  ).toContainText("持续减益");
+  await expect(page.locator("#wb-preview")).toContainText("剧毒孢子菇");
+  await expect(page.locator("#wb-preview")).toContainText("释放剧毒孢子");
+  await saveReady(page);
+  await page.locator(".wb-inspector").evaluate((el) => (el.scrollTop = 0));
+  await shot(page, "editor-monster-identity");
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "导出工程 (ZIP)", exact: true }).click();
+  const file = `${artifacts}/${test.info().project.name}-exported-config.zip`;
+  await (await download).saveAs(file);
+  const zip = readZip(new Uint8Array(readFileSync(file)));
+  const exported = JSON.parse(new TextDecoder().decode(zip.get("thirty-floor-trial-draft.json")!));
+  const rosterMd = new TextDecoder().decode(zip.get("MONSTER_ROSTER.md")!);
+  expect(rosterMd).toContain("剧毒孢子菇");
+  expect(zip.has("sprites/slime_dusk.png")).toBe(true);
+  for (const [path, bytes] of zip) {
+    if (path.startsWith("sprites/")) expect([...bytes.slice(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+  }
+  const sp = exported.Species.find((s: { Id: string }) => s.Id === "slime_dusk");
+  expect(sp.Name).toBe("剧毒孢子菇");
+  expect(exported.Rules.Species.slime_dusk.Tier).toBe("传说");
+  expect(exported.Rules.Species.slime_dusk.PrimaryRole).toBe("持续减益");
+  expect(exported.Rules.Species.slime_dusk.Specialty).toContain("释放剧毒孢子");
+  expect(exported.Rules.Profiles.slime_dusk.AutoDescription).toContain(
+    "喷吐孢子雾",
+  );
+  page.once("dialog", (d) => d.accept());
+  await page
+    .locator(".wb-inspector")
+    .getByRole("button", { name: "恢复此角色基线" })
+    .first()
+    .click();
+  await expect(page.getByLabel("怪物名称", { exact: true })).toHaveValue(
+    "史莱姆",
+  );
+  await expect(page.getByLabel("主职责标签", { exact: true })).toHaveValue(
+    "法术",
+  );
+});
+
+test("动态新增怪兽与删除换皮怪，ZIP导出包含新物种和贴图", async ({
+  page,
+}) => {
+  await page.goto("./");
+  await openEditor(page);
+  await expect(page.locator('#wb-list>[data-wb="character"]')).toHaveCount(42);
+
+  // 1. Delete a monster (wisp)
+  await page.locator("#wb-search").fill("wisp");
+  await page.locator('[data-wb="character"][data-id="wisp"]').click();
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "删除此怪兽", exact: true }).click();
+  await page.locator("#wb-search").fill("");
+  await expect(page.locator('#wb-list>[data-wb="character"]')).toHaveCount(41);
+  await expect(page.locator('#wb-list>[data-wb="character"][data-id="wisp"]')).toHaveCount(0);
+
+  // 2. Add a new monster (cloned from currently selected)
+  await page.getByRole("button", { name: "＋ 新增怪兽", exact: true }).click();
+  const creation = page.getByRole("dialog", { name: "制作新怪兽" });
+  await creation.getByLabel("新怪兽名字", { exact: true }).fill("幻晶灵猫新");
+  await creation.getByLabel("怪兽模板", { exact: true }).selectOption("forest_dragon");
+  await creation.getByLabel("上传怪兽PNG", { exact: true }).setInputFiles({ name:"moonbat.png", mimeType:"image/png", buffer:readFileSync("public/assets/moonbat.png") });
+  await creation.getByRole("button", { name: "创建怪兽", exact: true }).click();
+  await expect(page.locator('#wb-list>[data-wb="character"]')).toHaveCount(42);
+  const heading = await page.locator(".wb-inspector .wb-section-title h2").textContent();
+  expect(heading).toContain("新");
+
+  await page.getByLabel("怪物名称", { exact: true }).fill("幻晶灵猫");
+  await page.getByLabel("外观贴图", { exact: true }).selectOption("moonbat");
+  await expect(page.getByLabel("贴图切片规格", { exact: true })).toHaveValue("16");
+  await page.getByLabel("怪物介绍与功能定位", { exact: true }).fill("穿梭幻境的灵性猫怪");
+  await saveReady(page);
+  await shot(page, "editor-add-delete-monster");
+
+  // 3. Test setup with new monster
+  await page.getByRole("button", { name: "测试设置", exact: true }).click();
+  const options = await page.locator('select[data-party="0"] option').allTextContents();
+  expect(options.some((opt) => opt.includes("幻晶灵猫"))).toBe(true);
+  const newId = await page.locator('select[data-party="0"] option').filter({ hasText: "幻晶灵猫" }).getAttribute("value");
+  await page.getByLabel("我方伙伴1", { exact: true }).selectOption(newId!);
+  await page.getByRole("button", { name: "▶ Play 第1关", exact: true }).click();
+  await page.getByRole("button", { name: "暂停", exact: true }).click();
+  await expect(page.locator(`[data-unit="${newId}"] .portrait`)).toHaveCSS("background-image", /moonbat\.png/);
+  await page.locator(".battle-toolbar").getByRole("button", { name: "返回编辑", exact: true }).click();
+
+  // 4. Export ZIP and verify contents
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "导出工程 (ZIP)", exact: true }).click();
+  const file = `${artifacts}/${test.info().project.name}-roster-management.zip`;
+  await (await download).saveAs(file);
+  const zip = readZip(new Uint8Array(readFileSync(file)));
+  const rosterMd = new TextDecoder().decode(zip.get("MONSTER_ROSTER.md")!);
+  expect(rosterMd).toContain("幻晶灵猫");
+  expect(rosterMd).not.toContain("`wisp`");
+  expect(zip.has("sprites/moonbat.png")).toBe(true);
+  expect(zip.get(`sprites/${newId}.png`)).toEqual(zip.get("sprites/moonbat.png"));
+});
+
+test("改ID同步关卡与策略，拒绝删除在用怪兽，删改后按ID恢复基线", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("./");
+  await openEditor(page);
+  await page.locator('[data-wb="character"][data-id="slime_dusk"]').click();
+  await page.getByRole("button", { name: "删除此怪兽", exact: true }).click();
+  await expect(page.locator("#toast")).toContainText("请先在关卡页替换");
+  await expect(page.locator('[data-wb="character"][data-id="slime_dusk"]')).toHaveCount(1);
+  await page.getByRole("button", { name: "测试设置", exact: true }).click();
+  await page.getByLabel("我方伙伴1", { exact: true }).selectOption("slime_dusk");
+  await page.getByRole("button", { name: "战斗策略", exact: true }).click();
+  await page.getByRole("button", { name: "大招优先级下移史莱姆", exact: true }).click();
+  await page.getByRole("button", { name: "角色 · 42", exact: true }).click();
+  page.once("dialog", (d) => d.accept("slime_renamed"));
+  await page.getByRole("button", { name: "修改 ID", exact: true }).click();
+  await expect(page.locator("#wb-validation")).toContainText("配置校验通过");
+  await page.getByRole("button", { name: "关卡 · 30", exact: true }).click();
+  await expect(page.getByLabel("敌人物种", { exact: true })).toHaveValue("slime_renamed");
+  await page.getByRole("button", { name: "▶ Play 第1关", exact: true }).click();
+  await page.getByRole("button", { name: "暂停", exact: true }).click();
+  await expect(page.locator("#save-status")).toHaveText("测试已保存");
+  const session = JSON.parse(JSON.parse(await readSession(page)).serialized);
+  expect(session.setup.party).toEqual(["slime_renamed", "princess"]);
+  expect(session.setup.strategy.ultimateOrder).toContain("slime_renamed");
+  expect(session.config.Encounters[0].Enemies[0].Species).toBe("slime_renamed");
+  await expect(page.locator('[data-unit="slime_renamed"] .portrait')).toHaveCSS("background-image", /slime_dusk\.png/);
+  await shot(page, "editor-renamed-monster-play");
+  await page.locator(".battle-toolbar").getByRole("button", { name: "返回编辑", exact: true }).click();
+  await page.getByRole("button", { name: "角色 · 42", exact: true }).click();
+  await page.locator('[data-wb="character"][data-id="wisp"]').click();
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "删除此怪兽", exact: true }).click();
+  await page.locator('[data-wb="character"][data-id="forest_dragon"]').click();
+  await page.getByLabel("怪物名称", { exact: true }).fill("需要恢复的森龙");
+  page.once("dialog", (d) => d.accept());
+  await page.locator(".wb-title-actions").getByRole("button", { name: "恢复此角色基线", exact: true }).click();
+  await expect(page.getByLabel("怪物名称", { exact: true })).toHaveValue("森林翡翠龙");
+  await expect(page.locator("#wb-validation")).toContainText("配置校验通过");
+  await page.locator('[data-wb="character"][data-id="slime_renamed"]').click();
+  await page.locator(".wb-title-actions").getByRole("button", { name: "恢复此角色基线", exact: true }).click();
+  await expect(page.locator("#toast")).toContainText("没有原始基线");
+  expect(errors).toEqual([]);
 });

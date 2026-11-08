@@ -241,6 +241,99 @@ it("无法容纳的碰撞半径在开战时原子拒绝，不留下半队单位"
   const before = e.getSnapshot();
   const r = e.dispatch({ type: "start" });
   expect(r.ok).toBe(false);
-  expect(r.message).toContain("入场");
-  expect(e.getSnapshot()).toEqual(before);
-});
+    expect(r.message).toContain("入场");
+    expect(e.getSnapshot()).toEqual(before);
+  });
+  it("怪物名称、主职责标签与介绍可编辑并保存在工程与配表快照中", () => {
+    const draft = newProject(raw);
+    const si = raw.Species.findIndex((s) => s.Id === "slime_dusk");
+    expect(si).toBeGreaterThanOrEqual(0);
+    setPath(draft.source, ["Species", si, "Name"], "剧毒孢子菇");
+    setPath(
+      draft.source,
+      ["Rules", "Species", "slime_dusk", "PrimaryRole"],
+      "持续减益",
+    );
+    setPath(
+      draft.source,
+      ["Rules", "Species", "slime_dusk", "Specialty"],
+      "释放剧毒孢子造成持续伤害并降低敌方治疗，适合消耗战。",
+    );
+    setPath(
+      draft.source,
+      ["Rules", "Profiles", "slime_dusk", "AutoDescription"],
+      "喷吐毒雾并抑制敌方恢复。",
+    );
+    const validated = validateProject(draft);
+    expect(validated.errors).toEqual([]);
+    const c = validated.config!;
+    expect(c.Species[si]!.Name).toBe("剧毒孢子菇");
+    expect(c.Rules.Species.slime_dusk!.PrimaryRole).toBe("持续减益");
+    expect(c.Rules.Species.slime_dusk!.Specialty).toContain("剧毒孢子");
+    expect(c.Rules.Profiles.slime_dusk!.AutoDescription).toBe(
+      "喷吐毒雾并抑制敌方恢复。",
+    );
+    const imported = importProject(JSON.stringify(draft));
+    const revalidated = validateProject(imported).config!;
+    expect(revalidated.Species[si]!.Name).toBe("剧毒孢子菇");
+    expect(revalidated.Rules.Species.slime_dusk!.Specialty).toContain(
+      "剧毒孢子",
+    );
+  });
+  it("支持动态删除怪兽，删减换皮怪后角色数量更新且校验通过", () => {
+    const draft = newProject(raw);
+    const toDelete = "wisp";
+    const speciesList = readPath(draft.source, ["Species"]) as any[];
+    const idx = speciesList.findIndex((s) => s.Id === toDelete);
+    expect(idx).toBeGreaterThanOrEqual(0);
+    speciesList.splice(idx, 1);
+    delete (draft.source as any).Rules.Species[toDelete];
+    delete (draft.source as any).Rules.Combatants[toDelete];
+    delete (draft.source as any).Rules.Profiles[toDelete];
+
+    const validated = validateProject(draft);
+    expect(validated.errors).toEqual([]);
+    expect(validated.config!.Species.length).toBe(39);
+    expect(Object.keys(validated.config!.Rules.Combatants).length).toBe(41);
+    expect(Object.keys(validated.config!.Rules.Species).length).toBe(39);
+  });
+  it("支持新增怪兽，克隆模板后可正常生效并独立Play", () => {
+    const draft = newProject(raw);
+    const newId = "frost_imp";
+    const template = (draft.source as any).Species[0];
+    (draft.source as any).Species.push({
+      ...template,
+      Id: newId,
+      Name: "霜火小鬼",
+      Sprite: "fire_imp",
+    });
+    (draft.source as any).Rules.Species[newId] = {
+      ...(draft.source as any).Rules.Species[template.Id],
+      PrimaryRole: "法术",
+      Specialty: "喷射寒冰碎屑的异变小鬼",
+    };
+    (draft.source as any).Rules.Combatants[newId] = {
+      ...(draft.source as any).Rules.Combatants[template.Id],
+      Base: {
+        ...(draft.source as any).Rules.Combatants[template.Id].Base,
+        Attack: 333,
+      },
+    };
+    (draft.source as any).Rules.Profiles[newId] = {
+      ...(draft.source as any).Rules.Profiles[template.Id],
+    };
+
+    const validated = validateProject(draft);
+    expect(validated.errors).toEqual([]);
+    expect(validated.config!.Species.length).toBe(41);
+
+    const engine = TowerEngine.createPlaytest(validated.config!, {
+      ...defaultPlaytestSetup(),
+      party: [newId],
+      startingGear: false,
+    });
+    expect(engine.dispatch({ type: "begin" }).ok).toBe(true);
+    expect(engine.dispatch({ type: "start" }).ok).toBe(true);
+    expect(engine.getSnapshot().members[0]!.id).toBe(newId);
+    expect(engine.getSnapshot().members[0]!.attributes.Attack).toBe(333);
+  });

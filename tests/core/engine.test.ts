@@ -24,6 +24,9 @@ describe("配表与可移植数学", () => {
     const nan = structuredClone(raw);
     nan.Rules.Combatants.hero.Base.Attack = NaN;
     expect(() => validateConfig(nan)).toThrow();
+    const missing = structuredClone(raw);
+    missing.Encounters[0]!.Enemies[0]!.Species = "missing_monster";
+    expect(() => validateConfig(missing)).toThrow("未知物种 missing_monster");
   });
   it("保留C#正负半值舍入与uint随机分母规则", () => {
     expect(roundAway(-2.5)).toBe(-3);

@@ -1,6 +1,7 @@
 import {test,expect,type Page} from '@playwright/test';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {artifactDirectory} from '../../scripts/artifacts';
+import {readZip} from '../../src/editor/zip';
 import {scene as sceneFromConfig} from '../helpers/status-scene';
 const raw:unknown=JSON.parse(readFileSync('data/tower/thirty-floor-trial.json','utf8'));
 const scene=(auto:string,enemyAuto='')=>sceneFromConfig(raw,auto,enemyAuto);
@@ -45,6 +46,8 @@ test('网页逐级改护盾生效，空白继承、草稿恢复、参数范围�
  await expect(page.locator('#wb-save-status')).toHaveText('草稿已保存到浏览器');await page.reload();await page.getByRole('button',{name:'编辑属性与关卡 ▶ Play',exact:true}).click();await skill(page,'leafward');await expect(page.getByLabel('Lv.1 护盾倍率',{exact:true})).toHaveValue('2');await expect(page.getByLabel('Lv.2 护盾倍率',{exact:true})).toHaveValue('');await expect(page.getByLabel('Lv.3 护盾倍率',{exact:true})).toHaveValue('0');
  await page.clock.pauseAt(new Date('2026-10-31T13:00:00Z'));const e=await runAndExport(page,`${artifacts}/${info.project.name}-shield-play.json`);expect(e.getBattleSnapshot()!.units[0]!.barrier).toBe(200);expect(e.getConfigSnapshot().Rules.Actions.leafward!.ShieldRatios).toEqual([2,null,0]);await page.getByRole('button',{name:'返回编辑',exact:true}).click();await page.clock.resume();
  await skill(page,'leafward');await page.getByLabel('Lv.1 护盾倍率',{exact:true}).fill('');await page.getByLabel('Lv.3 护盾倍率',{exact:true}).fill('');
- await skill(page,'effects');await page.getByLabel('反伤比例 %',{exact:true}).fill('201');await expect(page.locator('#wb-validation')).toContainText('配置有误');await page.getByLabel('反伤比例 %',{exact:true}).fill('50');await page.getByLabel('急速增益 %',{exact:true}).fill('75');await expect(page.locator('#wb-validation')).toContainText('配置校验通过');await page.getByRole('button',{name:'恢复共用效果默认',exact:true}).click();await expect(page.getByLabel('反伤比例 %',{exact:true})).toHaveValue('');await expect(page.getByLabel('急速增益 %',{exact:true})).toHaveValue('');
- const source=JSON.parse(await exportFile(page,'导出配表',`${artifacts}/${info.project.name}-effects-restored-config.json`));expect(source.Rules.Effects).toBeUndefined();expect(source.Rules.Actions.leafward.ShieldRatios).toBeUndefined();expect(fingerprint(validateConfig(source))).toBe(fingerprint(validateConfig(c)));
+ await skill(page,'effects');await page.getByLabel('反伤比例 %',{exact:true}).fill('201');await expect(page.locator('#wb-validation')).toContainText('配置有误');await page.getByLabel('反伤比例 %',{exact:true}).fill('50');await page.getByLabel('急速增益 %',{exact:true}).fill('75');await expect(page.locator('#wb-validation')).toContainText('配置校验通过');await page.locator('.wb-section-title').getByRole('button',{name:'恢复共用效果默认',exact:true}).click();await expect(page.getByLabel('反伤比例 %',{exact:true})).toHaveValue('');await expect(page.getByLabel('急速增益 %',{exact:true})).toHaveValue('');
+ await exportFile(page,'导出工程 (ZIP)',`${artifacts}/${info.project.name}-effects-restored-bundle.zip`);
+ const source=JSON.parse(new TextDecoder().decode(readZip(new Uint8Array(readFileSync(`${artifacts}/${info.project.name}-effects-restored-bundle.zip`))).get('thirty-floor-trial-draft.json')!));
+ expect(source.Rules.Effects).toBeUndefined();expect(source.Rules.Actions.leafward.ShieldRatios).toBeUndefined();expect(fingerprint(validateConfig(source))).toBe(fingerprint(validateConfig(c)));
 });
