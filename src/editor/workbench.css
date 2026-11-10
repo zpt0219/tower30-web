@@ -280,6 +280,42 @@
 .wb-field input:invalid {
   border-color: #b36a4a;
 }
+.wb-skill-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px 12px;
+  margin: 14px 0;
+}
+.wb-skill-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.wb-bound-box {
+  border: 1px dashed #bda779;
+  background: #fffcf4;
+  border-radius: 4px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 56px;
+  box-sizing: border-box;
+}
+.wb-bound-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7f6e4a;
+  letter-spacing: 0.3px;
+}
+.wb-bound-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #3a3d2c;
+  margin: 0;
+  word-break: break-word;
+}
 .wb-section-label {
   margin: 24px 0 10px;
   border-bottom: 1px solid #c7b28a;

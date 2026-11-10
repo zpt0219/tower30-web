@@ -321,7 +321,7 @@ test('11层完整Play：新增沉默技能的射程与持续参数生效',async(
  await saveReady(page);await page.getByRole('button',{name:'关卡 · 30',exact:true}).click();await page.getByRole('button',{name:/^11 /}).click();
  await page.getByRole('button',{name:'测试设置',exact:true}).click();await page.getByLabel('我方伙伴1',{exact:true}).selectOption('moonbat');await page.getByLabel('起始能量',{exact:true}).fill('1000');await page.getByLabel('技能测试模式',{exact:true}).selectOption('strict');await saveReady(page);
  await expect(page.locator('#wb-validation')).toContainText('0项未迁移功能');await page.getByRole('button',{name:'▶ Play 第11关',exact:true}).click();
- const ultimate=page.getByRole('button',{name:'月翼蝠大招',exact:true});await expect(ultimate).toBeEnabled();await ultimate.click();await page.waitForTimeout(150);await page.getByRole('button',{name:'暂停',exact:true}).click();
+ const ultimate=page.locator('[data-unit="moonbat"]');await expect(ultimate).toBeEnabled();await ultimate.click();await page.waitForTimeout(150);await page.getByRole('button',{name:'暂停',exact:true}).click();
  await expect(page.locator('#save-status')).toHaveText('测试已保存');
  const session=JSON.parse(await readSession(page));const engine=TowerEngine.restorePlaytest(session.serialized),snapshot=engine.getSnapshot();
  expect(snapshot.skippedFeatures).toEqual([]);expect(snapshot.battle!.units.some(u=>u.enemy&&u.silence>5)).toBe(true);expect(engine.getConfigSnapshot().Rules.Actions.silence!.Duration).toBe(7);expect(snapshot.mode).toBe('playtest');
@@ -343,9 +343,10 @@ test("怪物名称与介绍编辑实时同步列表与预览，保存导出与�
   await page
     .getByLabel("怪物介绍与功能定位", { exact: true })
     .fill("释放剧毒孢子造成持续伤害并抑制敌方恢复，适合后排消耗。");
-  await page
-    .getByLabel("自动技能介绍", { exact: true })
-    .fill("喷吐孢子雾造成持续伤害并减疗。");
+  await page.getByLabel("自动技能", { exact: true }).selectOption("poison");
+  await expect(page.locator("#wb-bound-auto-desc")).toContainText("毒刺");
+  await page.getByLabel("被动技能", { exact: true }).selectOption("execute");
+  await expect(page.locator("#wb-bound-passive-desc")).toContainText("低生命");
   await expect(
     page.locator(".wb-inspector .wb-section-title h2"),
   ).toHaveText("剧毒孢子菇");
@@ -381,7 +382,11 @@ test("怪物名称与介绍编辑实时同步列表与预览，保存导出与�
   expect(exported.Rules.Species.slime_dusk.PrimaryRole).toBe("持续减益");
   expect(exported.Rules.Species.slime_dusk.Specialty).toContain("释放剧毒孢子");
   expect(exported.Rules.Profiles.slime_dusk.AutoDescription).toContain(
-    "喷吐孢子雾",
+    "毒刺",
+  );
+  expect(exported.Rules.Profiles.slime_dusk.PassiveEffect).toBe("execute");
+  expect(exported.Rules.Profiles.slime_dusk.PassiveDescription).toContain(
+    "低生命",
   );
   page.once("dialog", (d) => d.accept());
   await page
@@ -393,7 +398,7 @@ test("怪物名称与介绍编辑实时同步列表与预览，保存导出与�
     "史莱姆",
   );
   await expect(page.getByLabel("主职责标签", { exact: true })).toHaveValue(
-    "法术",
+    "法术，远程",
   );
 });
 

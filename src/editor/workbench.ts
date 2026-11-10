@@ -3,7 +3,7 @@ import {defaultStrategy,orderedIds} from "../core/strategy";
 import {renderStrategy} from "./strategy-editor";
 import "./strategy.css";
 import {effectDefinitions,resolveEffects,hasDotRatio,dotDefaults,hasShieldRatio,defaultShieldRatio,type EffectKey,type ShieldSkill} from "../core/effects";
-import { skillLabel } from "../data/skill-labels";
+import { skillLabel, getSkillDescription, getPassiveInfo, passiveDefinitions } from "../data/skill-labels";
 import { spriteFileName } from "../data/sprite-files";
 import { spriteUrl } from "../battle-view/renderer";
 import { createMonster, dropSprite, renameSprite } from "./roster";
@@ -404,6 +404,49 @@ export class Workbench {
       })
       .join("");
 
+    const autoDesc = getSkillDescription(p.Auto);
+    const ultDesc = getSkillDescription(p.Ultimate);
+    const currentPassiveEffect =
+      p.PassiveEffect ||
+      (this.character === "hero"
+        ? "courage"
+        : this.character === "princess"
+          ? "watch"
+          : "");
+    const passiveInfo = getPassiveInfo(currentPassiveEffect);
+    const passiveDesc = passiveInfo.description;
+
+    if (p.AutoDescription !== autoDesc)
+      setPath(
+        this.project.source,
+        ["Rules", "Profiles", this.character, "AutoDescription"],
+        autoDesc,
+      );
+    if (p.UltimateDescription !== ultDesc)
+      setPath(
+        this.project.source,
+        ["Rules", "Profiles", this.character, "UltimateDescription"],
+        ultDesc,
+      );
+    if (p.PassiveDescription !== passiveDesc)
+      setPath(
+        this.project.source,
+        ["Rules", "Profiles", this.character, "PassiveDescription"],
+        passiveDesc,
+      );
+    if (
+      p.Passive !== passiveInfo.name &&
+      (this.character === "hero" ||
+        this.character === "princess" ||
+        p.PassiveEffect)
+    ) {
+      setPath(
+        this.project.source,
+        ["Rules", "Profiles", this.character, "Passive"],
+        passiveInfo.name,
+      );
+    }
+
     return `<div class="wb-section-title"><div><p class="eyebrow">CHARACTER INSPECTOR · ${esc(this.character)}${sp ? ` <button data-wb="rename-character" class="wb-subtle-btn">修改 ID</button>` : ""}</p><div class="wb-title-row"><h2>${esc(this.name(this.character))}</h2>${sp ? `<span class="wb-tier-badge wb-tier-${tierClass} wb-tier-lg">${esc(tier)}</span>` : ""}</div></div><div class="wb-title-actions">${sp ? `<button data-wb="delete-character" class="wb-danger-btn">删除此怪兽</button>` : ""}<button data-wb="reset-character">恢复此角色基线</button></div></div>${identity}<h3 class="wb-section-label">基础属性与每级成长 <small>左侧设定1级基础数值，右侧设定每级成长；右侧实时计算当前测试等级最终属性</small></h3><p class="wb-help">百分比用0—100填写。最终属性受等级、装备和属性上限影响；右侧预览由核心计算。</p><div class="wb-attr-grid">${attrCards}</div><h3 class="wb-section-label">行动与空间</h3><div class="wb-fields">${this.field("定位", ["Rules", "Profiles", this.character, "Role"], p.Role, { select: roles })}${this.field(
       "普攻伤害类型",
       ["Rules", "Combatants", this.character, "BasicDamageType"],
@@ -414,7 +457,23 @@ export class Workbench {
           ["magical", "法术（使用法术值）"],
         ],
       },
-    )}${this.field("普攻弹道", ["Rules", "Combatants", this.character, "ProjectileFamily"], d.ProjectileFamily, { select: [...new Set(["", ...Object.values(c.Rules.Combatants).map((d) => d.ProjectileFamily)])].map((v) => [v, v || "瞬时命中（无弹道）"]) })}${this.field("普攻间隔（秒）", ["Rules", "Profiles", this.character, "Interval"], p.Interval, { min: 0.4, max: 5, step: 0.05 })}${this.field("自动技能冷却（秒）", ["Rules", "Profiles", this.character, "Cooldown"], p.Cooldown, { min: 1, max: 30, step: 0.1 })}${this.field("普攻前摇比例", ["Rules", "Combatants", this.character, "WindupRatio"], d.WindupRatio, { min: 0.1, max: 0.8, step: 0.01 })}${this.field("碰撞半径", ["Rules", "Combatants", this.character, "Radius"], d.Radius ?? sp?.Radius ?? 0.4, { min: 0.05, max: 3, step: 0.05 })}${this.field("攻击射程", ["Rules", "Combatants", this.character, "AttackRange"], d.AttackRange ?? sp?.AttackRange ?? (["ranged", "healer"].includes(p.Role) ? 3.8 : 0.55), { min: 0.1, max: 10, step: 0.05 })}${this.field("移动速度", ["Rules", "Combatants", this.character, "MoveSpeed"], d.MoveSpeed ?? sp?.MoveSpeed ?? 3.8, { min: 0.1, max: 20, step: 0.1 })}</div><h3 class="wb-section-label">技能配置</h3><p class="wb-help">初始武器可能覆盖人类自动技能。未迁移技能可配置，但数值测试会停用并列明。</p><div class="wb-fields">${this.field("自动技能", ["Rules", "Profiles", this.character, "Auto"], p.Auto, { select: [["", "不使用自动技能"], ...this.skillOptions()] })}${this.field("手动大招", ["Rules", "Profiles", this.character, "Ultimate"], p.Ultimate, { select: this.skillOptions() })}${this.field("自动技能介绍", ["Rules", "Profiles", this.character, "AutoDescription"], p.AutoDescription, { text: true })}${this.field("手动大招介绍", ["Rules", "Profiles", this.character, "UltimateDescription"], p.UltimateDescription, { text: true })}${this.field("被动名称／介绍", ["Rules", "Profiles", this.character, "PassiveDescription"], p.PassiveDescription, { text: true })}</div>`;
+    )}${this.field("普攻弹道", ["Rules", "Combatants", this.character, "ProjectileFamily"], d.ProjectileFamily, { select: [...new Set(["", ...Object.values(c.Rules.Combatants).map((d) => d.ProjectileFamily)])].map((v) => [v, v || "瞬时命中（无弹道）"]) })}${this.field("普攻间隔（秒）", ["Rules", "Profiles", this.character, "Interval"], p.Interval, { min: 0.4, max: 5, step: 0.05 })}${this.field("自动技能冷却（秒）", ["Rules", "Profiles", this.character, "Cooldown"], p.Cooldown, { min: 1, max: 30, step: 0.1 })}${this.field("普攻前摇比例", ["Rules", "Combatants", this.character, "WindupRatio"], d.WindupRatio, { min: 0.1, max: 0.8, step: 0.01 })}${this.field("碰撞半径", ["Rules", "Combatants", this.character, "Radius"], d.Radius ?? sp?.Radius ?? 0.4, { min: 0.05, max: 3, step: 0.05 })}${this.field("攻击射程", ["Rules", "Combatants", this.character, "AttackRange"], d.AttackRange ?? sp?.AttackRange ?? (["ranged", "healer"].includes(p.Role) ? 3.8 : 0.55), { min: 0.1, max: 10, step: 0.05 })}${this.field("移动速度", ["Rules", "Combatants", this.character, "MoveSpeed"], d.MoveSpeed ?? sp?.MoveSpeed ?? 3.8, { min: 0.1, max: 20, step: 0.1 })}</div><h3 class="wb-section-label">技能配置 <small>技能说明与被动效果全部由所选技能自动绑定，无需手动填写</small></h3><p class="wb-help">初始武器可能覆盖人类自动技能。未迁移技能可配置，但数值测试会停用并列明。</p><div class="wb-skill-group"><div class="wb-skill-column">${this.field("自动技能", ["Rules", "Profiles", this.character, "Auto"], p.Auto, { select: [["", "不使用自动技能"], ...this.skillOptions()] })}<div class="wb-bound-box" id="wb-bound-auto-box"><span class="wb-bound-tag">自动技能说明（自动绑定）</span><p class="wb-bound-text" id="wb-bound-auto-desc">${esc(autoDesc)}</p></div></div><div class="wb-skill-column">${this.field("手动大招", ["Rules", "Profiles", this.character, "Ultimate"], p.Ultimate, { select: this.skillOptions() })}<div class="wb-bound-box" id="wb-bound-ultimate-box"><span class="wb-bound-tag">大招效果说明（自动绑定）</span><p class="wb-bound-text" id="wb-bound-ultimate-desc">${esc(ultDesc)}</p></div></div><div class="wb-skill-column">${this.field("被动技能", ["Rules", "Profiles", this.character, "PassiveEffect"], currentPassiveEffect, { select: this.passiveOptions() })}<div class="wb-bound-box" id="wb-bound-passive-box"><span class="wb-bound-tag">被动效果说明（自动绑定）</span><p class="wb-bound-text" id="wb-bound-passive-desc">${esc(passiveDesc)}</p></div></div></div>`;
+  }
+  private passiveOptions() {
+    const isHero = this.character === "hero";
+    const isPrincess = this.character === "princess";
+    const options: [string, string][] = [];
+    if (isHero) {
+      options.push(["courage", "勇气 · 主角专属"]);
+    } else if (isPrincess) {
+      options.push(["watch", "守望 · 公主专属"]);
+    }
+    options.push(["", "无被动"]);
+    for (const [id, def] of Object.entries(passiveDefinitions)) {
+      if (id === "courage" || id === "watch") continue;
+      options.push([id, `${def.name} · ${id}`]);
+    }
+    return options;
   }
   private skillOptions() {
     return Object.keys(this.config().Rules.Actions).map(
@@ -610,6 +669,50 @@ export class Workbench {
             setPath(this.project.source, ["Species", path[1] as number, "FrameSize"], sheet.FrameSize);
             const control = this.root?.querySelector<HTMLSelectElement>(`#wb-Species-${Number(path[1])}-FrameSize`);
             if (control) control.value = String(sheet.FrameSize);
+          }
+        }
+        if (path[0] === "Rules" && path[1] === "Profiles") {
+          const charId = String(path[2]);
+          const fieldKey = String(path[3]);
+          if (fieldKey === "Auto") {
+            const desc = getSkillDescription(String(value));
+            setPath(
+              this.project.source,
+              ["Rules", "Profiles", charId, "AutoDescription"],
+              desc,
+            );
+            const descEl = this.root?.querySelector("#wb-bound-auto-desc");
+            if (descEl) descEl.textContent = desc;
+          } else if (fieldKey === "Ultimate") {
+            const desc = getSkillDescription(String(value));
+            setPath(
+              this.project.source,
+              ["Rules", "Profiles", charId, "UltimateDescription"],
+              desc,
+            );
+            const descEl = this.root?.querySelector("#wb-bound-ultimate-desc");
+            if (descEl) descEl.textContent = desc;
+          } else if (fieldKey === "PassiveEffect") {
+            const effectId = String(value ?? "");
+            const isHumanChar = ["hero", "princess"].includes(charId);
+            const info = getPassiveInfo(effectId);
+            const storedEffectId =
+              isHumanChar && (effectId === "courage" || effectId === "watch")
+                ? ""
+                : effectId;
+            value = storedEffectId || undefined;
+            setPath(
+              this.project.source,
+              ["Rules", "Profiles", charId, "Passive"],
+              info.name,
+            );
+            setPath(
+              this.project.source,
+              ["Rules", "Profiles", charId, "PassiveDescription"],
+              info.description,
+            );
+            const descEl = this.root?.querySelector("#wb-bound-passive-desc");
+            if (descEl) descEl.textContent = info.description;
           }
         }
         setPath(this.project.source, path as Path, value);

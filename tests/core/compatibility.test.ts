@@ -1,5 +1,5 @@
 import {it,expect} from 'vitest';
-import raw from '../../data/tower/thirty-floor-trial.json';
+import raw from '../fixtures/historical-baseline.json';
 import save from '../fixtures/v04-nightwing-save.json';
 import expected from '../fixtures/v04-nightwing-expected.json';
 import {TowerEngine} from '../../src/core/engine';

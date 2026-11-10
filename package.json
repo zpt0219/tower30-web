@@ -17,7 +17,8 @@
     "test:godot:ui": "bash scripts/godot/ui.sh",
     "test:godot:project": "bash scripts/godot/project-check.sh",
     "deploy:lan": "npm run build && python3 scripts/deploy-lan.py",
-    "verify:lan": "node scripts/verify-lan.mjs"
+    "verify:lan": "node scripts/verify-lan.mjs",
+    "apply:baseline": "python3 scripts/apply-baseline.py"
   },
   "engines": {
     "node": ">=22.12"

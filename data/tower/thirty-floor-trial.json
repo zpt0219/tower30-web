@@ -2,7 +2,7 @@
   "Species": [
     {
       "Id": "sproutling",
-      "Name": "蘑菇精",
+      "Name": "树妖",
       "Sprite": "038_green_spore_fungus",
       "Hp": 30,
       "Mp": 0,
@@ -26,7 +26,7 @@
     },
     {
       "Id": "moonbat",
-      "Name": "月翼蝠",
+      "Name": "僵尸怪",
       "Sprite": "031_white_winged_bat",
       "Hp": 28,
       "Mp": 0,
@@ -38,7 +38,7 @@
     },
     {
       "Id": "forest_sprite",
-      "Name": "林间精灵",
+      "Name": "青蛇",
       "Sprite": "023_emerald_sprite_green",
       "Hp": 28,
       "Mp": 0,
@@ -62,7 +62,7 @@
     },
     {
       "Id": "nightwing",
-      "Name": "夜翼蝠",
+      "Name": "骷髅怪",
       "Sprite": "012_cave_bat_grey",
       "Hp": 28,
       "Mp": 0,
@@ -74,7 +74,7 @@
     },
     {
       "Id": "cave_wolf",
-      "Name": "岩洞狼",
+      "Name": "双头鸡",
       "Sprite": "018_cave_wolf_brown",
       "Hp": 32,
       "Mp": 0,
@@ -86,7 +86,7 @@
     },
     {
       "Id": "blade_skeleton",
-      "Name": "持刃骷髅",
+      "Name": "红蝎",
       "Sprite": "059_blade_skeleton",
       "Hp": 34,
       "Mp": 0,
@@ -98,7 +98,7 @@
     },
     {
       "Id": "mudguard",
-      "Name": "石壳守卫",
+      "Name": "土壳守卫",
       "Sprite": "026_mud_golem_brown",
       "Hp": 48,
       "Mp": 0,
@@ -110,7 +110,7 @@
     },
     {
       "Id": "crab",
-      "Name": "岩滩蟹",
+      "Name": "灰狼",
       "Sprite": "036_stone_cave_crab",
       "Hp": 40,
       "Mp": 0,
@@ -122,7 +122,7 @@
     },
     {
       "Id": "bronze_beetle",
-      "Name": "铜甲虫",
+      "Name": "大眼虫",
       "Sprite": "050_armored_bug_bronze",
       "Hp": 42,
       "Mp": 0,
@@ -134,7 +134,7 @@
     },
     {
       "Id": "moss_crawler",
-      "Name": "苔背爬虫",
+      "Name": "绿泥怪",
       "Sprite": "025_moss_crawler_green",
       "Hp": 44,
       "Mp": 0,
@@ -158,7 +158,7 @@
     },
     {
       "Id": "fire_imp",
-      "Name": "火焰小鬼",
+      "Name": "蘑菇怪",
       "Sprite": "019_fire_imp_red",
       "Hp": 27,
       "Mp": 0,
@@ -170,7 +170,7 @@
     },
     {
       "Id": "ice_spirit",
-      "Name": "寒冰精灵",
+      "Name": "蛇妖",
       "Sprite": "022_ice_spirit_blue",
       "Hp": 28,
       "Mp": 0,
@@ -182,7 +182,7 @@
     },
     {
       "Id": "evil_eye",
-      "Name": "邪眼",
+      "Name": "邪恶水母",
       "Sprite": "040_evil_eye_gazer",
       "Hp": 26,
       "Mp": 0,
@@ -194,7 +194,7 @@
     },
     {
       "Id": "necromancer",
-      "Name": "死灵学徒",
+      "Name": "剑盾蛙",
       "Sprite": "080_necromancer_pupil",
       "Hp": 34,
       "Mp": 0,
@@ -206,7 +206,7 @@
     },
     {
       "Id": "white_ghost",
-      "Name": "哀鸣幽灵",
+      "Name": "冰幽灵",
       "Sprite": "091_wailing_white_ghost",
       "Hp": 36,
       "Mp": 0,
@@ -218,7 +218,7 @@
     },
     {
       "Id": "wind_elemental",
-      "Name": "风暴元素",
+      "Name": "暴风兽",
       "Sprite": "090_wind_gale_elemental",
       "Hp": 34,
       "Mp": 0,
@@ -230,7 +230,7 @@
     },
     {
       "Id": "venom_dragonling",
-      "Name": "翠毒幼龙",
+      "Name": "翠毒龙",
       "Sprite": "096_venom_dragonling",
       "Hp": 40,
       "Mp": 0,
@@ -242,7 +242,7 @@
     },
     {
       "Id": "mimic",
-      "Name": "拟态宝箱",
+      "Name": "暗黑小子",
       "Sprite": "083_wooden_chest_mimic",
       "Hp": 44,
       "Mp": 0,
@@ -254,7 +254,7 @@
     },
     {
       "Id": "mantis",
-      "Name": "翡翠螳螂",
+      "Name": "剑盾兽人",
       "Sprite": "074_emerald_mantis",
       "Hp": 34,
       "Mp": 0,
@@ -266,7 +266,7 @@
     },
     {
       "Id": "orc_berserker",
-      "Name": "狂战兽人",
+      "Name": "萨满兽人",
       "Sprite": "082_orc_berserker_green",
       "Hp": 46,
       "Mp": 0,
@@ -278,7 +278,7 @@
     },
     {
       "Id": "spectral_samurai",
-      "Name": "幽甲武士",
+      "Name": "雷鸣兽",
       "Sprite": "067_phantom_samurai_knight",
       "Hp": 45,
       "Mp": 0,
@@ -290,7 +290,7 @@
     },
     {
       "Id": "skeleton_guard",
-      "Name": "重装骷髅",
+      "Name": "烈焰骷髅",
       "Sprite": "060_skeleton_heavy_infantry",
       "Hp": 54,
       "Mp": 0,
@@ -302,7 +302,7 @@
     },
     {
       "Id": "spectral_armor",
-      "Name": "幽魂铠甲",
+      "Name": "幽魂蝙蝠",
       "Sprite": "070_floating_spectral_armor",
       "Hp": 46,
       "Mp": 0,
@@ -314,7 +314,7 @@
     },
     {
       "Id": "earth_elemental",
-      "Name": "岩土元素",
+      "Name": "岩土兽",
       "Sprite": "089_earth_crag_elemental",
       "Hp": 56,
       "Mp": 0,
@@ -326,7 +326,7 @@
     },
     {
       "Id": "iron_automaton",
-      "Name": "铁卫魔偶",
+      "Name": "铁卫魔龙",
       "Sprite": "099_iron_automaton_soldier",
       "Hp": 58,
       "Mp": 0,
@@ -338,7 +338,7 @@
     },
     {
       "Id": "water_elemental",
-      "Name": "水元素",
+      "Name": "萨满魔龙",
       "Sprite": "087_water_pure_elemental",
       "Hp": 39,
       "Mp": 0,
@@ -350,7 +350,7 @@
     },
     {
       "Id": "lava_elemental",
-      "Name": "熔岩元素",
+      "Name": "熔岩魔龙",
       "Sprite": "088_magma_stone_elemental",
       "Hp": 48,
       "Mp": 0,
@@ -362,7 +362,7 @@
     },
     {
       "Id": "crystal_elemental",
-      "Name": "魔晶元素",
+      "Name": "幽冥火",
       "Sprite": "109_mana_crystal_elemental",
       "Hp": 34,
       "Mp": 0,
@@ -374,7 +374,7 @@
     },
     {
       "Id": "wisp",
-      "Name": "幽蓝游魂",
+      "Name": "胖跳兽",
       "Sprite": "068_blue_spectral_wraith",
       "Hp": 32,
       "Mp": 0,
@@ -422,7 +422,7 @@
     },
     {
       "Id": "nightmare",
-      "Name": "梦魇猎手",
+      "Name": "梦魇魔龙",
       "Sprite": "100_nightmare_shadow_fiend",
       "Hp": 50,
       "Mp": 0,
@@ -1032,7 +1032,7 @@
     "Species": {
       "sproutling": {
         "Tier": "普通",
-        "PrimaryRole": "辅助",
+        "PrimaryRole": "前排坦克",
         "SecondaryRoles": [
           "治疗"
         ],
@@ -1070,7 +1070,7 @@
           1342,
           1432
         ],
-        "Specialty": "身板脆弱，输出低",
+        "Specialty": "高防御，低魔抗。",
         "Radius": 0.4,
         "AttackRange": 3.8,
         "MoveSpeed": 3.8
@@ -1122,7 +1122,7 @@
       },
       "moonbat": {
         "Tier": "普通",
-        "PrimaryRole": "辅助",
+        "PrimaryRole": "前排",
         "SecondaryRoles": [
           "控制"
         ],
@@ -1167,7 +1167,7 @@
       },
       "forest_sprite": {
         "Tier": "普通",
-        "PrimaryRole": "辅助",
+        "PrimaryRole": "输出，debuff",
         "SecondaryRoles": [
           "治疗",
           "保护"
@@ -1206,7 +1206,7 @@
           1534,
           1636
         ],
-        "Specialty": "应对瞬间重伤较弱",
+        "Specialty": "应对瞬间重伤较弱，能给与毒素攻击",
         "Radius": 0.4,
         "AttackRange": 3.8,
         "MoveSpeed": 3.8
@@ -1258,7 +1258,7 @@
       },
       "nightwing": {
         "Tier": "普通",
-        "PrimaryRole": "输出",
+        "PrimaryRole": "输出，前排",
         "SecondaryRoles": [
           "吸血"
         ],
@@ -1296,14 +1296,14 @@
           1534,
           1636
         ],
-        "Specialty": "脆弱，怕眩晕",
+        "Specialty": "脆弱",
         "Radius": 0.36,
         "AttackRange": 0.55,
         "MoveSpeed": 4.1
       },
       "cave_wolf": {
         "Tier": "普通",
-        "PrimaryRole": "输出",
+        "PrimaryRole": "辅助，输出",
         "SecondaryRoles": [
           "追击"
         ],
@@ -1348,7 +1348,7 @@
       },
       "blade_skeleton": {
         "Tier": "普通",
-        "PrimaryRole": "输出",
+        "PrimaryRole": "输出，毒，debuff",
         "SecondaryRoles": [
           "破甲"
         ],
@@ -1438,7 +1438,7 @@
       },
       "crab": {
         "Tier": "普通",
-        "PrimaryRole": "肉盾",
+        "PrimaryRole": "输出",
         "SecondaryRoles": [
           "保护"
         ],
@@ -1476,14 +1476,14 @@
           1726,
           1841
         ],
-        "Specialty": "不能替代持续治疗",
+        "Specialty": "速度快，输出高，脆皮",
         "Radius": 0.55,
         "AttackRange": 0.55,
         "MoveSpeed": 3.3
       },
       "bronze_beetle": {
         "Tier": "普通",
-        "PrimaryRole": "肉盾",
+        "PrimaryRole": "法术，远程",
         "SecondaryRoles": [
           "物理防护"
         ],
@@ -1521,7 +1521,7 @@
           1534,
           1636
         ],
-        "Specialty": "怕法术爆发与破甲",
+        "Specialty": "后排，怕近身",
         "Radius": 0.55,
         "AttackRange": 0.55,
         "MoveSpeed": 3.3
@@ -1573,7 +1573,7 @@
       },
       "slime_dusk": {
         "Tier": "普通",
-        "PrimaryRole": "法术",
+        "PrimaryRole": "法术，远程",
         "SecondaryRoles": [
           "减速"
         ],
@@ -1611,14 +1611,14 @@
           767,
           818
         ],
-        "Specialty": "同级属性低，后期易被替换",
+        "Specialty": "最便宜的远程怪",
         "Radius": 0.36,
         "AttackRange": 3.8,
         "MoveSpeed": 3.8
       },
       "fire_imp": {
         "Tier": "普通",
-        "PrimaryRole": "法术",
+        "PrimaryRole": "法术，近战",
         "SecondaryRoles": [
           "灼烧"
         ],
@@ -1656,14 +1656,14 @@
           1151,
           1227
         ],
-        "Specialty": "怕近身，灼烧需要时间",
+        "Specialty": "初期近战怪",
         "Radius": 0.4,
         "AttackRange": 3.8,
         "MoveSpeed": 3.8
       },
       "ice_spirit": {
         "Tier": "普通",
-        "PrimaryRole": "法术",
+        "PrimaryRole": "法术，近战",
         "SecondaryRoles": [
           "控制"
         ],
@@ -1701,14 +1701,14 @@
           1342,
           1432
         ],
-        "Specialty": "直接伤害偏低",
+        "Specialty": "能打能放魔法",
         "Radius": 0.4,
         "AttackRange": 3.8,
         "MoveSpeed": 3.8
       },
       "evil_eye": {
         "Tier": "普通",
-        "PrimaryRole": "法术",
+        "PrimaryRole": "法术，远程",
         "SecondaryRoles": [
           "单体爆发"
         ],
@@ -1753,7 +1753,7 @@
       },
       "necromancer": {
         "Tier": "精英",
-        "PrimaryRole": "辅助",
+        "PrimaryRole": "肉盾，近战，输出",
         "SecondaryRoles": [
           "法术",
           "弱化"
@@ -1799,7 +1799,7 @@
       },
       "white_ghost": {
         "Tier": "精英",
-        "PrimaryRole": "辅助",
+        "PrimaryRole": "辅助，远程",
         "SecondaryRoles": [
           "净化",
           "保护"
@@ -1845,7 +1845,7 @@
       },
       "wind_elemental": {
         "Tier": "精英",
-        "PrimaryRole": "辅助",
+        "PrimaryRole": "肉盾",
         "SecondaryRoles": [
           "控制",
           "提速"
@@ -1884,14 +1884,14 @@
           2493,
           2659
         ],
-        "Specialty": "缺少稳定治疗与承伤",
+        "Specialty": "物抗法抗都不错",
         "Radius": 0.4,
         "AttackRange": 3.8,
         "MoveSpeed": 3.8
       },
       "venom_dragonling": {
         "Tier": "精英",
-        "PrimaryRole": "辅助",
+        "PrimaryRole": "辅助，输出，毒",
         "SecondaryRoles": [
           "法术",
           "压制"
@@ -1937,7 +1937,7 @@
       },
       "mimic": {
         "Tier": "精英",
-        "PrimaryRole": "输出",
+        "PrimaryRole": "输出，刺客",
         "SecondaryRoles": [
           "吸血",
           "承伤"
@@ -1983,7 +1983,7 @@
       },
       "mantis": {
         "Tier": "精英",
-        "PrimaryRole": "输出",
+        "PrimaryRole": "输出，肉盾",
         "SecondaryRoles": [
           "爆发"
         ],
@@ -2028,7 +2028,7 @@
       },
       "orc_berserker": {
         "Tier": "精英",
-        "PrimaryRole": "输出",
+        "PrimaryRole": "输出，法术，远程",
         "SecondaryRoles": [
           "群攻"
         ],
@@ -2073,7 +2073,7 @@
       },
       "spectral_samurai": {
         "Tier": "精英",
-        "PrimaryRole": "输出",
+        "PrimaryRole": "输出，肉盾",
         "SecondaryRoles": [
           "反击",
           "承伤"
@@ -2119,7 +2119,7 @@
       },
       "skeleton_guard": {
         "Tier": "精英",
-        "PrimaryRole": "肉盾",
+        "PrimaryRole": "肉盾，法术",
         "SecondaryRoles": [
           "嘲讽"
         ],
@@ -2164,7 +2164,7 @@
       },
       "spectral_armor": {
         "Tier": "精英",
-        "PrimaryRole": "肉盾",
+        "PrimaryRole": "法术。远程",
         "SecondaryRoles": [
           "法术防护"
         ],
@@ -2255,7 +2255,7 @@
       },
       "iron_automaton": {
         "Tier": "精英",
-        "PrimaryRole": "肉盾",
+        "PrimaryRole": "肉盾，输出",
         "SecondaryRoles": [
           "保护",
           "反击"
@@ -2301,7 +2301,7 @@
       },
       "water_elemental": {
         "Tier": "精英",
-        "PrimaryRole": "法术",
+        "PrimaryRole": "法术，输出",
         "SecondaryRoles": [
           "减速"
         ],
@@ -2438,7 +2438,7 @@
       },
       "wisp": {
         "Tier": "精英",
-        "PrimaryRole": "法术",
+        "PrimaryRole": "法术，肉盾",
         "SecondaryRoles": [
           "弱化",
           "范围压制"
@@ -2477,7 +2477,7 @@
           2109,
           2250
         ],
-        "Specialty": "爆发有限，领域可被走出",
+        "Specialty": "厚厚的毛能有效提高魔抗",
         "Radius": 0.4,
         "AttackRange": 3.8,
         "MoveSpeed": 3.8
@@ -2530,7 +2530,7 @@
       },
       "celestial_dragon": {
         "Tier": "传说",
-        "PrimaryRole": "辅助",
+        "PrimaryRole": "辅助，肉盾",
         "SecondaryRoles": [
           "净化",
           "法术"
@@ -5053,7 +5053,7 @@
         "Interruptible": true,
         "ScalingStat": "atk",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -5075,7 +5075,7 @@
         "Interruptible": true,
         "ScalingStat": "mag",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -5141,7 +5141,7 @@
         "Interruptible": true,
         "ScalingStat": "mag",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -5207,7 +5207,7 @@
         "Interruptible": true,
         "ScalingStat": "atk",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -5273,7 +5273,7 @@
         "Interruptible": true,
         "ScalingStat": "mag",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -5339,7 +5339,7 @@
         "Interruptible": true,
         "ScalingStat": "atk",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -5361,7 +5361,7 @@
         "Interruptible": true,
         "ScalingStat": "mag",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -5559,7 +5559,7 @@
         "Interruptible": true,
         "ScalingStat": "atk",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -5581,7 +5581,7 @@
         "Interruptible": true,
         "ScalingStat": "mag",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -5649,7 +5649,7 @@
         "Interruptible": true,
         "ScalingStat": "mag",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -5705,7 +5705,7 @@
         "Interruptible": true,
         "ScalingStat": "mag",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -5837,7 +5837,7 @@
         "Interruptible": true,
         "ScalingStat": "mag",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -5859,7 +5859,7 @@
         "Interruptible": true,
         "ScalingStat": "mag",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -5881,7 +5881,7 @@
         "Interruptible": true,
         "ScalingStat": "atk",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -5969,7 +5969,7 @@
         "Interruptible": true,
         "ScalingStat": "mag",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -6073,7 +6073,7 @@
         "Ratios": [
           1.5,
           1.75,
-          2.0
+          2
         ],
         "Bases": [
           0,
@@ -6116,7 +6116,7 @@
         "ScalingStat": "atk",
         "Ratios": [
           1.8,
-          2.0,
+          2,
           2.2
         ],
         "Bases": [
@@ -6242,7 +6242,7 @@
         "ScalingStat": "atk",
         "Ratios": [
           1.8,
-          2.0,
+          2,
           2.2
         ],
         "Bases": [
@@ -6365,7 +6365,7 @@
         "Interruptible": true,
         "ScalingStat": "mag",
         "Ratios": [
-          1.0,
+          1,
           1.2,
           1.4
         ],
@@ -6379,7 +6379,7 @@
         "DamageType": "physical",
         "Delivery": "instant",
         "Family": "",
-        "Windup": 2.0,
+        "Windup": 2,
         "Backswing": 0.3,
         "ProjectileSpeed": 20,
         "Lifetime": 2,
@@ -6401,7 +6401,7 @@
         "DamageType": "magical",
         "Delivery": "instant",
         "Family": "",
-        "Windup": 2.0,
+        "Windup": 2,
         "Backswing": 0.3,
         "ProjectileSpeed": 20,
         "Lifetime": 2,
@@ -6423,7 +6423,7 @@
         "DamageType": "physical",
         "Delivery": "instant",
         "Family": "",
-        "Windup": 1.0,
+        "Windup": 1,
         "Backswing": 0.3,
         "ProjectileSpeed": 20,
         "Lifetime": 2,
@@ -6494,7 +6494,7 @@
           "Count": 1,
           "Level": 1,
           "Rank": 1,
-          "Health": 1.0,
+          "Health": 1,
           "AttackScale": 1,
           "Souls": 1,
           "Experience": 11,
@@ -6516,7 +6516,7 @@
           "Count": 1,
           "Level": 1,
           "Rank": 1,
-          "Health": 1.0,
+          "Health": 1,
           "AttackScale": 1,
           "Souls": 1,
           "Experience": 11,
@@ -6527,7 +6527,7 @@
           "Count": 1,
           "Level": 1,
           "Rank": 1,
-          "Health": 1.0,
+          "Health": 1,
           "AttackScale": 1,
           "Souls": 1,
           "Experience": 11,
@@ -6550,7 +6550,7 @@
           "Level": 1,
           "Rank": 1,
           "Health": 1.087,
-          "AttackScale": 1.0,
+          "AttackScale": 1,
           "Souls": 1,
           "Experience": 11,
           "Potions": 1
@@ -6561,7 +6561,7 @@
           "Level": 1,
           "Rank": 1,
           "Health": 1.087,
-          "AttackScale": 1.0,
+          "AttackScale": 1,
           "Souls": 1,
           "Experience": 11,
           "Potions": 1
@@ -6572,7 +6572,7 @@
           "Level": 1,
           "Rank": 1,
           "Health": 1.087,
-          "AttackScale": 1.0,
+          "AttackScale": 1,
           "Souls": 1,
           "Experience": 11,
           "Potions": 1
@@ -7600,7 +7600,7 @@
           "Souls": 2,
           "Experience": 26,
           "Potions": 0,
-          "DefenseScale": 4.0,
+          "DefenseScale": 4,
           "ProfileOverride": {
             "Role": "tank",
             "Auto": "boss_carapace",

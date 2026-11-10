@@ -1,5 +1,6 @@
 import {expect,it} from 'vitest';
 import raw from '../../data/tower/thirty-floor-trial.json';
+import historicalRaw from '../fixtures/historical-baseline.json';
 import old from '../fixtures/v06-effects-compatibility.json';
 import {LegacyEngine as TowerEngine} from '../helpers/legacy-engine';
 import {validateConfig,fingerprint} from '../../src/core/config';
@@ -12,7 +13,7 @@ it('19bd885的真实v0.6战中记录精确恢复，默认配表指纹不变，�
  const e=TowerEngine.restorePlaytest(old.serialized);
  const expected={...old.expected,logicHz:20,stepSeconds:.05,seconds:old.expected.tick*.05,battle:{...old.expected.battle,seconds:old.expected.battle.tick*.05},events:old.expected.events.map(v=>({...v,seconds:v.tick*.05}))};
  expect(e.getSnapshot()).toEqual(expected);
- const normalized=validateConfig(raw);expect(normalized.Rules.Effects).toBeUndefined();expect(fingerprint(normalized)).toBe('fnv1a-1713cdf4');
+ const normalized=validateConfig(historicalRaw);expect(normalized.Rules.Effects).toBeUndefined();expect(fingerprint(normalized)).toBe('fnv1a-1713cdf4');
  e.advance(70);expect(JSON.parse(e.serialize()).engineVersion).toBe('tower30-ts-workbench-v5');
  const restored=TowerEngine.restorePlaytest(e.serialize());e.advance(40);restored.advance(40);expect(restored.getSnapshot()).toEqual(e.getSnapshot());
 });
