@@ -1,9 +1,9 @@
 import {FixedClock} from "./fixed-clock";
 import {advancePlaytest} from "../core/strategy";
-import { skillLabel } from "../data/skill-labels";
+import { getSkillRankDescriptions, skillLabel } from "../data/skill-labels";
 import "./style.css";
 import { config as baselineConfig } from "../data/load";
-import baselineSource from "../../data/tower/thirty-floor-trial.json";
+import baselineSource from "../../data/tower/trial.json";
 import { Workbench } from "../editor/workbench";
 import type { PlaytestSetup } from "../core/playtest";
 import { supportedSkills } from "../core/playtest";
@@ -14,6 +14,7 @@ import {
   itemNames,
   type Snapshot,
 } from "../core/engine";
+import { humanXpForLevel } from "../core/projections";
 import type { Attributes, Gear, Config } from "../core/config";
 import { editorProjectSchema } from "../core/project";
 import type { Command } from "../core/model";
@@ -58,6 +59,7 @@ let page = "tower",
   saveHold = false,
   damagedSave: string | null = null,
   keepBackupOnce = false,
+  clearBackupOnce = false,
   lastTime = 0,
 
   lastSaveTick = -1;
@@ -180,19 +182,23 @@ function attributes(a: Attributes, comparison?: Attributes) {
     .join("")}</dl>`;
 }
 function bonuses(g: Gear) {
-  return (
-    Object.entries(g.Attributes)
-      .filter(([, v]) => v > 0)
-      .map(([k, v]) => `${attrNames[k as keyof Attributes]} +${format(k, v)}`)
-      .join(" · ") || "无属性加成"
-  );
+  const parts = Object.entries(g.Attributes)
+    .filter(([, v]) => v > 0)
+    .map(([k, v]) => `${attrNames[k as keyof Attributes]} +${format(k, v)}`);
+  if (g.PostBattleHealBonus) {
+    parts.push(`战后人类回复 +${Math.round(g.PostBattleHealBonus * 100)}%`);
+  }
+  return parts.join(" · ") || "无属性加成";
 }
 function memberCard(m: Snapshot["members"][number], compact = false) {
   const spTier = config.Rules.Species[m.id]?.Tier;
+  const autoSummary = m.profile.AutoSkills?.length
+    ? m.profile.AutoSkills.map(skill).join(" / ")
+    : skill(m.profile.Auto);
   return `<article class="member-card ${m.hp === 0 ? "fallen" : ""}"><div class="member-top">${portrait(m.id)}<div><h3>${name(m.id)} <small>Lv.${m.level}</small></h3><p>${isHuman(m.id) ? roleNames[m.profile.Role] : `${spTier ? `[${spTier}] ` : ""}${"★".repeat(m.rank)} · ${config.Rules.Species[m.id]!.PrimaryRole}`}</p></div></div><div class="metric"><span>生命</span><b>${m.hp} / ${m.attributes.MaxHp}</b></div>${bar(m.hp, m.attributes.MaxHp)}<div class="metric energy-text"><span>能量</span><b>${Math.floor(m.energy)} / 1000</b></div>${bar(m.energy, 1000, "energy")}${
     compact
       ? ""
-      : `<p class="small">自动：${esc(skill(m.profile.Auto))} · 大招：${esc(skill(m.profile.Ultimate))}</p>${button(
+      : `<p class="small">自动：${esc(autoSummary)} · 大招：${esc(skill(m.profile.Ultimate))}</p>${button(
           "查看伙伴 →",
           () => {
             selectedMember = m.id;
@@ -260,7 +266,7 @@ function send(c: Command) {
   if (c.type === "finish" || c.type === "retry") {
     page = "tower";
     paused = true;
-    selectedFloor = Math.min(snap.floor, 30);
+    selectedFloor = Math.min(snap.floor, config.Floors.length);
   }
   render();
   queueSave();
@@ -358,8 +364,9 @@ async function flushSave() {
     const json = pendingSave;
     pendingSave = null;
     try {
-      await writeSave(json, keepBackupOnce);
+      await writeSave(json, keepBackupOnce, clearBackupOnce);
       keepBackupOnce = false;
+      clearBackupOnce = false;
       saveStatus = pendingSave === null ? "已保存到本机" : "正在保存…";
       storageFailed = false;
     } catch (e) {
@@ -439,7 +446,8 @@ function render() {
   configureSprites(config,snap.mode === "playtest" ? testSprites : {});
   actions.clear();
   const inBattle = page === "battle";
-  app.innerHTML = `<header class="topbar"><a class="brand" href="#" aria-label="试炼之塔首页"><span class="brand-seal">塔</span><div>翠庭试炼<small>THIRTY FLOORS</small></div></a><div class="run-status"><span>第 <b id="floor-counter">${String(Math.min(snap.floor, 30)).padStart(2, "0")}</b> / 30 层</span><span class="gold">${snap.mode === "playtest" ? '<b id="gold-counter">TEST</b> <small>不计奖励</small>' : `◈ <b id="gold-counter">${snap.gold}</b> <small>金币</small>`}</span></div><div class="save-indicator"><span class="version">${snap.mode === "playtest" ? "独立测试 · 不计通关" : snap.completed ? "已通关 · 30 / 30" : "正式试跑 · 全30层"}</span><button id="save-status" class="text-button">${saveStatus}</button></div></header><div class="workspace"><nav class="sidebar" aria-label="主要功能">${[
+  const totalFloors = config.Floors.length;
+  app.innerHTML = `<header class="topbar"><a class="brand" href="#" aria-label="试炼之塔首页"><span class="brand-seal">塔</span><div>翠庭试炼<small>${totalFloors === 100 ? "HUNDRED FLOORS" : `${totalFloors} FLOORS`}</small></div></a><div class="run-status"><span>第 <b id="floor-counter">${String(Math.min(snap.floor, totalFloors)).padStart(2, "0")}</b> / ${totalFloors} 层</span><span class="gold">${snap.mode === "playtest" ? '<b id="gold-counter">TEST</b> <small>不计奖励</small>' : `◈ <b id="gold-counter">${snap.gold}</b> <small>金币</small>`}</span></div><div class="save-indicator"><span class="version">${snap.mode === "playtest" ? "独立测试 · 不计通关" : snap.completed ? `已通关 · ${totalFloors} / ${totalFloors}` : `正式试跑 · 全${totalFloors}层`}</span><button id="save-status" class="text-button">${saveStatus}</button></div></header><div class="workspace"><nav class="sidebar" aria-label="主要功能">${[
     ["tower", "Ⅰ", "试炼"],
     ["party", "♟", "伙伴"],
     ["bag", "⚔", "装备"],
@@ -461,7 +469,7 @@ function render() {
     )
     .join(
       "",
-    )}<div class="nav-spacer"></div>${button("<span>⚙</span>存档", () => navigate("settings"), `nav-item ${page === "settings" ? "active" : ""}`, inBattle)}</nav><main class="${inBattle ? "battle-page" : "paper"} ${page === "editor" ? "editor-page" : ""}"><div class="page-heading"><div class="heading-left">${!["tower", "battle"].includes(page) ? button(page === "editor" ? "‹ 返回正式试跑" : "‹ 返回", back, "back") : ""}<div><p class="eyebrow">${inBattle ? "FOREST ARENA" : "THE EMERALD TRIAL"}</p><h1>${snap.mode === "playtest" && inBattle ? `独立 Play · 第${snap.floor}关` : labels[page]}</h1></div></div><div class="heading-note">${snap.mode === "playtest" ? "测试配置 " + snap.configHash : inBattle ? "自动交战 · 手动释放大招" : page === "tower" ? button("编辑属性与关卡 ▶ Play", () => openEditor(), "subtle") : page === "editor" ? "草稿 → 校验 → 独立测试" : "整备之后，再启程。"}</div></div>${inBattle ? battlePage() : `<div class="page-scroll">${content()}</div>`}</main></div><footer class="bottom-line"><span>30层编排 · 40物种已载入</span><span>${snap.mode === "playtest" ? "独立配置快照 · 测试不领取奖励" : page === "editor" ? "42角色 / 30关可编辑 · Play不改变正式存档" : inBattle ? "切换后台会自动暂停" : "全30层已开放 · 无免费恢复 · 本机独立存档"}</span></footer>`;
+    )}<div class="nav-spacer"></div>${button("<span>⚙</span>存档", () => navigate("settings"), `nav-item ${page === "settings" ? "active" : ""}`, inBattle)}</nav><main class="${inBattle ? "battle-page" : "paper"} ${page === "editor" ? "editor-page" : ""}"><div class="page-heading"><div class="heading-left">${!["tower", "battle"].includes(page) ? button(page === "editor" ? "‹ 返回正式试跑" : "‹ 返回", back, "back") : ""}<div><p class="eyebrow">${inBattle ? "FOREST ARENA" : "THE EMERALD TRIAL"}</p><h1>${snap.mode === "playtest" && inBattle ? `独立 Play · 第${snap.floor}关` : labels[page]}</h1></div></div><div class="heading-note">${snap.mode === "playtest" ? "测试配置 " + snap.configHash : inBattle ? "自动交战 · 手动释放大招" : page === "tower" ? button("编辑属性与关卡 ▶ Play", () => openEditor(), "subtle") : page === "editor" ? "草稿 → 校验 → 独立测试" : "整备之后，再启程。"}</div></div>${inBattle ? battlePage() : `<div class="page-scroll">${content()}</div>`}</main></div><footer class="bottom-line"><span>${config.Floors.length}层编排 · ${config.Species.length}物种已载入</span><span>${snap.mode === "playtest" ? "独立配置快照 · 测试不领取奖励" : page === "editor" ? `${Object.keys(config.Rules.Combatants).length}角色 / ${config.Floors.length}关可编辑 · Play不改变正式存档` : inBattle ? "切换后台会自动暂停" : `全${totalFloors}层已开放 · 无免费恢复 · 本机独立存档`}</span></footer>`;
   app.querySelector(".brand")!.addEventListener("click", (e) => {
     e.preventDefault();
     navigate("tower");
@@ -536,8 +544,11 @@ function content(): string {
   }
 }
 function completionPage() {
-  const c=snap.completion!;
-  return `<section class="completion-layout"><div class="completion-banner"><p class="eyebrow">THIRTY FLOORS CLEARED</p><h2>30层试炼已完成</h2><p>风暴祭司已被击败。每一层胜利、消耗与掉落，都保存在这次试跑中。</p><span class="tag">正式通关 · 3位守关首领</span></div><div class="completion-metrics"><article><span>已通过</span><strong>${c.floors} / 30 层</strong><p>完整战报可逐层回看</p></article><article><span>累计战斗</span><strong>${(c.seconds/60).toFixed(1)} 分钟</strong><p>固定步长下的实际胜利用时</p></article><article><span>当前金币</span><strong>◈ ${c.gold}</strong><p>商店阶段 ${c.bosses} 已开放</p></article><article><span>收集伙伴</span><strong>${c.members} 位</strong><p>${c.alive} 位存活，生命与能量按战后状态保留</p></article></div><div class="hint"><span>✧</span><p>通关不提供免费恢复。可以继续整备、付费住宿，或进入工作台独立测试任意关卡。</p></div><div class="button-row">${nav("records","查看30层战报","primary")}${button("进入配置工作台",openEditor)}${button("回顾关卡",()=>{showClearedFloor=true;selectedFloor=30;render();})}${nav("settings","存档与新试跑")}</div></section>`;
+  const c = snap.completion!,
+    totalFloors = config.Floors.length,
+    bossCount = config.Encounters.filter((e) => e.Boss).length,
+    finalTitle = config.Encounters.find((e) => e.Id === config.Floors[totalFloors - 1]?.Encounter)?.Title ?? "最终守关首领";
+  return `<section class="completion-layout"><div class="completion-banner"><p class="eyebrow">${totalFloors === 100 ? "HUNDRED FLOORS CLEARED" : `${totalFloors} FLOORS CLEARED`}</p><h2>${totalFloors}层试炼已完成</h2><p>已击败「${esc(finalTitle)}」。每一层胜利、消耗与掉落，都保存在这次试跑中。</p><span class="tag">正式通关 · ${bossCount}位守关首领 · 全物种满魂就绪</span></div><div class="completion-metrics"><article><span>已通过</span><strong>${c.floors} / ${totalFloors} 层</strong><p>完整战报可逐层回看</p></article><article><span>累计战斗</span><strong>${(c.seconds / 60).toFixed(1)} 分钟</strong><p>固定步长下的实际胜利用时</p></article><article><span>当前金币</span><strong>◈ ${c.gold}</strong><p>已击败 ${c.bosses} 位首领（商店阶段 ${snap.shopStage}）</p></article><article><span>收集伙伴</span><strong>${c.members} 位</strong><p>${c.alive} 位存活，生命与能量按战后状态保留</p></article></div><div class="hint"><span>✧</span><p>通关不提供免费恢复。可以继续升阶/培养伙伴、付费住宿，或进入工作台独立测试任意关卡。</p></div><div class="button-row">${nav("records", `查看${totalFloors}层战报`, "primary")}${button("进入配置工作台", openEditor)}${button("回顾关卡", () => { showClearedFloor = true; selectedFloor = totalFloors; render(); })}${nav("settings", "存档与新试跑")}</div></section>`;
 }
 function towerPage() {
   if(snap.completed&&!showClearedFloor)return completionPage();
@@ -545,13 +556,24 @@ function towerPage() {
     e = config.Encounters.find((e) => e.Id === f.Encounter)!,
     cleared = selectedFloor < snap.floor,
     current = selectedFloor === snap.floor,
-    supported = selectedFloor <= PLAYABLE_FLOORS;
+    supported = selectedFloor <= PLAYABLE_FLOORS,
+    brokenFloor = e.Enemies.some(
+      (g) =>
+        !config.Rules.Combatants[g.Species] ||
+        !config.Rules.Profiles[g.Species],
+    );
   return `<div class="tower-layout"><aside class="floor-list"><div class="section-caption">攀登记录 <span>${snap.records.length} 层已通过</span></div>${config.Floors.map(
     (f) => {
       const done = f.Number < snap.floor,
-        boss = f.Number % 10 === 0;
+        fEnc = config.Encounters.find((e) => e.Id === f.Encounter)!,
+        boss = fEnc.Boss,
+        fBroken = fEnc.Enemies.some(
+          (g) =>
+            !config.Rules.Combatants[g.Species] ||
+            !config.Rules.Profiles[g.Species],
+        );
       return button(
-        `<span class="floor-number">${String(f.Number).padStart(2, "0")}</span><span><b>${boss ? "守关之战" : f.Number <= PLAYABLE_FLOORS ? config.Encounters.find((e) => e.Id === f.Encounter)!.Title : f.Theme.split("·")[0]}</b><small>${done ? "已通过" : f.Number === snap.floor ? "当前楼层" : f.Number <= PLAYABLE_FLOORS ? "等待挑战" : "待后续版本开放"}</small></span><span class="floor-state">${done ? "✓" : boss ? "◆" : "›"}</span>`,
+        `<span class="floor-number">${String(f.Number).padStart(2, "0")}</span><span><b>${boss ? "守关之战" : f.Number <= PLAYABLE_FLOORS ? fEnc.Title : f.Theme.split("·")[0]}</b><small>${done ? "已通过" : fBroken ? "需在工作台修复" : f.Number === snap.floor ? "当前楼层" : f.Number <= PLAYABLE_FLOORS ? "等待挑战" : "待后续版本开放"}</small></span><span class="floor-state">${done ? "✓" : fBroken ? "!" : boss ? "◆" : "›"}</span>`,
         () => {
           selectedFloor = f.Number;
           const sc = document.querySelector<HTMLElement>(".floor-list");
@@ -565,18 +587,80 @@ function towerPage() {
     },
   ).join(
     "",
-  )}</aside><section class="floor-detail"><div class="floor-detail-scroll"><div class="floor-banner"><div><span class="tag">${e.Boss ? "BOSS · 守关" : esc(f.Theme)}</span><p class="eyebrow">FLOOR ${String(selectedFloor).padStart(2, "0")}</p><h2>${esc(e.Title)}</h2><p>${cleared ? "这一层的奖励已经领取。" : supported ? "整理队伍，准备踏入林间战场。" : "楼层资料已载入，技能迁移完成后开放挑战。"}</p></div><div class="tower-emblem" aria-hidden="true"><div class="tower-top"></div><div class="tower-body"><i></i><i></i><i></i></div><span>${String(selectedFloor).padStart(2, "0")}</span></div></div><div class="floor-info"><section><div class="section-caption">敌方阵容 <span>${e.Difficulty}</span></div><div class="enemy-line">${e.Enemies.map((g) => `<div class="enemy-entry">${portrait(g.Species)}<div><h3>${name(g.Species)} <small>×${g.Count}</small></h3><p>${config.Rules.Species[g.Species]?.Tier ? `[${config.Rules.Species[g.Species]!.Tier}] · ` : ""}Lv.${g.Level} · ${g.Rank}阶 · ${roleNames[config.Rules.Profiles[g.Species]!.Role]}</p><p class="small">${esc(config.Rules.Profiles[g.Species]!.AutoDescription || skill(config.Rules.Profiles[g.Species]!.Auto))}</p></div></div>`).join("")}</div></section><section class="rewards"><div class="section-caption">首次胜利奖励</div><strong class="reward-gold">◈ ${e.Gold} <small>金币</small></strong><p>击败敌人后获得魂魄、经验药水与战利品</p><p class="small">首次收集消耗1魂魄 · 新伙伴半血加入</p></section></div><div class="hint"><span>✧</span><p>${esc(e.Hint)}</p></div></div><div class="section-caption">我的队伍 <span>${snap.members.length} 位伙伴 · 最多5首发</span></div><div class="party-preview">${snap.members.map((m) => `<div>${portrait(m.id)}<div><b>${name(m.id)} <small>Lv.${m.level}</small></b><p>${m.hp} / ${m.attributes.MaxHp}</p>${bar(m.hp, m.attributes.MaxHp)}</div></div>`).join("")}</div><div class="page-actions">${snap.completed?button("返回通关页",()=>{showClearedFloor=false;render();}):""}<div class="small">${selectedFloor > snap.playableFloors ? "当前楼层尚未开放。" : cleared ? "已通关楼层不能重复领取奖励。" : "进入后先选首发，再开始交战。生命与能量跨战保留。"}</div>${button(cleared ? "已通过本层" : !supported ? "后续版本开放" : !current ? "请先通过前层" : "准备挑战 →", () => send({ type: "begin" }), "primary large", !current || !supported || cleared)}</div></section></div>`;
+  )}</aside><section class="floor-detail"><div class="floor-detail-scroll">${saveHold || damagedSave ? `<div class="hint"><span>!</span><div><p><b>检测到无法读取的旧版或损坏存档（未覆盖）</b>：可先导出故障原件备份，或直接清除旧存档从第1层重新开始。</p><div class="button-row">${damagedSave ? button("导出故障原件", () => downloadJson(damagedSave!, "tower30-damaged-original.json")) : ""}${button("清除旧存档并重新开始", resetIncompatibleSave, "danger")}</div></div></div>` : ""}<div class="floor-banner"><div><span class="tag">${e.Boss ? "BOSS · 守关" : esc(f.Theme)}</span><p class="eyebrow">FLOOR ${String(selectedFloor).padStart(2, "0")}</p><h2>${esc(e.Title)}</h2><p>${cleared ? "这一层的奖励已经领取。" : brokenFloor ? "该关卡包含已删除怪兽，请进入工作台关卡页调整。" : supported ? "整理队伍，准备踏入林间战场。" : "楼层资料已载入，技能迁移完成后开放挑战。"}</p></div><div class="tower-emblem" aria-hidden="true"><div class="tower-top"></div><div class="tower-body"><i></i><i></i><i></i></div><span>${String(selectedFloor).padStart(2, "0")}</span></div></div><div class="floor-info"><section><div class="section-caption">敌方阵容 <span>${e.Difficulty}</span></div><div class="enemy-line">${e.Enemies.map((g) => {
+    const spRule = config.Rules.Species[g.Species],
+      spProfile = config.Rules.Profiles[g.Species];
+    return spProfile
+      ? `<div class="enemy-entry">${portrait(g.Species)}<div><h3>${name(g.Species)} <small>×${g.Count}</small></h3><p>${spRule?.Tier ? `[${spRule.Tier}] · ` : ""}Lv.${g.Level} · ${g.Rank}阶 · ${roleNames[spProfile.Role] ?? spProfile.Role}</p><p class="small">${esc(spProfile.AutoDescription || skill(spProfile.Auto))}</p></div></div>`
+      : `<div class="enemy-entry">${portrait(g.Species)}<div><h3>${name(g.Species)} <small>×${g.Count}</small></h3><p>Lv.${g.Level} · ${g.Rank}阶 · 已删除怪兽</p><p class="small">该怪兽已从物种库移除，请在工作台关卡页替换或删除此敌组。</p></div></div>`;
+  }).join("")}</div></section><section class="rewards"><div class="section-caption">首次胜利奖励</div><strong class="reward-gold">◈ ${e.Gold} <small>金币</small></strong><p>击败敌人后获得魂魄、经验药水与战利品</p><p class="small">首次收集消耗1魂魄 · 新伙伴半血加入</p></section></div><div class="hint"><span>✧</span><p>${esc(e.Hint)}</p></div></div><div class="section-caption">我的队伍 <span>${snap.members.length} 位伙伴 · 最多5首发</span></div><div class="party-preview">${snap.members.map((m) => `<div>${portrait(m.id)}<div><b>${name(m.id)} <small>Lv.${m.level}</small></b><p>${m.hp} / ${m.attributes.MaxHp}</p>${bar(m.hp, m.attributes.MaxHp)}</div></div>`).join("")}</div><div class="page-actions">${snap.completed?button("返回通关页",()=>{showClearedFloor=false;render();}):""}<div class="small">${selectedFloor > snap.playableFloors ? "当前楼层尚未开放。" : cleared ? "已通关楼层不能重复领取奖励。" : brokenFloor ? "该关卡包含已删除怪兽，请在工作台关卡页修复后再挑战。" : "进入后先选首发，再开始交战。生命与能量跨战保留。"}</div>${button(cleared ? "已通过本层" : brokenFloor ? "需在工作台修复" : !supported ? "后续版本开放" : !current ? "请先通过前层" : "准备挑战 →", () => send({ type: "begin" }), "primary large", !current || !supported || cleared || brokenFloor)}</div></section></div>`;
 }
 function partyPage() {
   return `<div class="section-intro"><div><h2>一路同行的伙伴</h2><p>人类通过战斗经验成长；怪兽使用经验药水。满能量时，点击战场卡片释放大招。</p></div><span class="tag">${snap.members.length} 位已收集</span></div><div class="cards-grid">${snap.members.map((m) => memberCard(m)).join("")}</div>`;
 }
+function skillRankList(id: string, currentRank: number) {
+  const ranks = getSkillRankDescriptions(id);
+  if (!ranks) return "";
+  return `<div class="skill-ranks">${ranks
+    .map((desc, idx) => {
+      const r = idx + 1;
+      const reached = r <= currentRank;
+      const badge = r === 3 ? "质变I" : r === 5 ? "质变II" : `${r}阶`;
+      return `<p class="small">${reached ? "✓" : "·"} <b>${badge}</b>：${esc(desc)}</p>`;
+    })
+    .join("")}</div>`;
+}
 function memberPage() {
   const m = snap.members.find((m) => m.id === selectedMember)!;
-  return `<div class="detail-layout"><section>${memberCard(m, true)}<div class="section-caption">最终属性 <span>已计入装备</span></div>${attributes(m.attributes)}${isHuman(m.id) ? button("查看 / 更换装备 →", () => navigate("equipment"), "primary wide") : ""}</section><section><div class="section-caption">战斗技能</div><article class="info-card"><span class="tag">自动技能</span><h3>${skill(m.profile.Auto)}</h3><p>${esc(m.profile.AutoDescription || (m.id === "hero" ? "短前摇的单体物理攻击，使用攻击属性结算。" : "优先治疗低生命伙伴，使用法术属性结算。"))}</p></article><article class="info-card"><span class="tag">手动大招 · 1000能量</span><h3>${skill(m.profile.Ultimate)}</h3><p>${esc(m.profile.UltimateDescription || (m.id === "hero" ? "不可打断的强化单体斩击。消耗满额能量，在前摇后命中。" : "治疗附近受伤队友，并附加持续恢复。"))}</p></article>${isHuman(m.id) ? `<div class="hint"><p>人类共享战斗经验：${snap.xp}。升等级增加属性上限，生命不会免费恢复。</p></div>` : trainingPanel(m)}<div class="section-caption">使用道具</div><div class="button-row">${command({ type: "item", id: m.id, item: "herb" }, `草药 ×${snap.items.herb ?? 0}`, `为${name(m.id)}实际恢复${m.itemRecovery.herb}生命，消耗1份草药。`, "", !m.itemRecovery.herb || !snap.items.herb)}${command({ type: "item", id: m.id, item: "revive" }, `复活羽 ×${snap.items.revive ?? 0}`, `复活${name(m.id)}，恢复${m.itemRecovery.revive}生命，能量归零。`, "", !m.itemRecovery.revive || !snap.items.revive)}</div></section></div>`;
+  const effectiveRank =
+    m.id === "princess" && m.profile.AutoSkills?.length
+      ? Math.min(5, 1 + Math.floor((m.level - 1) / 6))
+      : m.rank;
+  const autoList = m.profile.AutoSkills?.length ? m.profile.AutoSkills : [m.profile.Auto];
+  const autoCards = autoList
+    .map((sid, idx) => {
+      const ranks = getSkillRankDescriptions(sid);
+      const summary = ranks
+        ? ranks[Math.min(Math.max(effectiveRank - 1, 0), 4)]!
+        : m.profile.AutoDescription || (m.id === "hero" ? "短前摇的单体物理攻击，使用攻击属性结算。" : "优先治疗低生命伙伴，使用法术属性结算。");
+      const slotLabel = m.profile.AutoSkills?.length
+        ? `普通技能${autoList.length > 1 ? ` ${idx + 1}` : ""} · 每${m.profile.TriggerEvery ?? 3}次普攻触发${m.id === "princess" ? ` · 随等级等效 ${effectiveRank} 阶` : ""}`
+        : "自动技能";
+      return `<article class="info-card"><span class="tag">${slotLabel}</span><h3>${skill(sid)}</h3><p>${esc(summary)}</p>${!isHuman(m.id) && m.profile.AutoSkills?.length ? skillRankList(sid, m.rank) : ""}</article>`;
+    })
+    .join("");
+  const ultRanks = getSkillRankDescriptions(m.profile.Ultimate);
+  const ultSummary = ultRanks
+    ? ultRanks[Math.min(Math.max(effectiveRank - 1, 0), 4)]!
+    : m.profile.UltimateDescription || (m.id === "hero" ? "不可打断的强化单体斩击。消耗满额能量，在前摇后命中。" : "治疗附近受伤队友，并附加持续恢复。");
+  const princessHealCard =
+    m.id === "princess" && config.Rules.Profiles.princess?.PassiveEffect === "post_battle_human_heal"
+      ? `<article class="info-card"><span class="tag">战后被动 · 可由装备提升</span><h3>${esc(m.profile.Passive || "战后守望")}（当前 ${Math.round((snap.postBattleHumanHealRatio ?? 0) * 100)}%）</h3><p>${esc(m.profile.PassiveDescription || "战斗胜利后若公主参战并存活，为两位存活人类恢复一定百分比最大生命。")}</p></article>`
+      : "";
+  return `<div class="detail-layout"><section>${memberCard(m, true)}<div class="section-caption">最终属性 <span>已计入装备</span></div>${attributes(m.attributes)}${isHuman(m.id) ? button("查看 / 更换装备 →", () => navigate("equipment"), "primary wide") : ""}</section><section><div class="section-caption">战斗技能</div>${autoCards}<article class="info-card"><span class="tag">手动大招 · 1000能量</span><h3>${skill(m.profile.Ultimate)}</h3><p>${esc(ultSummary)}</p>${!isHuman(m.id) && m.profile.AutoSkills?.length ? skillRankList(m.profile.Ultimate, m.rank) : ""}</article>${princessHealCard}${isHuman(m.id) ? (() => { const curBase = humanXpForLevel(config.HumanXpThresholds, m.level); const nextTotal = humanXpForLevel(config.HumanXpThresholds, m.level + 1); const cur = Math.max(0, snap.xp - curBase); const span = Math.max(1, nextTotal - curBase); return `<div class="hint"><p>人类共享战斗经验：${snap.xp}（当前级 ${cur} / ${span}，下级还需 ${Math.max(0, span - cur)}）。无限成长：每级线性增幅基础属性，升级所需经验逐级提高，生命不会免费恢复。</p></div>`; })() : trainingPanel(m)}<div class="section-caption">使用道具</div><div class="button-row">${command({ type: "item", id: m.id, item: "herb" }, `草药 ×${snap.items.herb ?? 0}`, `为${name(m.id)}实际恢复${m.itemRecovery.herb}生命，消耗1份草药。`, "", !m.itemRecovery.herb || !snap.items.herb)}${command({ type: "item", id: m.id, item: "revive" }, `复活羽 ×${snap.items.revive ?? 0}`, `复活${name(m.id)}，恢复${m.itemRecovery.revive}生命，能量归零。`, "", !m.itemRecovery.revive || !snap.items.revive)}</div></section></div>`;
 }
 function trainingPanel(m: Snapshot["members"][number]) {
   const t = m.training;
-  return `<div class="section-caption">伙伴培养 <span>${m.rank}阶 · Lv.${m.level}</span></div><div class="info-card"><p>当前经验 <b>${t.xp} / ${t.next}</b> · 储备 <b>${t.available}</b> 小瓶单位</p><p>本次培养至 Lv.${t.targetLevel}，消耗 <b>${t.units}</b> 小瓶单位（小 / 中 / 大 = 1 / 4 / 20）</p><p>同种魂魄 <b>${snap.souls[m.id] ?? 0}</b> / ${t.rankCost} · 下一阶：${m.rank === 1 ? "自动技能 Lv.2" : m.rank === 2 ? "被动 Lv.1" : m.rank === 3 ? "大招 Lv.2" : m.rank === 4 ? "自动技能 Lv.3 / 被动 Lv.2" : "已满阶"}</p><div class="button-row">${command({ type: "train", id: m.id }, "药水升级", `消耗${t.units}小瓶单位为${name(m.id)}培养至Lv.${t.targetLevel}，生命保持不变，多出的瓶数以小瓶找零。`, "primary", t.available < t.units || m.level >= 30)}${command({ type: "rank", id: m.id }, "魂魄升阶", `消耗${t.rankCost}个同种魂魄升阶。`, "", m.rank >= 5 || (snap.souls[m.id] ?? 0) < t.rankCost)}${command({ type: "refund", id: m.id }, "退还药水", `退还${t.refund}小瓶，重置药水经验；生命不超过降级后的上限。`, "", t.refund === 0)}</div></div>`;
+  const nextRankHint = m.profile.AutoSkills?.length
+    ? m.rank === 1
+      ? "2阶 · 技能倍率跃升 (+35%～45%)"
+      : m.rank === 2
+        ? "3阶 · 第一次质变（形态/频次/机制进化）"
+        : m.rank === 3
+          ? "4阶 · 强化精熟（新机制强度暴涨）"
+          : m.rank === 4
+            ? "5阶 · 终极觉醒（第二次机制质变）"
+            : "已满阶"
+    : m.rank === 1
+      ? "自动技能 Lv.2"
+      : m.rank === 2
+        ? "被动 Lv.1"
+        : m.rank === 3
+          ? "大招 Lv.2"
+          : m.rank === 4
+            ? "自动技能 Lv.3 / 被动 Lv.2"
+            : "已满阶";
+  return `<div class="section-caption">伙伴培养 <span>${m.rank}阶 · Lv.${m.level}</span></div><div class="info-card"><p>当前经验 <b>${t.xp} / ${t.next}</b> · 储备 <b>${t.available}</b> 小瓶单位</p><p>本次培养至 Lv.${t.targetLevel}，消耗 <b>${t.units}</b> 小瓶单位（小 / 中 / 大 = 1 / 4 / 20）</p><p>同种魂魄 <b>${snap.souls[m.id] ?? 0}</b> / ${t.rankCost} · 下一阶：${nextRankHint}</p><div class="button-row">${command({ type: "train", id: m.id }, "药水升级", `消耗${t.units}小瓶单位为${name(m.id)}培养至Lv.${t.targetLevel}（单级属性线性提升，越往后所需经验越高），生命保持不变。`, "primary", t.available < t.units)}${command({ type: "rank", id: m.id }, "魂魄升阶", `消耗${t.rankCost}个同种魂魄升阶。`, "", m.rank >= 5 || (snap.souls[m.id] ?? 0) < t.rankCost)}${command({ type: "refund", id: m.id }, "退还药水", `退还${t.refund}小瓶，重置药水经验；生命不超过降级后的上限。`, "", t.refund === 0)}</div></div>`;
 }
 function equipmentPage() {
   const m = snap.members.find((m) => m.id === selectedMember)!;
@@ -696,7 +780,7 @@ function bagPage() {
   }</div>`;
 }
 function shopPage() {
-  return `<div class="section-intro"><div><h2>为下一战做好准备</h2><p>击败10 / 20 / 30层Boss解锁新阶段。有限库存不会因刷新补充。</p></div><span class="tag">当前阶段 ${snap.shopStage} · ◈ ${snap.gold}</span></div><div class="shop-list">${config.Economy.Offers.map(
+  return `<div class="section-intro"><div><h2>为下一战做好准备</h2><p>击败第 10 / 20 / 40 / 60 / 80 层Boss解锁新阶段。有限库存不会因刷新补充。</p></div><span class="tag">当前阶段 ${snap.shopStage} · ◈ ${snap.gold}</span></div><div class="shop-list">${config.Economy.Offers.map(
     (o) => {
       const g = config.Rules.Equipment.find((g) => g.Id === o.Item),
         locked = o.Stage > snap.shopStage,
@@ -745,14 +829,105 @@ function buyDialog(id: string) {
     send({ type: "buy", id, quantity });
   });
 }
+function sellDialog(id: string) {
+  const base = engine.quoteSell(id, 1);
+  if (!base) return;
+  const maxSell = Math.min(base.owned, 9999);
+  const half = Math.floor(maxSell / 2);
+  const presets =
+    maxSell > 1
+      ? `<div class="qty-presets"><button type="button" data-qty-set="1">1份</button>${
+          maxSell >= 6
+            ? `<button type="button" data-qty-delta="-5">−5</button><button type="button" data-qty-delta="5">+5</button>`
+            : ""
+        }${
+          maxSell >= 4 && half > 1 && half < maxSell
+            ? `<button type="button" data-qty-set="${half}">一半 (${half})</button>`
+            : ""
+        }<button type="button" data-qty-set="${maxSell}">全部 (${maxSell})</button></div>`
+      : "";
+  const sliderHtml =
+    maxSell > 1
+      ? `<input id="sell-slider" class="qty-slider" type="range" min="1" max="${maxSell}" step="1" value="1" aria-label="滑动选择出售数量">`
+      : "";
+  const d = dialog(
+    "出售确认",
+    `<h3>${name(id)} <span class="small">持有 ×${base.owned} · 单价 ◈ ${base.unitPrice}</span></h3><p>${itemDescription(id)}</p><div class="quantity-label"><label for="sell-quantity">出售数量</label><div class="qty-stepper"><button type="button" data-qty-delta="-1" title="减少1份">−1</button><input id="sell-quantity" type="number" min="1" max="${maxSell}" step="1" value="1" inputmode="numeric"><button type="button" data-qty-delta="1" title="增加1份">+1</button></div></div>${sliderHtml}${presets}<div id="sell-quote" class="quote"></div><div class="dialog-actions"><button data-cancel>取消</button><button data-confirm class="primary">确认出售</button></div>`,
+  );
+  const input = d.querySelector<HTMLInputElement>("#sell-quantity")!,
+    slider = d.querySelector<HTMLInputElement>("#sell-slider"),
+    confirm = d.querySelector<HTMLButtonElement>("[data-confirm]")!,
+    quoteBox = d.querySelector<HTMLDivElement>("#sell-quote")!,
+    setButtons = [...d.querySelectorAll<HTMLButtonElement>("[data-qty-set]")],
+    deltaButtons = [
+      ...d.querySelectorAll<HTMLButtonElement>("[data-qty-delta]"),
+    ];
+  const update = () => {
+    const qty = Number(input.value);
+    const quote = engine.quoteSell(id, qty);
+    const valid = !!quote && quote.remaining >= 0;
+    quoteBox.innerHTML = valid
+      ? `<p>出售 <b>${quote.quantity} 份</b> · 获得 <b>◈ ${quote.total}</b></p><p>出售后持有 <b>×${quote.remaining}</b> · 金币余额 <b>◈ ${quote.balance}</b></p>`
+      : quote && quote.remaining < 0
+        ? `持有数量不足（最多可出售 ${maxSell} 份）。`
+        : `请输入 1—${maxSell} 的整数数量。`;
+    confirm.disabled = !valid;
+    confirm.textContent = valid
+      ? `确认出售 ${quote.quantity} 份 · ◈ ${quote.total}`
+      : "确认出售";
+    if (slider && Number.isInteger(qty) && qty >= 1 && qty <= maxSell)
+      slider.value = String(qty);
+    setButtons.forEach((b) =>
+      b.classList.toggle("active", valid && Number(b.dataset.qtySet) === qty),
+    );
+    const current = Number.isInteger(qty)
+      ? Math.max(1, Math.min(maxSell, qty))
+      : 1;
+    deltaButtons.forEach((b) => {
+      const delta = Number(b.dataset.qtyDelta);
+      b.disabled = delta < 0 ? current <= 1 : current >= maxSell;
+    });
+  };
+  const setQty = (next: number) => {
+    input.value = String(Math.max(1, Math.min(maxSell, Math.round(next))));
+    update();
+  };
+  input.addEventListener("input", update);
+  slider?.addEventListener("input", () => setQty(Number(slider.value)));
+  setButtons.forEach((b) =>
+    b.addEventListener("click", () => setQty(Number(b.dataset.qtySet))),
+  );
+  deltaButtons.forEach((b) =>
+    b.addEventListener("click", () => {
+      const cur = Number.isInteger(Number(input.value))
+        ? Number(input.value)
+        : 1;
+      setQty(cur + Number(b.dataset.qtyDelta));
+    }),
+  );
+  update();
+  d.querySelector("[data-cancel]")!.addEventListener("click", () => d.close());
+  confirm.addEventListener("click", () => {
+    const quantity = Number(input.value);
+    d.close();
+    send({ type: "sell", id, quantity });
+  });
+}
 function itemsPage() {
   return `<div class="section-intro"><p>恢复没有免费捷径。使用前先查看目标和实际恢复量。</p>${nav("shop", "补充道具 →")}</div><div class="cards-grid">${Object.entries(
     itemNames,
   )
-    .map(
-      ([id, label]) =>
-        `<article class="info-card"><div class="card-heading"><h3>${label}</h3><span class="item-count">×${snap.items[id] ?? 0}</span></div><p>${itemDescription(id)}</p>${id === "herb" || id === "revive" ? button("选择使用目标", () => itemDialog(id), "primary", (snap.items[id] ?? 0) <= 0) : id === "shell" ? command({ type: "sell", id, quantity: 1 }, "出售1份 · 10金币", "出售1份硬壳，获得10金币。", "", (snap.items[id] ?? 0) <= 0) : nav("party", "选择伙伴培养 →")}</article>`,
-    )
+    .map(([id, label]) => {
+      const count = snap.items[id] ?? 0;
+      const sellPrice = config.Economy.SellPrices[id];
+      const footer =
+        id === "herb" || id === "revive"
+          ? `<div class="button-row">${button("选择使用目标", () => itemDialog(id), "primary", count <= 0)}${sellPrice ? button(`出售 · ◈ ${sellPrice}`, () => sellDialog(id), "", count <= 0) : ""}</div>`
+          : sellPrice
+            ? button(`出售 · ◈ ${sellPrice}/份`, () => sellDialog(id), "", count <= 0)
+            : nav("party", "选择伙伴培养 →");
+      return `<article class="info-card"><div class="card-heading"><h3>${label}</h3><span class="item-count">×${count}</span></div><p>${itemDescription(id)}</p>${footer}</article>`;
+    })
     .join("")}</div>`;
 }
 function itemDialog(item: "herb" | "revive") {
@@ -782,7 +957,7 @@ function innPage() {
   return `<div class="inn-hero"><div class="moon" aria-hidden="true">☾</div><div><p class="eyebrow">A MOMENT OF REST</p><h2>在林间，歇一歇。</h2><p>恢复全队生命，复活倒下的伙伴。<br>存活者保留能量；倒下者复活后能量为0。</p></div><div class="inn-price"><small>本次住宿</small><b>◈ ${snap.innPrice}</b><span>余额 ${snap.gold} 金币</span></div></div><div class="section-caption">恢复预览 <span>确认后才扣费</span></div><div class="rest-list">${snap.members.map((m) => `<article>${portrait(m.id)}<div><h3>${name(m.id)}</h3><p>${m.hp} → ${m.attributes.MaxHp} <span class="delta">+${m.restRecovery}</span></p><p class="small">能量 ${Math.floor(m.energy)} → ${m.hp > 0 ? Math.floor(m.energy) : 0}</p></div><span class="tag">${m.hp === 0 ? "复活" : m.restRecovery > 0 ? "恢复生命" : "生命已满"}</span></article>`).join("")}</div><div class="page-actions"><p>${need ? (snap.gold < snap.innPrice ? "金币不足，可以出售多余战利品。" : "过层、Boss与通关都不会免费恢复。") : "全队生命已满，无需支付住宿费用。"}</p>${command({ type: "rest" }, "确认住宿", `支付${snap.innPrice}金币，为全队恢复生命并复活倒下伙伴。`, "primary large", !need || snap.gold < snap.innPrice)}</div>`;
 }
 function codexPage() {
-  return `<div class="section-intro"><p>40个物种的当前属性与成长资料。图鉴中的存在不代表本版已经开放获取。</p><label class="search">查找物种 <input id="codex-search" value="${esc(codexFilter)}" placeholder="名称 / 定位" aria-label="查找物种"></label></div><div id="codex-list" class="cards-grid codex-grid">${codexCards()}</div>`;
+  return `<div class="section-intro"><p>${config.Species.length}个物种的当前属性与成长资料。图鉴中的存在不代表本版已经开放获取。</p><label class="search">查找物种 <input id="codex-search" value="${esc(codexFilter)}" placeholder="名称 / 定位" aria-label="查找物种"></label></div><div id="codex-list" class="cards-grid codex-grid">${codexCards()}</div>`;
 }
 function codexCards() {
   return (
@@ -795,7 +970,11 @@ function codexCards() {
         const p = config.Rules.Species[s.Id]!,
           a = config.Rules.Combatants[s.Id]!.Base,
           profile = config.Rules.Profiles[s.Id]!;
-        return `<article class="info-card"><div class="member-top">${portrait(s.Id)}<div><h3>${s.Name}</h3><p>${p.Tier} · ${p.PrimaryRole} / ${p.SecondaryRoles.join("、")}</p></div></div><div class="codex-stats"><span>生命 <b>${a.MaxHp}</b></span><span>攻击 <b>${a.Attack}</b></span><span>防御 <b>${a.Defense}</b></span><span>法术 <b>${a.Magic}</b></span><span>魔抗 <b>${a.Resistance}</b></span><span>移速 <b>${p.MoveSpeed}</b></span></div><p>${esc(profile.AutoDescription)}</p><p>${esc(profile.UltimateDescription)}</p><p class="small">${esc(p.Specialty)}</p>${button("属性 / 成长详情", () => dialog(s.Name, `<p>${p.Tier} · ${p.PrimaryRole} · 射程 ${p.AttackRange} · 半径 ${p.Radius}</p>${attributes(a)}<h3>每级成长</h3>${attributes(config.Rules.Combatants[s.Id]!.Growth)}<p>${esc(profile.PassiveDescription)}</p><p>等级上限30 · 经验需求 ${p.LevelCosts.join(" / ")}</p>`), "subtle wide")}</article>`;
+        const skillIds = [...(profile.AutoSkills?.length ? profile.AutoSkills : [profile.Auto]), profile.Ultimate];
+        const skillDetailHtml = skillIds
+          .map((sid, idx) => `<h4>${idx < skillIds.length - 1 ? `普通技能${skillIds.length > 2 ? ` ${idx + 1}` : ""}` : "终极技能"} · ${skill(sid)}</h4>${skillRankList(sid, 5)}`)
+          .join("");
+        return `<article class="info-card"><div class="member-top">${portrait(s.Id)}<div><h3>${s.Name}</h3><p>${p.Tier} · ${p.PrimaryRole} / ${p.SecondaryRoles.join("、")}</p></div></div><div class="codex-stats"><span>生命 <b>${a.MaxHp}</b></span><span>攻击 <b>${a.Attack}</b></span><span>防御 <b>${a.Defense}</b></span><span>法术 <b>${a.Magic}</b></span><span>魔抗 <b>${a.Resistance}</b></span><span>移速 <b>${p.MoveSpeed}</b></span></div><p>${esc(profile.AutoDescription)}</p><p>${esc(profile.UltimateDescription)}</p><p class="small">${esc(p.Specialty)}</p>${button("属性 / 技能详情", () => dialog(s.Name, `<p>${p.Tier} · ${p.PrimaryRole} · 射程 ${p.AttackRange} · 半径 ${p.Radius}</p>${attributes(a)}<h3>每级成长</h3>${attributes(config.Rules.Combatants[s.Id]!.Growth)}${skillDetailHtml}<p>${esc(profile.PassiveDescription)}</p><p>无等级上限（Lv.30 后经验需求每级 ×1.18）· 前30级需求 ${p.LevelCosts.join(" / ")}</p>`), "subtle wide")}</article>`;
       })
       .join("") || '<p class="empty">没有找到符合条件的物种。</p>'
   );
@@ -811,6 +990,29 @@ function contributions(
 ) {
   return `<div class="table-scroll"><table><thead><tr><th>伙伴</th><th>实际伤害</th><th>有效治疗</th><th>护盾吸收</th></tr></thead><tbody>${rows.map((r) => `<tr><th>${name(r.id)}</th><td>${r.damage}</td><td>${r.healing}</td><td>${r.absorbed}</td></tr>`).join("")}</tbody></table></div>`;
 }
+function resetIncompatibleSave() {
+  confirmAction(
+    "清除旧存档并重新开始",
+    "将清除无法读取的旧版或损坏存档，从第1层重新开始并立即保存。若需留档请先点击「导出故障原件」。",
+    () => {
+      engine = new TowerEngine(config);
+      normalEngine = engine;
+      saveHold = false;
+      storageFailed = false;
+      damagedSave = null;
+      keepBackupOnce = false;
+      clearBackupOnce = true;
+      refresh();
+      selectedFloor = 1;
+      showClearedFloor = false;
+      page = "tower";
+      history.length = 0;
+      render();
+      queueSave();
+      toast("已清除旧存档并开始新的100层试跑。");
+    },
+  );
+}
 function settingsPage() {
   return `<div class="settings-layout"><section><div class="section-caption">本机独立存档</div><article class="info-card"><h3>${saveStatus}</h3><p>操作后与战斗中自动保存。存档记录种子、tick、操作序列和配表指纹，导入时由核心重放校验。</p><p class="small">种子 ${snap.seed} · tick ${snap.tick} · 命令 ${snap.sequence}<br>配表 ${snap.configHash}</p><div class="button-row">${button(
     "立即保存",
@@ -821,12 +1023,16 @@ function settingsPage() {
             "会用当前试跑替换无法读取的存档。请先导出故障原件。",
             () => {
               saveHold = false;
+              storageFailed = false;
+              damagedSave = null;
+              clearBackupOnce = true;
+              render();
               queueSave();
             },
           )
         : queueSave(),
     "primary",
-  )}${button("导出存档 JSON", exportSave)}${damagedSave ? button("导出故障原件", () => downloadJson(damagedSave!, "tower30-damaged-original.json")) : ""}${button(
+  )}${button("导出存档 JSON", exportSave)}${damagedSave ? `${button("导出故障原件", () => downloadJson(damagedSave!, "tower30-damaged-original.json"))}${button("清除旧存档并重新开始", resetIncompatibleSave, "danger")}` : ""}${button(
     "导入存档",
     () => {
       const input = document.createElement("input");
@@ -854,6 +1060,9 @@ function settingsPage() {
         () => {
           engine = new TowerEngine(config, seed);
           saveHold = false;
+          storageFailed = false;
+          damagedSave = null;
+          clearBackupOnce = true;
           refresh();
           selectedFloor = 1;
           showClearedFloor=false;
@@ -865,7 +1074,7 @@ function settingsPage() {
       );
     },
     "danger",
-  )}</article></section><section><div class="section-caption">首版试玩说明</div><article class="info-card"><h3>M3 · 完整30层资源流程</h3><p>已接通：固定60 tick/秒、移动碰撞、动作前后摇、在途投射物、普攻与自动技能、1000能量手动大招、收集、战报与操作重放存档。</p><p>可试用：基础商店、装备对比、道具、付费旅馆、药水升级与找零。正式30层及全部现行装备已开放。</p><p>已支持：配表与策略编辑、多关批量模拟、胜率统计与配置对比。</p></article><article class="info-card"><h3>操作方式</h3><p>自动普攻和自动技能不需要操作。能量达到1000时，点击伙伴卡片施放大招。暂停后可在调试栏单步推进；倍速只改变调度速度。</p><p>键盘：Tab切换焦点，Enter确认，Esc关闭弹窗；战场按空格暂停。切到后台后保持暂停，返回时手动继续。</p><p>所有资源与胜负均由本机核心计算，无游戏后端。</p></article></section></div>`;
+  )}</article></section><section><div class="section-caption">首版试玩说明</div><article class="info-card"><h3>完整${config.Floors.length}层资源流程</h3><p>已接通：固定60 tick/秒、移动碰撞、动作前后摇、在途投射物、普攻与自动技能、1000能量手动大招、收集、战报与操作重放存档。</p><p>可试用：基础商店、装备对比、道具、付费旅馆、药水升级与找零。正式${config.Floors.length}层及全部现行装备已开放。</p><p>已支持：配表与策略编辑、多关批量模拟、胜率统计与配置对比。</p></article><article class="info-card"><h3>操作方式</h3><p>自动普攻和自动技能不需要操作。能量达到1000时，点击伙伴卡片施放大招。暂停后可在调试栏单步推进；倍速只改变调度速度。</p><p>键盘：Tab切换焦点，Enter确认，Esc关闭弹窗；战场按空格暂停。切到后台后保持暂停，返回时手动继续。</p><p>所有资源与胜负均由本机核心计算，无游戏后端。</p></article></section></div>`;
 }
 function downloadJson(json: string, filename: string) {
   const blob = new Blob([json], { type: "application/json" }),
@@ -891,11 +1100,11 @@ async function importSave(file: File) {
       "导入存档",
       `将替换为第${s.floor}层、${s.gold}金币的试跑。导入后战斗保持暂停。`,
       () => {
-        engine = restored.upgradeTo60Hz();
+        engine = restored;
         saveHold = false;
         refresh();
         page = snap.battle ? "battle" : "tower";
-        selectedFloor = Math.min(snap.floor, 30);
+        selectedFloor = Math.min(snap.floor, config.Floors.length);
         showClearedFloor=false;
         paused = true;
         clock.reset();
@@ -923,7 +1132,7 @@ function battlePage() {
     "light",
     false,
     'id="speed-button"',
-  )}${button("撤回", () => confirmAction("撤回战斗", "不发放奖励，返回战前检查点后可重新挑战。", () => send({ type: "withdraw" })), "light", !b.started || !!b.result)}</div></div><div class="arena-wrap">${snap.mode === "playtest" && snap.skippedFeatures.length ? `<details class="test-warnings"><summary>已停用 ${snap.skippedFeatures.length} 项未迁移功能</summary><p>${snap.skippedFeatures.map(esc).join("<br>")}</p></details>` : ""}<div id="enemy-casts" class="enemy-cast-warning" role="status" hidden></div><canvas id="battle-canvas" aria-label="实时战场：双方移动、攻击与投射物"></canvas>${!b.started ? `<div class="deployment"><div class="deployment-card"><span class="tag">战前布阵 · 5首发 / 10在场</span><h2>准备好了吗？</h2><p>人类固定首发，怪兽可在此选择。<br>战斗自动进行，满1000能量后手动释放大招。</p><div class="opening-options">${snap.members.map((m) => button(`${name(m.id)} ${b.opening.includes(m.id) ? "✓" : "加入"}`, () => send({ type: "opening", id: m.id }), b.opening.includes(m.id) ? "selected" : "", isHuman(m.id) || m.hp <= 0)).join("")}</div>${command({ type: "start" }, "开始交战 →", undefined, "primary large")}${command({ type: "retry" }, "返回整备", undefined, "subtle")}</div></div>` : ""}${b.result ? resultOverlay() : ""}</div><div class="battle-roster">${b.units
+  )}${button("撤回", () => confirmAction("撤回战斗", "不发放奖励，返回战前检查点后可重新挑战。", () => send({ type: "withdraw" })), "light", !b.started || !!b.result)}</div></div><div class="arena-wrap">${snap.mode === "playtest" && snap.skippedFeatures.length ? `<details class="test-warnings"><summary>已停用 ${snap.skippedFeatures.length} 项未迁移功能</summary><p>${snap.skippedFeatures.map(esc).join("<br>")}</p></details>` : ""}<div id="enemy-casts" class="enemy-cast-warning" role="status" hidden></div><canvas id="battle-canvas" aria-label="实时战场：双方移动、攻击与投射物"></canvas>${!b.started ? `<div class="deployment"><div class="deployment-card"><span class="tag">战前布阵 · 5首发 / 10在场</span><h2>准备好了吗？</h2><p>主角固定首发，公主与怪兽可在此选择。<br>战斗自动进行，满1000能量后手动释放大招。</p><div class="opening-options">${snap.members.map((m) => button(`${name(m.id)} ${b.opening.includes(m.id) ? "✓" : "加入"}`, () => send({ type: "opening", id: m.id }), b.opening.includes(m.id) ? "selected" : "", m.id === "hero" || m.hp <= 0)).join("")}</div>${command({ type: "start" }, "开始交战 →", undefined, "primary large")}${command({ type: "retry" }, "返回整备", undefined, "subtle")}</div></div>` : ""}${b.result ? resultOverlay() : ""}</div><div class="battle-roster">${b.units
     .filter((u) => !u.enemy)
     .map((u) =>
       button(
@@ -941,7 +1150,7 @@ function battlePage() {
         `${portrait(m.id)}<b>${name(m.id)}</b><span>${b.started ? "点击补人" : "等待出场"}</span>`,
         () => send({ type: "reinforce", id: m.id }),
         "battle-unit reserve",
-        !b.started || isHuman(m.id) || m.hp <= 0 || b.tickets < 1 || b.units.filter(u=>!u.enemy&&u.hp>0).length>=10,
+        !b.started || m.id === "hero" || m.hp <= 0 || b.tickets < 1 || b.units.filter(u=>!u.enemy&&u.hp>0).length>=10,
         `data-reserve="${m.id}"`,
       ),
     )
@@ -966,10 +1175,19 @@ function battlePage() {
 }
 function resultOverlay() {
   const b = snap.battle!,
-    win = b.result === "victory";
+    win = b.result === "victory",
+    totalFloors = config.Floors.length,
+    finalWin = win && snap.floor === totalFloors,
+    curTitle = config.Encounters.find((e) => e.Id === config.Floors[snap.floor - 1]!.Encounter)!.Title;
   if (snap.mode === "playtest")
     return `<div class="result-overlay"><div class="result-card"><p class="eyebrow">PLAYTEST RESULT · ${snap.configHash}</p><h2>${win ? "测试胜利" : b.result === "loss" ? "测试失败" : "测试已撤回"}</h2><p>第${snap.floor}关 · ${b.seconds.toFixed(3)}秒 · 独立测试，不发放奖励或推进正式进度</p>${contributions(b.units.filter((u) => !u.enemy))}<p>${snap.skippedFeatures.length ? `本次停用了${snap.skippedFeatures.length}项未迁移功能。` : "本次使用的技能均已实现。"}</p><div class="button-row">${button("返回编辑", openEditor, "primary")}${button("重新 Play", () => startPlaytest(config, snap.playtest!))}${button("导出测试记录", exportSave)}</div></div></div>`;
-  return `<div class="result-overlay"><div class="result-card"><p class="eyebrow">${win ? "FLOOR CLEARED" : "TRIAL PAUSED"}</p><h2>${win ? (snap.floor===30?"风暴祭司已击败":"赢下这一战。") : b.result === "loss" ? "队伍暂时倒下。" : "已撤回战斗。"}</h2><p>第${snap.floor}层 · ${b.seconds.toFixed(3)}秒${win ? ` · 通关金币 +${config.Encounters.find((e) => e.Id === config.Floors[snap.floor - 1]!.Encounter)!.Gold}` : " · 未发放奖励"}</p>${contributions(b.units.filter((u) => !u.enemy).map((u) => ({ id: u.id, damage: u.damage, healing: u.healing, absorbed: u.absorbed })))}${win ? `<p>魂魄、药水与首次收集已按规则结算。<br>${snap.floor===30?"生命不恢复；确认后领取金币并记录30层通关。":"生命不恢复；确认后领取金币并进入下一层。"}</p>${command({ type: "finish" }, snap.floor===30?"确认通关 · 查看记录":"确认战果 · 返回整备", undefined, "primary large")}` : `<p>返回该层战前检查点；战前已确认的交易保留。</p>${command({ type: "retry" }, "返回战前整备", undefined, "primary large")}`}</div></div>`;
+  const princessAlive = b.units.some((u) => !u.enemy && u.id === "princess" && u.hp > 0);
+  const postHealRatio = snap.postBattleHumanHealRatio ?? 0;
+  const postHealHint =
+    postHealRatio > 0 && princessAlive
+      ? `战后公主守望将为存活的两位人类回复 ${Math.round(postHealRatio * 100)}% 最大生命；其余伤势与魔兽生命不免费恢复；`
+      : "生命不恢复；";
+  return `<div class="result-overlay"><div class="result-card"><p class="eyebrow">${win ? "FLOOR CLEARED" : "TRIAL PAUSED"}</p><h2>${win ? (finalWin ? `${esc(curTitle)}已击败` : "赢下这一战。") : b.result === "loss" ? "队伍暂时倒下。" : "已撤回战斗。"}</h2><p>第${snap.floor}层 · ${b.seconds.toFixed(3)}秒${win ? ` · 通关金币 +${config.Encounters.find((e) => e.Id === config.Floors[snap.floor - 1]!.Encounter)!.Gold}` : " · 未发放奖励"}</p>${contributions(b.units.filter((u) => !u.enemy).map((u) => ({ id: u.id, damage: u.damage, healing: u.healing, absorbed: u.absorbed })))}${win ? `<p>魂魄、药水与首次收集已按规则结算。<br>${postHealHint}${finalWin ? `确认后领取金币并记录${totalFloors}层通关。` : "确认后领取金币并进入下一层。"}</p>${command({ type: "finish" }, finalWin ? "确认通关 · 查看记录" : "确认战果 · 返回整备", undefined, "primary large")}` : `<p>返回该层战前检查点；战前已确认的交易保留。</p>${command({ type: "retry" }, "返回战前整备", undefined, "primary large")}`}</div></div>`;
 }
 function togglePause() {
   if (!snap.battle?.started || snap.battle.result) return;
@@ -1125,7 +1343,7 @@ async function boot() {
     for (const [index, json] of [saves.current, saves.backup].entries()) {
       if (!json) continue;
       try {
-        engine = TowerEngine.restore(config, json).upgradeTo60Hz();
+        engine = TowerEngine.restore(config, json);
         saveStatus = index === 0 ? "已恢复本机存档" : "已从备份恢复";
         keepBackupOnce = index === 1;
         loadError = false;
@@ -1161,7 +1379,7 @@ async function boot() {
       ) {
         const restored = TowerEngine.restorePlaytest(session.serialized);
         const sprites = editorProjectSchema.shape.sprites.parse("sprites" in session ? session.sprites : undefined) ?? {};
-        engine = restored.upgradeTo60Hz();
+        engine = restored;
         testSprites = sprites;
         config = restored.getConfigSnapshot();
         lastTestJson = engine.serialize();
@@ -1175,7 +1393,7 @@ async function boot() {
   visualSeconds=snap.battle?.seconds??0;
   booted = true;
   page = snap.battle ? "battle" : "tower";
-  selectedFloor = Math.min(snap.floor, 30);
+  selectedFloor = Math.min(snap.floor, config.Floors.length);
   render();
   requestAnimationFrame(frame);
 }

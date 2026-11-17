@@ -3,7 +3,7 @@ import {strategySummary} from "./strategy-editor";
 import {z} from "zod";
 import {validateConfig,type Config} from "../core/config";
 import {TowerEngine} from "../core/engine";
-import {clone} from "../core/math";
+import {clone,STEP} from "../core/math";
 import type {PlaytestSetup} from "../core/playtest";
 import {createSimulationReport,simulationOptionsSchema,simulationFloorsSchema,simulationTotal,reportFloors,summarizeTrials,summarizePairs,summarizeFloors,trialSave,type SimulationOptions,type SimulationReport,type SimulationPair} from "../core/simulation";
 import {readWorkbench,writeWorkbench} from "../storage/save";
@@ -36,7 +36,7 @@ export class Comparison {
       if(raw.length>2_000_000)throw new Error("A配置过大");
       const saved:unknown=JSON.parse(raw);
       if(!saved || typeof saved!=="object" || !("format" in saved) || saved.format!=="tower30-comparison-reference" || !("source" in saved))throw new Error("A配置格式无效");
-      this.reference=validateConfig(saved.source);this.referenceHash=new TowerEngine(this.reference).configHash;this.label="保存的配置";this.message="已恢复浏览器保存的A配置；当前草稿为B。";
+      this.reference=validateConfig(saved.source,{allowUnknownEnemySpecies:true});this.referenceHash=new TowerEngine(this.reference).configHash;this.label="保存的配置";this.message="已恢复浏览器保存的A配置；当前草稿为B。";
       if("strategy" in saved)this.referenceStrategy=strategySchema.parse(saved.strategy);
       if("options" in saved){const result=simulationOptionsSchema.safeParse(saved.options);if(result.success)this.options=result.data;}
       if("floors" in saved&&saved.floors!==null){if(Array.isArray(saved.floors)&&!saved.floors.length)this.selectedFloors=[];else this.selectedFloors=simulationFloorsSchema.parse(saved.floors).sort((a,b)=>a-b);}
@@ -78,7 +78,8 @@ export class Comparison {
     try{
       if(action==="select"){
         if(this.worker)throw new Error("请先取消当前模拟，再调整关卡");
-        this.selectedFloors=id==="current"?null:id==="bosses"?[10,20,30]:id==="all"?Array.from({length:30},(_,i)=>i+1):[];
+        const totalFloors=this.reference.Floors.length;
+        this.selectedFloors=id==="current"?null:id==="bosses"?Array.from({length:Math.floor(totalFloors/5)},(_,i)=>(i+1)*5):id==="all"?Array.from({length:totalFloors},(_,i)=>i+1):[];
         this.persistReference(false);this.changed();return;
       }
       if(action==="show-floor"){this.detailFloor=Number(id);this.samplePage=0;this.changed("detail");return;}
@@ -86,7 +87,7 @@ export class Comparison {
       if(action==="capture"){
         if(this.worker)throw new Error("请先取消当前模拟，再替换A配置");
         const strategy=strategySchema.parse(setup.strategy??defaultStrategy());
-        this.reference=validateConfig(source);this.referenceStrategy=strategy;this.referenceHash=new TowerEngine(this.reference).configHash;this.label="保存的配置";this.persistReference();this.changed();return;
+        this.reference=validateConfig(source,{allowUnknownEnemySpecies:true});this.referenceStrategy=strategy;this.referenceHash=new TowerEngine(this.reference).configHash;this.label="保存的配置";this.persistReference();this.changed();return;
       }
       if(action==="cancel"){this.cancel();return;}
       if(action==="export"){
@@ -120,11 +121,12 @@ export class Comparison {
         report.status="error";this.message="后台模拟未能运行，请重新开始。";worker.terminate();this.worker=null;this.redraw(true);
       };
       worker.postMessage(report);this.redraw(true);
-    }catch(e){this.notify(e instanceof z.ZodError?(e.issues.some(i=>i.path.includes("healingHpPercent"))?"治疗生命阈值须为0—100的有效数值。":e.issues.some(i=>i.path[0]==="count")?"请修正配置与测试设置；运行次数须为1—100的整数。":"请修正配置与测试设置；选择1—30个不同关卡，每关运行1—100次。"):e instanceof Error?e.message:"不能开始模拟");}
+    }catch(e){this.notify(e instanceof z.ZodError?(e.issues.some(i=>i.path.includes("healingHpPercent"))?"治疗生命阈值须为0—100的有效数值。":e.issues.some(i=>i.path[0]==="count")?"请修正配置与测试设置；运行次数须为1—100的整数。":`请修正配置与测试设置；选择1—${this.reference.Floors.length}个不同关卡，每关运行1—100次。`):e instanceof Error?e.message:"不能开始模拟");}
   }
   private selection(setup:PlaytestSetup,running:boolean){
     const floors=this.floors(setup);
-    return `<details class="sim-floor-picker"><summary>选择测试关卡 · 已选${floors.length}关${this.selectedFloors===null?"（跟随当前关卡）":""}</summary><div class="sim-presets">${[["current","当前关卡"],["bosses","10 / 20 / 30 Boss"],["all","全部关卡"],["clear","清空选择"]].map(([id,label])=>`<button data-sim-action="select" data-id="${id}" ${running?"disabled":""}>${label}</button>`).join("")}</div><div class="sim-floor-options">${Array.from({length:30},(_,i)=>i+1).map(floor=>`<label><input type="checkbox" data-sim="floor" data-floor="${floor}" aria-label="测试第${floor}关" ${floors.includes(floor)?"checked":""} ${running?"disabled":""}><span>${floor}${floor%10===0?" ◆":""}</span></label>`).join("")}</div></details>${floors.length?"":'<p class="sim-selection-invalid">至少选择1个关卡才能运行。</p>'}<p class="sim-plan">${floors.length}关 × ${this.options.count}种子 × A/B = ${floors.length*this.options.count*2}场；每关独立重置生命与能量。</p>`;
+    const totalFloors=this.reference.Floors.length;
+    return `<details class="sim-floor-picker"><summary>选择测试关卡 · 已选${floors.length}关${this.selectedFloors===null?"（跟随当前关卡）":""}</summary><div class="sim-presets">${[["current","当前关卡"],["bosses","全部Boss关卡"],["all","全部关卡"],["clear","清空选择"]].map(([id,label])=>`<button data-sim-action="select" data-id="${id}" ${running?"disabled":""}>${label}</button>`).join("")}</div><div class="sim-floor-options">${Array.from({length:totalFloors},(_,i)=>i+1).map(floor=>`<label><input type="checkbox" data-sim="floor" data-floor="${floor}" aria-label="测试第${floor}关" ${floors.includes(floor)?"checked":""} ${running?"disabled":""}><span>${floor}${floor%5===0?" ◆":""}</span></label>`).join("")}</div></details>${floors.length?"":'<p class="sim-selection-invalid">至少选择1个关卡才能运行。</p>'}<p class="sim-plan">${floors.length}关 × ${this.options.count}种子 × A/B = ${floors.length*this.options.count*2}场；每关独立重置生命与能量。</p>`;
   }
   private metrics(rows:SimulationPair[],scope:string){
     const a=summarizeTrials(rows.map(p=>p.a)),b=summarizeTrials(rows.map(p=>p.b)),paired=summarizePairs(rows);
@@ -145,11 +147,11 @@ export class Comparison {
     const pages=Math.max(1,Math.ceil(visible.length/PAGE_SIZE));this.samplePage=Math.min(this.samplePage,pages-1);
     const page=visible.slice(this.samplePage*PAGE_SIZE,(this.samplePage+1)*PAGE_SIZE);
     const scope=this.detailFloor?`第${this.detailFloor}关`:multi?"全部关卡":"已完成";
-    return `<section id="sim-floor-detail"><h3>样本与战斗资源</h3><div class="sim-filters"><label class="wb-field"><span>查看关卡</span><select data-sim="detail-floor" aria-label="查看关卡"><option value="0">全部关卡</option>${floors.map(floor=>`<option value="${floor}" ${this.detailFloor===floor?"selected":""}>第${floor}关</option>`).join("")}</select></label><label class="wb-field"><span>样本筛选</span><select data-sim="sample-filter" aria-label="样本筛选">${[["all","全部样本"],["a-failed","A未胜（含超时）"],["b-failed","B未胜（含超时）"],["any-failed","任一方未胜"]].map(([id,label])=>`<option value="${id}" ${this.sampleFilter===id?"selected":""}>${label}</option>`).join("")}</select></label></div>${this.metrics(scoped.map(s=>s.pair),scope)}<p class="sim-help">统计含所选范围全部已完成样本；下方筛选只改变列表。</p><div class="sim-pagination"><span>筛选后 ${visible.length} 对 · 第${this.samplePage+1} / ${pages}页</span><button data-sim-action="previous-page" ${this.samplePage===0?"disabled":""}>上一页</button><button data-sim-action="next-page" ${this.samplePage+1>=pages?"disabled":""}>下一页</button></div><div class="sim-table"><table><thead><tr>${multi?"<th>关卡</th>":""}<th>种子</th><th>A结果 / 秒</th><th>B结果 / 秒</th><th>复现</th></tr></thead><tbody>${page.map(({pair:p,index:i})=>`<tr data-pair-index="${i}">${multi?`<th>第${p.floor}关</th>`:""}<th>${p.a.seed}</th><td>${outcome(p.a.result)} / ${(p.a.seconds??p.a.ticks*.05).toFixed(2)}</td><td>${outcome(p.b.result)} / ${(p.b.seconds??p.b.ticks*.05).toFixed(2)}</td><td><div class="sim-row-actions">${(["a","b"] as const).map(v=>`<button data-sim-action="review" data-id="${v}:${i}" ${running?"disabled":""}>查看${v.toUpperCase()}战果</button><button data-sim-action="replay" data-id="${v}:${i}">导出${v.toUpperCase()}记录</button><button data-sim-action="play" data-id="${v}:${i}" ${running?"disabled":""}>手动Play ${v.toUpperCase()}</button><button data-sim-action="auto-play" data-id="${v}:${i}" ${running?"disabled":""}>策略Play ${v.toUpperCase()}</button>`).join("")}</div></td></tr>`).join("")}</tbody></table></div>${visible.length?"":'<p class="sim-no-samples">当前筛选没有已完成样本。</p>'}</section>`;
+    return `<section id="sim-floor-detail"><h3>样本与战斗资源</h3><div class="sim-filters"><label class="wb-field"><span>查看关卡</span><select data-sim="detail-floor" aria-label="查看关卡"><option value="0">全部关卡</option>${floors.map(floor=>`<option value="${floor}" ${this.detailFloor===floor?"selected":""}>第${floor}关</option>`).join("")}</select></label><label class="wb-field"><span>样本筛选</span><select data-sim="sample-filter" aria-label="样本筛选">${[["all","全部样本"],["a-failed","A未胜（含超时）"],["b-failed","B未胜（含超时）"],["any-failed","任一方未胜"]].map(([id,label])=>`<option value="${id}" ${this.sampleFilter===id?"selected":""}>${label}</option>`).join("")}</select></label></div>${this.metrics(scoped.map(s=>s.pair),scope)}<p class="sim-help">统计含所选范围全部已完成样本；下方筛选只改变列表。</p><div class="sim-pagination"><span>筛选后 ${visible.length} 对 · 第${this.samplePage+1} / ${pages}页</span><button data-sim-action="previous-page" ${this.samplePage===0?"disabled":""}>上一页</button><button data-sim-action="next-page" ${this.samplePage+1>=pages?"disabled":""}>下一页</button></div><div class="sim-table"><table><thead><tr>${multi?"<th>关卡</th>":""}<th>种子</th><th>A结果 / 秒</th><th>B结果 / 秒</th><th>复现</th></tr></thead><tbody>${page.map(({pair:p,index:i})=>`<tr data-pair-index="${i}">${multi?`<th>第${p.floor}关</th>`:""}<th>${p.a.seed}</th><td>${outcome(p.a.result)} / ${(p.a.seconds??p.a.ticks*STEP).toFixed(2)}</td><td>${outcome(p.b.result)} / ${(p.b.seconds??p.b.ticks*STEP).toFixed(2)}</td><td><div class="sim-row-actions">${(["a","b"] as const).map(v=>`<button data-sim-action="review" data-id="${v}:${i}" ${running?"disabled":""}>查看${v.toUpperCase()}战果</button><button data-sim-action="replay" data-id="${v}:${i}">导出${v.toUpperCase()}记录</button><button data-sim-action="play" data-id="${v}:${i}" ${running?"disabled":""}>手动Play ${v.toUpperCase()}</button><button data-sim-action="auto-play" data-id="${v}:${i}" ${running?"disabled":""}>策略Play ${v.toUpperCase()}</button>`).join("")}</div></td></tr>`).join("")}</tbody></table></div>${visible.length?"":'<p class="sim-no-samples">当前筛选没有已完成样本。</p>'}</section>`;
   }
   render(setup:PlaytestSetup,source:unknown){
     const r=this.report,rows=r?.pairs??[],floors=this.floors(setup),running=!!this.worker;
-    let currentHash:string|null=null;try{currentHash=new TowerEngine(validateConfig(source)).configHash;}catch{ /* Preserve frozen results when a draft is invalid. */ }
+    let currentHash:string|null=null;try{currentHash=new TowerEngine(validateConfig(source,{allowUnknownEnemySpecies:true})).configHash;}catch{ /* Preserve frozen results when a draft is invalid. */ }
     const common=(s:PlaytestSetup)=>JSON.stringify({...s,floor:0,strategy:undefined,autoPlay:undefined});
     const stale=r&&(r.b.hash!==currentHash||r.a.hash!==this.referenceHash||JSON.stringify(r.a.strategy)!==JSON.stringify(this.referenceStrategy)||JSON.stringify(r.b.strategy)!==JSON.stringify(setup.strategy??defaultStrategy())||common(setup)!==common(r.setup)||JSON.stringify(this.options)!==JSON.stringify(r.options)||JSON.stringify(floors)!==JSON.stringify(reportFloors(r)));
     const partyName=(id:string)=>id==="hero"?"主角":id==="princess"?"公主":this.reference.Species.find(s=>s.Id===id)?.Name??id;

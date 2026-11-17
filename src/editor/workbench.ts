@@ -9,7 +9,7 @@ import { spriteUrl } from "../battle-view/renderer";
 import { createMonster, dropSprite, renameSprite } from "./roster";
 import { openMonsterDialog } from "./monster-dialog";
 import { validateProjectSprites } from "./png";
-import { type Attributes, type Config } from "../core/config";
+import { fingerprint, type Attributes, type Config } from "../core/config";
 import { TowerEngine } from "../core/engine";
 import { combatantAttributes, enemyAttributes } from "../core/projections";
 import { supportedSkills, type PlaytestSetup } from "../core/playtest";
@@ -23,6 +23,7 @@ import {
   importProject,
   restoreProject,
   editableEncounter,
+  getBrokenFloors,
   type EditorProject,
 } from "./project";
 import "./workbench.css";
@@ -66,46 +67,46 @@ const roles: readonly (readonly [string, string])[] = [
   ["healer", "治疗辅助"],
 ];
 const availableSprites: readonly (readonly [string, string])[] = [
-  ["blade_skeleton", "持刃骷髅 (blade_skeleton)"],
-  ["boar", "野猪 (boar)"],
-  ["bronze_beetle", "铜甲虫 (bronze_beetle)"],
-  ["bronze_dragon", "青铜龙 (bronze_dragon · 32px)"],
-  ["cave_wolf", "岩洞狼 (cave_wolf)"],
-  ["celestial_dragon", "天界龙 (celestial_dragon · 32px)"],
-  ["crab", "石壳蟹 (crab)"],
-  ["crystal_elemental", "水晶元素 (crystal_elemental)"],
-  ["earth_elemental", "大地元素 (earth_elemental)"],
-  ["ember_dragon", "烬火龙 (ember_dragon · 32px)"],
-  ["evil_eye", "邪眼 (evil_eye)"],
-  ["fire_imp", "火焰小鬼 (fire_imp)"],
-  ["forest_dragon", "森之龙 (forest_dragon · 32px)"],
-  ["forest_sprite", "林间精灵 (forest_sprite)"],
-  ["frost_dragon", "霜翼龙 (frost_dragon · 32px)"],
-  ["ice_spirit", "冰晶怪 (ice_spirit)"],
-  ["iron_automaton", "钢铁魔像 (iron_automaton)"],
-  ["lava_elemental", "熔岩元素 (lava_elemental)"],
-  ["mantis", "巨螳螂 (mantis)"],
-  ["mimic", "宝箱怪 (mimic)"],
-  ["moonbat", "月翼蝠 (moonbat)"],
-  ["moss_crawler", "苔背爬虫 (moss_crawler)"],
-  ["mudguard", "石壳守卫 (mudguard)"],
-  ["necromancer", "死灵术士 (necromancer)"],
-  ["nightmare", "夜魇 (nightmare)"],
-  ["nightwing", "夜翼蝠 (nightwing)"],
-  ["orc_berserker", "狂兽人 (orc_berserker)"],
-  ["reedwing", "风翅虫 (reedwing)"],
-  ["silver_slime", "白银史莱姆 (silver_slime)"],
-  ["skeleton_guard", "骷髅卫士 (skeleton_guard)"],
-  ["slime_dusk", "史莱姆 (slime_dusk)"],
-  ["spectral_armor", "幽灵铠甲 (spectral_armor)"],
-  ["spectral_samurai", "武士亡魂 (spectral_samurai)"],
-  ["sproutling", "蘑菇精 (sproutling)"],
-  ["venom_dragonling", "剧毒幼龙 (venom_dragonling)"],
-  ["war_dragon", "战阵巨龙 (war_dragon · 32px)"],
-  ["water_elemental", "水元素 (water_elemental)"],
-  ["white_ghost", "白幽灵 (white_ghost)"],
-  ["wind_elemental", "风元素 (wind_elemental)"],
-  ["wisp", "荧火 (wisp)"],
+  ["dark_kid", "暗黑小子 (dark_kid)"],
+  ["doomsday_satan", "末日撒旦 (doomsday_satan)"],
+  ["emerald_venom_drake", "翠毒龙 (emerald_venom_drake)"],
+  ["eyeball", "大眼虫 (eyeball)"],
+  ["flame_skeleton", "烈焰骷髅 (flame_skeleton)"],
+  ["flame_warrior", "火焰战士 (flame_warrior)"],
+  ["fluffy_jumper", "胖跳兽 (fluffy_jumper)"],
+  ["gray_bat", "灰蝙蝠 (gray_bat)"],
+  ["gray_rat", "灰鼠 (gray_rat)"],
+  ["gray_wolf", "灰狼 (gray_wolf)"],
+  ["green_ooze", "绿泥怪 (green_ooze)"],
+  ["green_snake", "青蛇 (green_snake)"],
+  ["ice_ghost", "冰幽灵 (ice_ghost)"],
+  ["jellyfish", "邪恶水母 (jellyfish)"],
+  ["lava_spirit", "熔岩精灵 (lava_spirit)"],
+  ["man_eating_flower", "食人花 (man_eating_flower)"],
+  ["medusa", "美杜莎 (medusa)"],
+  ["minotaur", "牛头人 (minotaur)"],
+  ["mudguard", "土壳守卫 (mudguard)"],
+  ["nether_fire", "幽冥火 (nether_fire)"],
+  ["nightmare_dragon", "梦魇魔龙 (nightmare_dragon)"],
+  ["phantom_bat", "幽魂蝙蝠 (phantom_bat)"],
+  ["pharaoh_beast", "法老兽 (pharaoh_beast)"],
+  ["red_crab", "红蟹 (red_crab)"],
+  ["rock_beast", "岩土兽 (rock_beast)"],
+  ["scorpion", "毒蝎 (scorpion)"],
+  ["shaman_orc", "萨满兽人 (shaman_orc)"],
+  ["skeleton", "骷髅怪 (skeleton)"],
+  ["skeleton_lich_king", "骷髅法王 (skeleton_lich_king)"],
+  ["slime", "史莱姆 (slime)"],
+  ["snake_demon", "蛇妖 (snake_demon)"],
+  ["spirit_turtle", "灵龟 (spirit_turtle)"],
+  ["storm_beast", "暴风兽 (storm_beast)"],
+  ["sword_shield_frog", "剑盾蛙 (sword_shield_frog)"],
+  ["sword_shield_orc", "剑盾兽人 (sword_shield_orc)"],
+  ["thunder_beast", "雷鸣兽 (thunder_beast)"],
+  ["treant", "树妖 (treant)"],
+  ["twin_rooster", "双头鸡 (twin_rooster)"],
+  ["wind_bug", "风翅虫 (wind_bug)"],
+  ["zombie", "僵尸怪 (zombie)"],
 ];
 type Path = (string | number)[];
 export class Workbench {
@@ -118,6 +119,8 @@ export class Workbench {
   private query = "";
   private group = 0;
   private lastValid: Config;
+  private readonly baseConfig: Config;
+  private readonly baselineHash: string;
   private status = "草稿自动保存到浏览器";
   private revision = 0;
   private writes = Promise.resolve();
@@ -130,11 +133,16 @@ export class Workbench {
   ) {
     this.project = newProject(baseline);
     this.lastValid = baseConfig;
+    this.baseConfig = baseConfig;
+    this.baselineHash = fingerprint(baseConfig);
     this.comparison = new Comparison(baseConfig,focus=>this.updateComparison(focus),notify,(source,name)=>this.download(source,name),(config,setup)=>onPlay(config,setup,clone(this.project.sprites??{})),onReview);
   }
   async load() {
     try {
-      const raw = await readWorkbench("draft");
+      const [raw, draftBaseline] = await Promise.all([
+        readWorkbench("draft"),
+        readWorkbench("draftBaseline"),
+      ]);
       if (raw) {
         const input: unknown = JSON.parse(raw);
         if (
@@ -146,8 +154,16 @@ export class Workbench {
           "setup" in input
         ) {
           const parsed = restoreProject(raw);
-          this.project = parsed;
-          this.status = "已恢复浏览器草稿";
+          if (draftBaseline === this.baselineHash) {
+            this.project = parsed;
+            this.status = "已恢复浏览器草稿";
+          } else {
+            await writeWorkbench("draftBackup", raw);
+            this.project = newProject(this.baseline);
+            await this.save(
+              `基线已更新至${this.baseConfig.Floors.length}层（旧草稿已备份）`,
+            );
+          }
         }
       }
     } catch {
@@ -204,20 +220,27 @@ export class Workbench {
       const match = speciesList.find((s) => s.Id === id);
       if (match?.Name) return match.Name;
     }
-    return this.lastValid.Species.find((s) => s.Id === id)?.Name ?? id;
+    return (
+      this.lastValid.Species.find((s) => s.Id === id)?.Name ??
+      (this.baseline as Config).Species?.find((s) => s.Id === id)?.Name ??
+      id
+    );
   }
-  private async save() {
+  private async save(doneStatus = "草稿已保存到浏览器") {
     const revision = ++this.revision,
       json = JSON.stringify(this.project);
     this.status = "正在保存草稿…";
     this.updateStatus();
     this.writes = this.writes
       .catch(() => {})
-      .then(() => writeWorkbench("draft", json));
+      .then(async () => {
+        await writeWorkbench("draft", json);
+        await writeWorkbench("draftBaseline", this.baselineHash);
+      });
     try {
       await this.writes;
       if (revision === this.revision) {
-        this.status = "草稿已保存到浏览器";
+        this.status = doneStatus;
         this.updateStatus();
       }
     } catch {
@@ -226,6 +249,16 @@ export class Workbench {
         this.updateStatus();
       }
     }
+  }
+  private getUsedFloors(speciesId: string): number[] {
+    const floors = (readPath(this.project.source, ["Floors"]) as any[]) ?? this.config().Floors;
+    const encounters = (readPath(this.project.source, ["Encounters"]) as any[]) ?? this.config().Encounters;
+    return floors
+      .filter((floor) => {
+        const encounter = encounters.find((e: any) => e?.Id === floor.Encounter);
+        return encounter?.Enemies?.some((e: any) => e?.Species === speciesId);
+      })
+      .map((floor) => floor.Number);
   }
   private updateStatus() {
     if (!this.root) return;
@@ -242,20 +275,40 @@ export class Workbench {
     if (charTab) {
       charTab.textContent = `角色 · ${currentSpeciesCount + 2}`;
     }
+    const brokenFloors = getBrokenFloors(this.project.source);
+    const floorTab = this.root.querySelector<HTMLButtonElement>('[data-wb="floors"]');
+    if (floorTab) {
+      floorTab.innerHTML = `关卡 · ${this.config().Floors.length}${brokenFloors.length ? ` <span class="wb-tab-badge-error">${brokenFloors.length}待修</span>` : ""}`;
+    }
     const strict =
       result.warnings.length && this.project.setup.skillPolicy === "strict";
-    if (validation)
-      validation.innerHTML = result.errors.length
-        ? `<b>配置有误，暂不能 Play</b><p>${result.errors.map(esc).join("<br>")}</p>`
-        : this.tab==="analysis"
-          ? `<b>✓ 草稿结构校验通过</b><span>运行前校验全部批测关卡；单关Play仍使用测试设置的当前关卡。</span>`
-        : strict
-          ? `<b>所选关卡有未迁移功能</b><p>切换到“数值与已实现技能”可独立测试。</p>`
-          : `<b>✓ 配置校验通过</b><span>${currentSpeciesCount + 2}角色 · 30关 · ${result.warnings.length}项未迁移功能${result.warnings.length ? "将在测试中停用" : ""}</span>`;
-    validation?.classList.toggle("invalid", !!result.errors.length || (this.tab!=="analysis" && !!strict));
+    const currentFloorBroken = brokenFloors.some((b) => b.floor === this.project.setup.floor);
+    if (validation) {
+      if (result.errors.length) {
+        validation.innerHTML = `<b>配置有误，暂不能 Play</b><p>${result.errors.map(esc).join("<br>")}</p>`;
+      } else if (this.tab === "analysis") {
+        validation.innerHTML = `<b>✓ 草稿结构校验通过</b><span>运行前校验全部批测关卡；单关Play仍使用测试设置的当前关卡。</span>`;
+      } else if (strict) {
+        validation.innerHTML = `<b>所选关卡有未迁移功能</b><p>切换到“数值与已实现技能”可独立测试。</p>`;
+      } else if (brokenFloors.length) {
+        const missingNames = [...new Set(brokenFloors.flatMap((b) => b.missingSpecies))].map((id) => this.name(id));
+        validation.innerHTML = `<b>关卡配置待修复</b><span>第 ${brokenFloors.map((b) => b.floor).join("、")} 关包含已删除怪兽 [${missingNames.map(esc).join("、")}]，可在关卡页替换怪兽或删除敌组。</span>`;
+      } else {
+        validation.innerHTML = `<b>✓ 配置校验通过</b><span>${currentSpeciesCount + 2}角色 · ${this.config().Floors.length}关 · ${result.warnings.length}项未迁移功能${result.warnings.length ? "将在测试中停用" : ""}</span>`;
+      }
+    }
+    const isInvalid = !!result.errors.length || (this.tab !== "analysis" && !!strict) || currentFloorBroken;
+    validation?.classList.toggle("invalid", isInvalid);
     this.root
       .querySelectorAll<HTMLButtonElement>('[data-wb="play"],[data-wb="export-godot"]')
-      .forEach((b) => (b.disabled = !!result.errors.length || !!strict));
+      .forEach((b) => {
+        b.disabled = isInvalid;
+        if (currentFloorBroken) {
+          b.title = `第 ${this.project.setup.floor} 关包含已删除怪兽，请在关卡页修复后再 Play`;
+        } else {
+          b.removeAttribute("title");
+        }
+      });
     const preview = this.root.querySelector("#wb-preview");
     if (preview)
       preview.innerHTML = this.preview(
@@ -312,12 +365,16 @@ export class Workbench {
   }
   private list() {
     const c = this.config();
-    if (this.tab === "floors")
+    if (this.tab === "floors") {
+      const brokenMap = new Map(getBrokenFloors(this.project.source).map((b) => [b.floor, b]));
       return c.Floors.map((f) => {
         const ei = c.Encounters.findIndex((e) => e.Id === f.Encounter),
           e = editableEncounter(this.project.source, c, ei);
-        return `<button data-wb="floor" data-id="${f.Number}" class="wb-entity ${f.Number === this.project.setup.floor ? "active" : ""}"><strong>${String(f.Number).padStart(2, "0")}</strong><span>${esc(e.Title)}<small>${e.Boss ? "Boss · " : ""}${e.Enemies.reduce((s, v) => s + v.Count, 0)}名敌人</small></span></button>`;
+        const issue = brokenMap.get(f.Number);
+        const isBroken = !!issue && issue.missingSpecies.length > 0;
+        return `<button data-wb="floor" data-id="${f.Number}" class="wb-entity ${f.Number === this.project.setup.floor ? "active" : ""} ${isBroken ? "wb-entity-broken" : ""}"><strong>${String(f.Number).padStart(2, "0")}</strong><span><span class="wb-entity-name-row"><strong class="wb-entity-title">${esc(e.Title)}</strong>${isBroken ? '<span class="wb-badge-broken">待修复</span>' : ""}</span><small>${isBroken ? `<span class="wb-broken-alert">⚠️ 缺怪 [${issue.missingSpecies.map(s => this.name(s)).join("、")}]</span>` : `${e.Boss ? "Boss · " : ""}${e.Enemies.reduce((s, v) => s + v.Count, 0)}名敌人`}</small></span></button>`;
       }).join("");
+    }
     if (this.tab === "skills") return `<button data-wb="skill" data-id="effects" class="wb-entity ${this.action==="effects"?"active":""}"><span><strong>效果与被动</strong><small>减疗 · 反伤 · 急速 · 护盾</small></span></button>`+this.skillOptions().map(([id]) => `<button data-wb="skill" data-id="${esc(id)}" class="wb-entity ${id===this.action?"active":""}"><span><strong>${esc(skillLabel(id))}</strong><small>${esc(id)} · ${supportedSkills.has(id)?"已实现，可 Play":"待迁移，测试中停用"}</small></span></button>`).join("");
     const speciesList =
       (readPath(this.project.source, ["Species"]) as any[]) ?? c.Species;
@@ -339,7 +396,7 @@ export class Workbench {
               ? id
               : id === "hero" || id === "princess"
                 ? id
-                : "slime_dusk";
+                : "slime";
         const isLarge = sp?.FrameSize === 32;
         const role = ["hero", "princess"].includes(id)
           ? "人类"
@@ -378,7 +435,7 @@ export class Workbench {
 
     const identity =
       sp && si >= 0
-        ? `<h3 class="wb-section-label">名称、品阶、外观与功能介绍 <small>校正怪物识别名称、稀有品阶、外观贴图与功能定位，供 AI 与数值平衡参考</small></h3><div class="wb-fields">${this.field("怪物名称", ["Species", si, "Name"], speciesList[si]!.Name, { text: true })}${this.field("品阶稀有度", ["Rules", "Species", this.character, "Tier"], sp.Tier ?? "普通", { select: [["普通", "普通 (Normal)"], ["精英", "精英 (Elite)"], ["传说", "传说 (Legendary)"]] })}${this.field("主职责标签", ["Rules", "Species", this.character, "PrimaryRole"], sp.PrimaryRole, { text: true })}${this.field("外观贴图", ["Species", si, "Sprite"], speciesList[si]!.Sprite && availableSprites.some(([k]) => k === speciesList[si]!.Sprite) ? speciesList[si]!.Sprite : (availableSprites.some(([k]) => k === this.character) ? this.character : "slime_dusk"), { select: [...availableSprites, ...Object.keys(this.project.sprites??{}).map(id=>[id,`上传PNG · ${this.name(id)}`] as const)] })}${this.field("贴图切片规格", ["Species", si, "FrameSize"], speciesList[si]!.FrameSize ?? 16, { select: [["16", "16×16 (标准怪物)"], ["32", "32×32 (大型巨龙)"], ["64", "64×64 (超大)"]] })}${this.field("贴图显示方式", ["Species", si, "SpriteLayout"], speciesList[si]!.SpriteLayout ?? "sheet", { select: [["sheet","3列×4行行走图"],["single","单张角色图"]] })}</div>${this.field("怪物介绍与功能定位", ["Rules", "Species", this.character, "Specialty"], sp.Specialty, { textarea: true })}`
+        ? `<h3 class="wb-section-label">名称、品阶、外观与功能介绍 <small>校正怪物识别名称、稀有品阶、外观贴图与功能定位，供 AI 与数值平衡参考</small></h3><div class="wb-fields">${this.field("怪物名称", ["Species", si, "Name"], speciesList[si]!.Name, { text: true })}${this.field("品阶稀有度", ["Rules", "Species", this.character, "Tier"], sp.Tier ?? "普通", { select: [["普通", "普通 (Normal)"], ["精英", "精英 (Elite)"], ["传说", "传说 (Legendary)"]] })}${this.field("主职责标签", ["Rules", "Species", this.character, "PrimaryRole"], sp.PrimaryRole, { text: true })}${this.field("外观贴图", ["Species", si, "Sprite"], speciesList[si]!.Sprite && availableSprites.some(([k]) => k === speciesList[si]!.Sprite) ? speciesList[si]!.Sprite : (availableSprites.some(([k]) => k === this.character) ? this.character : "slime"), { select: [...availableSprites, ...Object.keys(this.project.sprites??{}).map(id=>[id,`上传PNG · ${this.name(id)}`] as const)] })}${this.field("贴图切片规格", ["Species", si, "FrameSize"], speciesList[si]!.FrameSize ?? 16, { select: [["16", "16×16 (标准怪物)"], ["32", "32×32 (大型巨龙)"], ["64", "64×64 (超大)"]] })}${this.field("贴图显示方式", ["Species", si, "SpriteLayout"], speciesList[si]!.SpriteLayout ?? "sheet", { select: [["sheet","3列×4行行走图"],["single","单张角色图"]] })}</div>${this.field("怪物介绍与功能定位", ["Rules", "Species", this.character, "Specialty"], sp.Specialty, { textarea: true })}`
         : "";
 
     const attrCards = Object.entries(attrs)
@@ -404,7 +461,10 @@ export class Workbench {
       })
       .join("");
 
-    const autoDesc = getSkillDescription(p.Auto);
+    const autoList: string[] = p.AutoSkills?.length ? p.AutoSkills : p.Auto ? [p.Auto] : [];
+    const autoDesc = autoList.length
+      ? autoList.map((id: string) => getSkillDescription(id)).join("；")
+      : getSkillDescription(p.Auto);
     const ultDesc = getSkillDescription(p.Ultimate);
     const currentPassiveEffect =
       p.PassiveEffect ||
@@ -414,7 +474,10 @@ export class Workbench {
           ? "watch"
           : "");
     const passiveInfo = getPassiveInfo(currentPassiveEffect);
-    const passiveDesc = passiveInfo.description;
+    const passiveDesc =
+      this.character === "hero" || this.character === "princess" || p.PassiveEffect
+        ? passiveInfo.description
+        : p.PassiveDescription || passiveInfo.description;
 
     if (p.AutoDescription !== autoDesc)
       setPath(
@@ -428,7 +491,10 @@ export class Workbench {
         ["Rules", "Profiles", this.character, "UltimateDescription"],
         ultDesc,
       );
-    if (p.PassiveDescription !== passiveDesc)
+    if (
+      p.PassiveDescription !== passiveDesc &&
+      (this.character === "hero" || this.character === "princess" || p.PassiveEffect)
+    )
       setPath(
         this.project.source,
         ["Rules", "Profiles", this.character, "PassiveDescription"],
@@ -457,7 +523,7 @@ export class Workbench {
           ["magical", "法术（使用法术值）"],
         ],
       },
-    )}${this.field("普攻弹道", ["Rules", "Combatants", this.character, "ProjectileFamily"], d.ProjectileFamily, { select: [...new Set(["", ...Object.values(c.Rules.Combatants).map((d) => d.ProjectileFamily)])].map((v) => [v, v || "瞬时命中（无弹道）"]) })}${this.field("普攻间隔（秒）", ["Rules", "Profiles", this.character, "Interval"], p.Interval, { min: 0.4, max: 5, step: 0.05 })}${this.field("自动技能冷却（秒）", ["Rules", "Profiles", this.character, "Cooldown"], p.Cooldown, { min: 1, max: 30, step: 0.1 })}${this.field("普攻前摇比例", ["Rules", "Combatants", this.character, "WindupRatio"], d.WindupRatio, { min: 0.1, max: 0.8, step: 0.01 })}${this.field("碰撞半径", ["Rules", "Combatants", this.character, "Radius"], d.Radius ?? sp?.Radius ?? 0.4, { min: 0.05, max: 3, step: 0.05 })}${this.field("攻击射程", ["Rules", "Combatants", this.character, "AttackRange"], d.AttackRange ?? sp?.AttackRange ?? (["ranged", "healer"].includes(p.Role) ? 3.8 : 0.55), { min: 0.1, max: 10, step: 0.05 })}${this.field("移动速度", ["Rules", "Combatants", this.character, "MoveSpeed"], d.MoveSpeed ?? sp?.MoveSpeed ?? 3.8, { min: 0.1, max: 20, step: 0.1 })}</div><h3 class="wb-section-label">技能配置 <small>技能说明与被动效果全部由所选技能自动绑定，无需手动填写</small></h3><p class="wb-help">初始武器可能覆盖人类自动技能。未迁移技能可配置，但数值测试会停用并列明。</p><div class="wb-skill-group"><div class="wb-skill-column">${this.field("自动技能", ["Rules", "Profiles", this.character, "Auto"], p.Auto, { select: [["", "不使用自动技能"], ...this.skillOptions()] })}<div class="wb-bound-box" id="wb-bound-auto-box"><span class="wb-bound-tag">自动技能说明（自动绑定）</span><p class="wb-bound-text" id="wb-bound-auto-desc">${esc(autoDesc)}</p></div></div><div class="wb-skill-column">${this.field("手动大招", ["Rules", "Profiles", this.character, "Ultimate"], p.Ultimate, { select: this.skillOptions() })}<div class="wb-bound-box" id="wb-bound-ultimate-box"><span class="wb-bound-tag">大招效果说明（自动绑定）</span><p class="wb-bound-text" id="wb-bound-ultimate-desc">${esc(ultDesc)}</p></div></div><div class="wb-skill-column">${this.field("被动技能", ["Rules", "Profiles", this.character, "PassiveEffect"], currentPassiveEffect, { select: this.passiveOptions() })}<div class="wb-bound-box" id="wb-bound-passive-box"><span class="wb-bound-tag">被动效果说明（自动绑定）</span><p class="wb-bound-text" id="wb-bound-passive-desc">${esc(passiveDesc)}</p></div></div></div>`;
+    )}${this.field("普攻弹道", ["Rules", "Combatants", this.character, "ProjectileFamily"], d.ProjectileFamily, { select: [...new Set(["", ...Object.values(c.Rules.Combatants).map((d) => d.ProjectileFamily)])].map((v) => [v, v || "瞬时命中（无弹道）"]) })}${this.field("普攻间隔（秒）", ["Rules", "Profiles", this.character, "Interval"], p.Interval, { min: 0.4, max: 5, step: 0.05 })}${this.field("自动技能冷却（秒）", ["Rules", "Profiles", this.character, "Cooldown"], p.Cooldown, { min: 1, max: 30, step: 0.1 })}${this.field("普攻前摇比例", ["Rules", "Combatants", this.character, "WindupRatio"], d.WindupRatio, { min: 0.1, max: 0.8, step: 0.01 })}${this.field("碰撞半径", ["Rules", "Combatants", this.character, "Radius"], d.Radius ?? sp?.Radius ?? 0.4, { min: 0.05, max: 3, step: 0.05 })}${this.field("攻击射程", ["Rules", "Combatants", this.character, "AttackRange"], d.AttackRange ?? sp?.AttackRange ?? (["ranged", "healer"].includes(p.Role) ? 3.8 : 0.55), { min: 0.1, max: 10, step: 0.05 })}${this.field("移动速度", ["Rules", "Combatants", this.character, "MoveSpeed"], d.MoveSpeed ?? sp?.MoveSpeed ?? 3.8, { min: 0.1, max: 20, step: 0.1 })}</div><h3 class="wb-section-label">技能配置 <small>技能说明与被动效果全部由所选技能自动绑定，无需手动填写</small></h3><p class="wb-help">初始武器可能覆盖人类自动技能。未迁移技能可配置，但数值测试会停用并列明。</p><div class="wb-skill-group"><div class="wb-skill-column">${p.AutoSkills?.length ? p.AutoSkills.map((sid: string, idx: number) => this.field(`普通技能${p.AutoSkills!.length > 1 ? ` ${idx + 1}` : ""}`, ["Rules", "Profiles", this.character, "AutoSkills", idx], sid, { select: this.skillOptions() })).join("") + this.field("普攻触发频次（每N次普攻）", ["Rules", "Profiles", this.character, "TriggerEvery"], p.TriggerEvery ?? 3, { min: 1, max: 10, step: 1 }) : this.field("自动技能", ["Rules", "Profiles", this.character, "Auto"], p.Auto, { select: [["", "不使用自动技能"], ...this.skillOptions()] })}<div class="wb-bound-box" id="wb-bound-auto-box"><span class="wb-bound-tag">普通技能说明（自动绑定）</span><p class="wb-bound-text" id="wb-bound-auto-desc">${esc(autoDesc)}</p></div></div><div class="wb-skill-column">${this.field("手动大招", ["Rules", "Profiles", this.character, "Ultimate"], p.Ultimate, { select: this.skillOptions() })}<div class="wb-bound-box" id="wb-bound-ultimate-box"><span class="wb-bound-tag">大招效果说明（自动绑定）</span><p class="wb-bound-text" id="wb-bound-ultimate-desc">${esc(ultDesc)}</p></div></div><div class="wb-skill-column">${this.field("被动技能", ["Rules", "Profiles", this.character, "PassiveEffect"], currentPassiveEffect, { select: this.passiveOptions() })}<div class="wb-bound-box" id="wb-bound-passive-box"><span class="wb-bound-tag">被动效果说明（自动绑定）</span><p class="wb-bound-text" id="wb-bound-passive-desc">${esc(passiveDesc)}</p></div></div></div>`;
   }
   private passiveOptions() {
     const isHero = this.character === "hero";
@@ -491,7 +557,7 @@ export class Workbench {
     if(this.action==="effects")return this.effects();
     const r=this.config().Rules.Actions[this.action]!, path:Path=["Rules","Actions",this.action];
     const scalar=(key:string,label:string,options:{min?:number;max?:number;step?:number}={})=>this.field(label,[...path,key],r[key as keyof typeof r]??"",options);
-    return `<div class="wb-section-title"><div><p class="eyebrow">SKILL INSPECTOR</p><h2>${esc(this.action)}</h2></div><button data-wb="reset-skill">恢复技能基线</button></div><p class="wb-help">同一技能的修改影响所有使用者。自动技能冷却在“角色”页设置。${supportedSkills.has(this.action)?"此技能已接入战斗核心。":"此技能尚未迁移；可以保存参数，Play 会按测试设置阻止或停用该技能。"}</p><h3 class="wb-section-label">动作时间轴</h3><div class="wb-fields">${scalar("Windup","技能前摇（秒）",{max:2,step:.05})}${scalar("Backswing","技能后摇（秒）",{max:3,step:.05})}${scalar("ProjectileSpeed","弹道速度",{min:1,max:100,step:1})}${scalar("Lifetime","弹道存活（秒）",{min:.05,max:4,step:.05})}${this.field("大招可被打断",[...path,"Interruptible"],String(r.Interruptible),{select:[["true","允许打断"],["false","不可打断"]]})}</div>${r.DamageType!=="buff"?`<h3 class="wb-section-label">${r.DamageType==="heal"?"治疗":"伤害"}系数 <small>属性 × 倍率 ＋ 固定值</small></h3><p class="wb-help">使用${r.ScalingStat==="mag"?"法术":"攻击"}属性。暴击、防御、护盾与被动在核心继续结算。</p><div class="wb-fields">${[0,1,2].map(i=>this.field(`Lv.${i+1} 倍率`,[...path,"Ratios",i],r.Ratios[Math.min(i,r.Ratios.length-1)]??1,{max:20,step:.05})+this.field(`Lv.${i+1} 固定值`,[...path,"Bases",i],r.Bases[Math.min(i,r.Bases.length-1)]??0,{max:1000000})).join("")}</div>`:""}<h3 class="wb-section-label">射程与效果覆盖</h3><p class="wb-help">留空沿用原技能规则。射程控制选取和执行距离；范围半径作用于涌潮、碎甲冲、火雨和寒潮；持续时间作用于本技能附加的控制、减伤、追击或持续恢复。瞬时伤害没有持续时间。</p><div class="wb-fields">${scalar("Range","技能射程覆盖",{max:30,step:.1})}${scalar("Radius","范围半径覆盖",{max:30,step:.1})}${scalar("Duration","效果持续（秒）覆盖",{max:30,step:.1})}</div>${hasDotRatio(this.action)?`<h3 class="wb-section-label">持续伤害</h3><p class="wb-help">每秒按施法时${r.ScalingStat==="mag"?"法术":"攻击"}属性计算；默认${this.action==="poison"?"1/6":"1/8"}，取整后最低1。填0不附加持续伤害；直接伤害仍使用上方倍率。毒刺与毒雾的治疗抑制比例在共用效果下设置。</p><div class="wb-fields">${this.field("持续伤害属性比例",[...path,"DotRatio"],dotDefaults[this.action],{optional:true,percent:true,min:0,max:500,step:.1})}</div>`:""}${hasShieldRatio(this.action)?`<h3 class="wb-section-label">数值护盾倍率</h3><p class="wb-help">使用${r.ScalingStat==="mag"?"法术":"攻击"}属性。每个技能等级分别设置；留空沿用本级默认，0不生成新护盾。取已有护盾与新护盾较大值，不叠加。</p><div class="wb-fields">${[0,1,2].map(i=>this.field(`Lv.${i+1} 护盾倍率`,[...path,"ShieldRatios",i],defaultShieldRatio(this.action as ShieldSkill,i+1),{optional:true,min:0,max:20,step:.05})).join("")}</div>`:""}<button data-wb="skill" data-id="effects">编辑共用效果与被动</button><button class="wb-compact-reset" data-wb="reset-skill">恢复技能基线</button>`;
+    return `<div class="wb-section-title"><div><p class="eyebrow">SKILL INSPECTOR</p><h2>${esc(this.action)}</h2></div><button data-wb="reset-skill">恢复技能基线</button></div><p class="wb-help">同一技能的修改影响所有使用者。自动技能冷却在“角色”页设置。${supportedSkills.has(this.action)?"此技能已接入战斗核心。":"此技能尚未迁移；可以保存参数，Play 会按测试设置阻止或停用该技能。"}</p><h3 class="wb-section-label">动作时间轴</h3><div class="wb-fields">${scalar("Windup","技能前摇（秒）",{max:2,step:.05})}${scalar("Backswing","技能后摇（秒）",{max:3,step:.05})}${scalar("ProjectileSpeed","弹道速度",{min:1,max:100,step:1})}${scalar("Lifetime","弹道存活（秒）",{min:.05,max:4,step:.05})}${this.field("大招可被打断",[...path,"Interruptible"],String(r.Interruptible),{select:[["true","允许打断"],["false","不可打断"]]})}</div>${r.DamageType!=="buff"?`<h3 class="wb-section-label">${r.DamageType==="heal"?"治疗":"伤害"}系数 <small>属性 × 倍率 ＋ 固定值</small></h3><p class="wb-help">使用${r.ScalingStat==="mag"?"法术":"攻击"}属性。暴击、防御、护盾与被动在核心继续结算。</p><div class="wb-fields">${[0,1,2,3,4].slice(0, Math.max(3, r.Ratios.length)).map(i=>this.field(`${i+1}阶/Lv.${i+1} 倍率`,[...path,"Ratios",i],r.Ratios[Math.min(i,r.Ratios.length-1)]??1,{max:20,step:.05})+this.field(`${i+1}阶/Lv.${i+1} 固定值`,[...path,"Bases",i],r.Bases[Math.min(i,r.Bases.length-1)]??0,{max:1000000})).join("")}</div>`:""}<h3 class="wb-section-label">射程与效果覆盖</h3><p class="wb-help">留空沿用原技能规则。射程控制选取和执行距离；范围半径作用于涌潮、碎甲冲、火雨和寒潮；持续时间作用于本技能附加的控制、减伤、追击或持续恢复。瞬时伤害没有持续时间。</p><div class="wb-fields">${scalar("Range","技能射程覆盖",{max:30,step:.1})}${scalar("Radius","范围半径覆盖",{max:30,step:.1})}${scalar("Duration","效果持续（秒）覆盖",{max:30,step:.1})}</div>${hasDotRatio(this.action)?`<h3 class="wb-section-label">持续伤害</h3><p class="wb-help">每秒按施法时${r.ScalingStat==="mag"?"法术":"攻击"}属性计算；默认${this.action==="poison"?"1/6":"1/8"}，取整后最低1。填0不附加持续伤害；直接伤害仍使用上方倍率。毒刺与毒雾的治疗抑制比例在共用效果下设置。</p><div class="wb-fields">${this.field("持续伤害属性比例",[...path,"DotRatio"],dotDefaults[this.action],{optional:true,percent:true,min:0,max:500,step:.1})}</div>`:""}${hasShieldRatio(this.action)?`<h3 class="wb-section-label">数值护盾倍率</h3><p class="wb-help">使用${r.ScalingStat==="mag"?"法术":"攻击"}属性。每个技能等级分别设置；留空沿用本级默认，0不生成新护盾。取已有护盾与新护盾较大值，不叠加。</p><div class="wb-fields">${[0,1,2].map(i=>this.field(`Lv.${i+1} 护盾倍率`,[...path,"ShieldRatios",i],defaultShieldRatio(this.action as ShieldSkill,i+1),{optional:true,min:0,max:20,step:.05})).join("")}</div>`:""}<button data-wb="skill" data-id="effects">编辑共用效果与被动</button><button class="wb-compact-reset" data-wb="reset-skill">恢复技能基线</button>`;
   }
   private floors() {
     const c = this.config(),
@@ -509,7 +575,17 @@ export class Workbench {
     this.group = Math.min(this.group, e.Enemies.length - 1);
     const g = e.Enemies[this.group]!,
       path: Path = ["Encounters", ei, "Enemies", this.group];
-    return `<div class="wb-section-title"><div><p class="eyebrow">LEVEL INSPECTOR · ${e.Id}</p><h2>第${f.Number}关${e.Boss ? " · Boss" : ""}</h2></div><button data-wb="reset-floor">恢复本关基线</button></div><div class="wb-fields">${this.field("关卡名称", ["Encounters", ei, "Title"], e.Title, { text: true })}${this.field("主题", ["Floors", f.Number - 1, "Theme"], f.Theme, { text: true })}${this.field(
+    const speciesSet = new Set(c.Species.map((s) => s.Id));
+    const brokenMap = new Map(getBrokenFloors(this.project.source).map((b) => [b.floor, b]));
+    const floorIssue = brokenMap.get(f.Number);
+    const brokenBanner = floorIssue && floorIssue.missingSpecies.length
+      ? `<div class="wb-broken-banner"><div class="wb-broken-banner-icon">⚠️</div><div class="wb-broken-banner-content"><strong>关卡配置待修复：本关包含已删除怪兽 [${floorIssue.missingSpecies.map((s) => esc(this.name(s))).join("、")}]</strong><p>请在下方敌方编组中重新选择有效怪兽，或点击「删除当前敌组」完成修复。</p></div></div>`
+      : "";
+    const isCurrentMissing = !speciesSet.has(g.Species);
+    const speciesOptions: readonly (readonly [string, string])[] = isCurrentMissing
+      ? [[g.Species, `⚠️ ${this.name(g.Species)}（已删除，请选择新怪兽）`], ...c.Species.map((s) => [s.Id, s.Name] as const)]
+      : c.Species.map((s) => [s.Id, s.Name] as const);
+    return `<div class="wb-section-title"><div><p class="eyebrow">LEVEL INSPECTOR · ${e.Id}</p><h2>第${f.Number}关${e.Boss ? " · Boss" : ""}</h2></div><button data-wb="reset-floor">恢复本关基线</button></div>${brokenBanner}<div class="wb-fields">${this.field("关卡名称", ["Encounters", ei, "Title"], e.Title, { text: true })}${this.field("主题", ["Floors", f.Number - 1, "Theme"], f.Theme, { text: true })}${this.field(
       "战场背景",
       ["Encounters", ei, "Background"],
       e.Background,
@@ -521,11 +597,15 @@ export class Workbench {
           ["castle", "城堡"],
         ],
       },
-    )}${this.field("通关金币", ["Encounters", ei, "Gold"], e.Gold, { min: 1, max: 10000 })}</div>${this.field("关卡提示", ["Encounters", ei, "Hint"], e.Hint, { textarea: true })}<h3 class="wb-section-label">敌方编组 <small>最多16名敌人 · 5首发，其余按票增援</small></h3><div class="wb-enemy-tabs">${e.Enemies.map((v, i) => `<button data-wb="group" data-id="${i}" class="${i === this.group ? "active" : ""}">${esc(this.name(v.Species))} ×${v.Count}</button>`).join("")}<button data-wb="add-enemy">＋ 增加敌组</button></div><div class="wb-fields">${this.field("敌人物种", [...path, "Species"], g.Species, { select: c.Species.map((s) => [s.Id, s.Name]) })}${this.field("敌人数量", [...path, "Count"], g.Count, { min: 1, max: 12 })}${this.field("敌人等级", [...path, "Level"], g.Level, { min: 1, max: 30 })}${this.field("敌人阶数", [...path, "Rank"], g.Rank, { min: 1, max: 5 })}${this.field("生命倍率", [...path, "Health"], g.Health, { min: 0.01, max: 30, step: 0.01 })}${this.field("攻击／法术倍率", [...path, "AttackScale"], g.AttackScale, { min: 0.01, max: 30, step: 0.01 })}${this.field("防御倍率", [...path, "DefenseScale"], g.DefenseScale, { min: 0, max: 30, step: 0.01 })}</div><div class="wb-row">${readPath(this.project.source, [...path, "ProfileOverride"]) ? `<button data-wb="clear-override">清除本敌组技能覆盖</button>` : ""}<button data-wb="remove-enemy" ${e.Enemies.length <= 1 ? "disabled" : ""}>删除当前敌组</button><span>修改敌组只作用于本关；角色属性会影响该物种的所有出场。</span></div><h3 class="wb-section-label">每名敌人的奖励 <small>仅保存配置，独立测试不发放奖励</small></h3><div class="wb-fields">${this.field("人类战斗经验", [...path, "Experience"], g.Experience, { max: 100000 })}${this.field("魂魄数量", [...path, "Souls"], g.Souls, { min: 1, max: 12 })}${this.field("小经验药水", [...path, "Potions"], g.Potions, { max: 100000 })}${this.field("中经验药水", [...path, "PotionsM"], g.PotionsM, { max: 100000 })}${this.field("大经验药水", [...path, "PotionsL"], g.PotionsL, { max: 100000 })}</div><details class="wb-reward-options"><summary>关卡装备奖励（${rewardGear.length}件）</summary>${c.Rules.Equipment.map((g) => `<label class="wb-check"><input type="checkbox" data-reward="${esc(g.Id)}" ${rewardGear.includes(g.Id) ? "checked" : ""}>${esc(g.Name)} <small>${esc(g.Id)}</small></label>`).join("")}</details>`;
+    )}${this.field("通关金币", ["Encounters", ei, "Gold"], e.Gold, { min: 1, max: 10000 })}</div>${this.field("关卡提示", ["Encounters", ei, "Hint"], e.Hint, { textarea: true })}<h3 class="wb-section-label">敌方编组 <small>最多16名敌人 · 5首发，其余按票增援</small></h3><div class="wb-enemy-tabs">${e.Enemies.map((v, i) => {
+      const isMissing = !speciesSet.has(v.Species);
+      const label = isMissing ? `⚠️ ${esc(this.name(v.Species))} (已删)` : esc(this.name(v.Species));
+      return `<button data-wb="group" data-id="${i}" class="${i === this.group ? "active" : ""} ${isMissing ? "wb-group-broken" : ""}">${label} ×${v.Count}</button>`;
+    }).join("")}<button data-wb="add-enemy">＋ 增加敌组</button></div><div class="wb-fields">${this.field("敌人物种", [...path, "Species"], g.Species, { select: speciesOptions })}${this.field("敌人数量", [...path, "Count"], g.Count, { min: 1, max: 12 })}${this.field("敌人等级", [...path, "Level"], g.Level, { min: 1, max: 999 })}${this.field("敌人阶数", [...path, "Rank"], g.Rank, { min: 1, max: 5 })}${this.field("生命倍率", [...path, "Health"], g.Health, { min: 0.01, max: 30, step: 0.01 })}${this.field("攻击／法术倍率", [...path, "AttackScale"], g.AttackScale, { min: 0.01, max: 30, step: 0.01 })}${this.field("防御倍率", [...path, "DefenseScale"], g.DefenseScale, { min: 0, max: 30, step: 0.01 })}</div>${isCurrentMissing ? `<div class="wb-field-broken-tip">⚠️ 怪兽「${esc(this.name(g.Species))}」已删除。请从上方「敌人物种」下拉框选择替代怪兽，或点击下方「删除当前敌组」。</div>` : ""}<div class="wb-row">${readPath(this.project.source, [...path, "ProfileOverride"]) ? `<button data-wb="clear-override">清除本敌组技能覆盖</button>` : ""}<button data-wb="remove-enemy" ${e.Enemies.length <= 1 ? "disabled" : ""}>删除当前敌组</button><span>修改敌组只作用于本关；角色属性会影响该物种的所有出场。</span></div><h3 class="wb-section-label">每名敌人的奖励 <small>仅保存配置，独立测试不发放奖励</small></h3><div class="wb-fields">${this.field("人类战斗经验", [...path, "Experience"], g.Experience, { max: 100000 })}${this.field("魂魄数量", [...path, "Souls"], g.Souls, { min: 1, max: 12 })}${this.field("小经验药水", [...path, "Potions"], g.Potions, { max: 100000 })}${this.field("中经验药水", [...path, "PotionsM"], g.PotionsM, { max: 100000 })}${this.field("大经验药水", [...path, "PotionsL"], g.PotionsL, { max: 100000 })}</div><details class="wb-reward-options"><summary>关卡装备奖励（${rewardGear.length}件）</summary>${c.Rules.Equipment.map((g) => `<label class="wb-check"><input type="checkbox" data-reward="${esc(g.Id)}" ${rewardGear.includes(g.Id) ? "checked" : ""}>${esc(g.Name)} <small>${esc(g.Id)}</small></label>`).join("")}</details>`;
   }
   private setup() {
     const c = this.config();
-    return `<div class="wb-section-title"><div><p class="eyebrow">PLAYTEST SETUP</p><h2>测试阵容与初始状态</h2></div></div><p class="wb-help">这些设置只用于独立测试，测试胜负不推进正式楼层、不领取奖励。</p><div class="wb-fields">${this.setting("测试关卡", "floor", { min: 1, max: 30 })}${this.setting("固定随机种子", "seed", { min: 1, max: 4294967295 })}${this.setting("我方等级", "level", { min: 1, max: 30 })}${this.setting("怪兽阶数", "rank", { min: 1, max: 5 })}${this.setting("起始生命 %", "hpPercent", { min: 1, max: 100 })}${this.setting("起始能量", "energy", { min: 0, max: 1000 })}${this.setting(
+    return `<div class="wb-section-title"><div><p class="eyebrow">PLAYTEST SETUP</p><h2>测试阵容与初始状态</h2></div></div><p class="wb-help">这些设置只用于独立测试，测试胜负不推进正式楼层、不领取奖励。</p><div class="wb-fields">${this.setting("测试关卡", "floor", { min: 1, max: c.Floors.length })}${this.setting("固定随机种子", "seed", { min: 1, max: 4294967295 })}${this.setting("我方等级", "level", { min: 1, max: 999 })}${this.setting("怪兽阶数", "rank", { min: 1, max: 5 })}${this.setting("起始生命 %", "hpPercent", { min: 1, max: 100 })}${this.setting("起始能量", "energy", { min: 0, max: 1000 })}${this.setting(
       "技能测试模式",
       "skillPolicy",
       {
@@ -569,6 +649,9 @@ export class Workbench {
         )!;
         const g = e.Enemies[this.group] ?? e.Enemies[0]!;
         title = `敌方 ${this.name(g.Species)} · Lv.${g.Level}`;
+        if (!c.Species.some((s) => s.Id === g.Species)) {
+          return `<p class="eyebrow">ENEMY PREVIEW</p><h3>敌方 ${esc(this.name(g.Species))}</h3><p class="wb-field-broken-tip">⚠️ 该怪兽已删除，无法预览属性。请在关卡页选择替代怪兽或删除敌组。</p>`;
+        }
         a = enemyAttributes(c, g);
       }
     } catch {
@@ -596,7 +679,8 @@ export class Workbench {
       (readPath(this.project.source, ["Species"]) as any[]) ??
       this.config().Species
     ).length;
-    this.root.innerHTML = `<section class="workbench"><div class="wb-toolbar"><div><strong>配置工作台</strong></div><div class="wb-actions"><button data-wb="save">保存草稿</button><button data-wb="export-zip" class="primary-zip">导出工程 (ZIP)</button><button data-wb="import">导入</button>${this.tab !== "strategy" ? '<button data-wb="export-godot">导出Godot试跑</button>' : ""}${this.tab !== "strategy" ? `<button data-wb="import-record">导入测试记录</button><button data-wb="play" class="primary">▶ Play 第${this.project.setup.floor}关</button>` : ""}</div></div><div class="wb-tabs"><button data-wb="characters" class="${this.tab === "characters" ? "active" : ""}">角色 · ${currentSpeciesCount + 2}</button><button data-wb="floors" class="${this.tab === "floors" ? "active" : ""}">关卡 · 30</button><button data-wb="skills" class="${this.tab === "skills" ? "active" : ""}">技能 · 73</button><button data-wb="setup" class="${this.tab === "setup" ? "active" : ""}">测试设置</button><button data-wb="strategy" class="${this.tab === "strategy" ? "active" : ""}">战斗策略</button><button data-wb="analysis" class="${this.tab === "analysis" ? "active" : ""}">批量对比</button><button data-wb="reset-all" class="wb-reset">恢复全部基线</button></div><div id="wb-validation" class="wb-validation" role="status"></div><div class="wb-body ${this.tab === "analysis" ? "wb-analysis-body" : this.tab === "strategy" ? "wb-strategy-body" : ""}">${this.tab === "strategy" ? renderStrategy(this.project.setup,id=>this.name(id)) : this.tab === "analysis" ? `<div id="wb-comparison">${this.comparison.render(this.project.setup,this.project.source)}</div>` : `${this.tab === "setup" ? "" : `<aside class="wb-sidebar">${this.tab === "characters" ? `<div class="wb-sidebar-header"><label class="wb-search"><span>查找角色</span><input id="wb-search" placeholder="名称 / ID" value="${esc(this.query)}"></label><button data-wb="add-character" class="wb-add-character-btn" aria-label="＋ 新增怪兽">＋ 新增怪兽</button></div>` : `<p class="wb-help">${this.tab==="skills"?"选择技能，修改参数后 Play 测试。":"点击关卡即可选择测试目标；不需要先通关。"}</p>`}<div id="wb-list">${this.list()}</div></aside>`}<div class="wb-inspector">${this.tab === "characters" ? this.characters() : this.tab === "floors" ? this.floors() : this.tab === "skills" ? this.skills() : this.setup()}${(this.tab === "characters" || this.tab === "floors") ? `<button class="wb-compact-reset" data-wb="${this.tab === "characters" ? "reset-character" : "reset-floor"}">${this.tab === "characters" ? "恢复此角色基线" : "恢复本关基线"}</button>` : ""}<button class="wb-compact-reset" data-wb="reset-all">恢复全部基线</button></div><aside id="wb-preview" class="wb-preview"></aside>`}</div><div class="wb-footer"><span id="wb-save-status">${this.status}</span> · 草稿仅保存在此浏览器；支持导出全量ZIP（含配表、工程与贴图素材）或导入。测试与正式进度分开。</div></section>`;
+    const brokenFloors = getBrokenFloors(this.project.source);
+    this.root.innerHTML = `<section class="workbench"><div class="wb-toolbar"><div><strong>配置工作台</strong></div><div class="wb-actions"><button data-wb="save">保存草稿</button><button data-wb="export-zip" class="primary-zip">导出工程 (ZIP)</button><button data-wb="import">导入</button>${this.tab !== "strategy" ? '<button data-wb="export-godot">导出Godot试跑</button>' : ""}${this.tab !== "strategy" ? `<button data-wb="import-record">导入测试记录</button><button data-wb="play" class="primary">▶ Play 第${this.project.setup.floor}关</button>` : ""}</div></div><div class="wb-tabs"><button data-wb="characters" class="${this.tab === "characters" ? "active" : ""}">角色 · ${currentSpeciesCount + 2}</button><button data-wb="floors" class="${this.tab === "floors" ? "active" : ""}">关卡 · ${this.config().Floors.length}${brokenFloors.length ? ` <span class="wb-tab-badge-error">${brokenFloors.length}待修</span>` : ""}</button><button data-wb="skills" class="${this.tab === "skills" ? "active" : ""}">技能 · ${this.skillOptions().length}</button><button data-wb="setup" class="${this.tab === "setup" ? "active" : ""}">测试设置</button><button data-wb="strategy" class="${this.tab === "strategy" ? "active" : ""}">战斗策略</button><button data-wb="analysis" class="${this.tab === "analysis" ? "active" : ""}">批量对比</button><button data-wb="reset-all" class="wb-reset">恢复全部基线</button></div><div id="wb-validation" class="wb-validation" role="status"></div><div class="wb-body ${this.tab === "analysis" ? "wb-analysis-body" : this.tab === "strategy" ? "wb-strategy-body" : ""}">${this.tab === "strategy" ? renderStrategy(this.project.setup,id=>this.name(id)) : this.tab === "analysis" ? `<div id="wb-comparison">${this.comparison.render(this.project.setup,this.project.source)}</div>` : `${this.tab === "setup" ? "" : `<aside class="wb-sidebar">${this.tab === "characters" ? `<div class="wb-sidebar-header"><label class="wb-search"><span>查找角色</span><input id="wb-search" placeholder="名称 / ID" value="${esc(this.query)}"></label><button data-wb="add-character" class="wb-add-character-btn" aria-label="＋ 新增怪兽">＋ 新增怪兽</button></div>` : `<p class="wb-help">${this.tab==="skills"?"选择技能，修改参数后 Play 测试。":"点击关卡即可选择测试目标；不需要先通关。"}</p>`}<div id="wb-list">${this.list()}</div></aside>`}<div class="wb-inspector">${this.tab === "characters" ? this.characters() : this.tab === "floors" ? this.floors() : this.tab === "skills" ? this.skills() : this.setup()}${(this.tab === "characters" || this.tab === "floors") ? `<button class="wb-compact-reset" data-wb="${this.tab === "characters" ? "reset-character" : "reset-floor"}">${this.tab === "characters" ? "恢复此角色基线" : "恢复本关基线"}</button>` : ""}<button class="wb-compact-reset" data-wb="reset-all">恢复全部基线</button></div><aside id="wb-preview" class="wb-preview"></aside>`}</div><div class="wb-footer"><span id="wb-save-status">${this.status}</span> · 草稿仅保存在此浏览器；支持导出全量ZIP（含配表、工程与贴图素材）或导入。测试与正式进度分开。</div></section>`;
     this.updateStatus();
   }
   private input(event: Event) {
@@ -683,6 +767,32 @@ export class Workbench {
             );
             const descEl = this.root?.querySelector("#wb-bound-auto-desc");
             if (descEl) descEl.textContent = desc;
+          } else if (fieldKey === "AutoSkills") {
+            const idx = Number(path[4]);
+            const current =
+              (readPath(this.project.source, [
+                "Rules",
+                "Profiles",
+                charId,
+                "AutoSkills",
+              ]) as string[]) ?? [];
+            const updated = [...current];
+            updated[idx] = String(value);
+            const desc = updated.map((id) => getSkillDescription(id)).join("；");
+            setPath(
+              this.project.source,
+              ["Rules", "Profiles", charId, "AutoDescription"],
+              desc,
+            );
+            if (idx === 0) {
+              setPath(
+                this.project.source,
+                ["Rules", "Profiles", charId, "Auto"],
+                String(value),
+              );
+            }
+            const descEl = this.root?.querySelector("#wb-bound-auto-desc");
+            if (descEl) descEl.textContent = desc;
           } else if (fieldKey === "Ultimate") {
             const desc = getSkillDescription(String(value));
             setPath(
@@ -767,6 +877,23 @@ export class Workbench {
           ".wb-inspector .wb-section-title h2",
         );
         if (heading) heading.textContent = this.name(this.character);
+      } else if (this.tab === "floors") {
+        const list = this.root?.querySelector("#wb-list");
+        if (list) {
+          const scroll = list.scrollTop;
+          list.innerHTML = this.list();
+          list.scrollTop = scroll;
+        }
+        const activeId = document.activeElement?.id;
+        const inspector = this.root?.querySelector(".wb-inspector");
+        if (inspector) {
+          const scroll = inspector.scrollTop;
+          inspector.innerHTML = `${this.floors()}<button class="wb-compact-reset" data-wb="reset-floor">恢复本关基线</button><button class="wb-compact-reset" data-wb="reset-all">恢复全部基线</button>`;
+          inspector.scrollTop = scroll;
+          if (activeId) {
+            this.root?.querySelector<HTMLElement>(`#${CSS.escape(activeId)}`)?.focus({ preventScroll: true });
+          }
+        }
       }
       void this.save();
     } catch (e) {
@@ -793,7 +920,7 @@ export class Workbench {
       const files: ZipFileEntry[] = [];
 
       files.push({
-        name: "thirty-floor-trial-draft.json",
+        name: "trial-draft.json",
         data: JSON.stringify(project.source, null, 2),
       });
       files.push({
@@ -816,7 +943,8 @@ export class Workbench {
         const pr =
           (readPath(project.source, ["Rules", "Profiles", s.Id]) as any) ??
           c.Rules.Profiles[s.Id];
-        md += `| \`${s.Id}\` | ${s.Name} | **${sp?.Tier ?? "普通"}** | ${sp?.PrimaryRole ?? "-"} | \`${s.Id}.png\` | ${s.FrameSize ?? 16}px | ${pr?.Auto || "无"} | ${pr?.Ultimate || "-"} | ${sp?.Specialty?.replace(/\n/g, " ") || "-"} |\n`;
+        const autoDisplay = pr?.AutoSkills?.length ? pr.AutoSkills.join(", ") : pr?.Auto || "无";
+        md += `| \`${s.Id}\` | ${s.Name} | **${sp?.Tier ?? "普通"}** | ${sp?.PrimaryRole ?? "-"} | \`${s.Id}.png\` | ${s.FrameSize ?? 16}px | ${autoDisplay} | ${pr?.Ultimate || "-"} | ${sp?.Specialty?.replace(/\n/g, " ") || "-"} |\n`;
       }
 
       md += `\n## 详细设定清单\n\n`;
@@ -838,7 +966,8 @@ export class Workbench {
         md += `- **基础属性与成长**：生命 ${cb?.Base?.MaxHp ?? 0} (+${cb?.Growth?.MaxHp ?? 0}/级) / 攻击 ${cb?.Base?.Attack ?? 0} (+${cb?.Growth?.Attack ?? 0}/级) / 防御 ${cb?.Base?.Defense ?? 0} (+${cb?.Growth?.Defense ?? 0}/级) / 法术 ${cb?.Base?.Magic ?? 0} (+${cb?.Growth?.Magic ?? 0}/级) / 魔抗 ${cb?.Base?.Resistance ?? 0} (+${cb?.Growth?.Resistance ?? 0}/级)\n`;
         md += `- **普攻机制**：${cb?.BasicDamageType === "magical" ? "法术伤害" : "物理伤害"}，间隔 ${pr?.Interval ?? 1}s，射程 ${cb?.AttackRange ?? 0.55}，移速 ${cb?.MoveSpeed ?? 3.8}\n`;
         md += `- **技能设定**：\n`;
-        md += `  - 自动技能：\`${pr?.Auto || "无"}\`（冷却: ${pr?.Cooldown ?? 0}s）- ${pr?.AutoDescription || "暂无说明"}\n`;
+        const autoList = pr?.AutoSkills?.length ? pr.AutoSkills.join(", ") : pr?.Auto || "无";
+        md += `  - 自动技能：\`${autoList}\`（冷却: ${pr?.Cooldown ?? 0}s）- ${pr?.AutoDescription || "暂无说明"}\n`;
         md += `  - 手动大招：\`${pr?.Ultimate || "无"}\` - ${pr?.UltimateDescription || "暂无说明"}\n`;
         md += `  - 被动技能：${pr?.Passive || "无"} - ${pr?.PassiveDescription || "暂无说明"}\n\n`;
       }
@@ -846,7 +975,17 @@ export class Workbench {
 
       // Export each sheet under its species ID; the source keeps its Sprite mapping.
       const spriteFiles = new Map<string, string>([["hero", "hero"], ["princess", "princess"]]);
-      for (const s of speciesList) spriteFiles.set(s.Id, spriteFileName(s.Sprite ?? s.Id));
+      for (const s of speciesList) {
+        const rawSprite = (s.Sprite ?? s.Id)
+          .replace(/^res:\/\/.*?([^/]+)\.png$/i, "$1")
+          .replace(/\.png$/i, "");
+        spriteFiles.set(
+          s.Id,
+          project.sprites?.[rawSprite]
+            ? rawSprite
+            : spriteFileName(s.Sprite ?? s.Id),
+        );
+      }
       const fileDataCache = new Map<string, Uint8Array>();
       for (const [id, spriteFile] of spriteFiles) {
         let data: Uint8Array;
@@ -929,7 +1068,7 @@ export class Workbench {
           action === "floors" &&
           (!Number.isInteger(this.project.setup.floor) ||
             this.project.setup.floor < 1 ||
-            this.project.setup.floor > 30)
+            this.project.setup.floor > this.config().Floors.length)
         )
           this.project.setup.floor = 1;
         this.tab = action;
@@ -986,16 +1125,13 @@ export class Workbench {
         }
         const toDelete = this.character;
         const charName = this.name(toDelete);
-        const usedFloors = this.config().Floors.filter((floor) =>
-          this.config().Encounters.find((e) => e.Id === floor.Encounter)?.Enemies.some((e) => e.Species === toDelete),
-        ).map((floor) => floor.Number);
-        if (usedFloors.length) {
-          this.notify(`第 ${usedFloors.join("、")} 关仍使用此怪兽，请先在关卡页替换或删除对应敌组。`);
-          return;
-        }
+        const usedFloors = this.getUsedFloors(toDelete);
+        const notice = usedFloors.length
+          ? `\n\n提示：第 ${usedFloors.join("、")} 关仍包含此怪兽。删除后这些关卡将标记为待修复，可在关卡页重新指定怪兽或删除敌组。`
+          : "";
         if (
           !window.confirm(
-            `确定要删除怪兽「${charName} (${toDelete})」吗？\n删除后将从物种列表、角色属性与技能中移除。`,
+            `确定要删除怪兽「${charName} (${toDelete})」吗？\n删除后将从物种列表、角色属性与技能中移除。${notice}`,
           )
         ) {
           return;
@@ -1026,7 +1162,11 @@ export class Workbench {
 
         this.render();
         void this.save();
-        this.notify(`已删除怪兽 ${charName}。`);
+        if (usedFloors.length) {
+          this.notify(`已删除怪兽 ${charName}。第 ${usedFloors.join("、")} 关已标记为待修复，请在关卡页调整。`);
+        } else {
+          this.notify(`已删除怪兽 ${charName}。`);
+        }
         return;
       }
       case "rename-character": {
@@ -1117,10 +1257,10 @@ export class Workbench {
                 const zip = readZip(new Uint8Array(buf));
                 const projectData =
                   zip.get("tower30-editor-project.json") ??
-                  zip.get("thirty-floor-trial-draft.json");
+                  zip.get("trial-draft.json");
                 if (!projectData) {
                   this.notify(
-                    "ZIP 包中未找到 tower30-editor-project.json 或 thirty-floor-trial-draft.json",
+                    "ZIP 包中未找到 tower30-editor-project.json 或 trial-draft.json",
                   );
                   return;
                 }
@@ -1165,6 +1305,11 @@ export class Workbench {
         return;
       }
       case "play": {
+        const brokenFloors = getBrokenFloors(this.project.source);
+        if (brokenFloors.some((b) => b.floor === this.project.setup.floor)) {
+          this.notify(`当前第 ${this.project.setup.floor} 关包含已删除怪兽，请先在关卡页修复后再 Play。`);
+          return;
+        }
         const result = validateProject(this.project);
         if (!result.config || result.errors.length) {
           this.updateStatus();
@@ -1288,7 +1433,7 @@ export class Workbench {
         const enemies = clone(current);
         if (action === "add-enemy") {
           enemies.push({
-            Species: "slime_dusk",
+            Species: "slime",
             Count: 1,
             Level: 1,
             Rank: 1,

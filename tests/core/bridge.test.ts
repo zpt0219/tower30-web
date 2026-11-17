@@ -1,11 +1,11 @@
 import {expect,it} from 'vitest';
-import raw from '../../data/tower/thirty-floor-trial.json';
+import raw from '../../data/tower/trial.json';
 import {createSession} from '../../src/bridge/session';
 import {TowerEngine} from '../../src/core/engine';
 import {validateConfig} from '../../src/core/config';
 const call=(session:ReturnType<typeof createSession>,request:unknown)=>JSON.parse(session(JSON.stringify(request))) as {ok:boolean;value:any;error?:string};
 it('JSON bridge matches direct-core commands, snapshots and battle restore/continuation',()=>{
- const session=createSession(),engine=new TowerEngine(validateConfig(raw));
+ const session=createSession(),engine=new TowerEngine(validateConfig(raw,{allowUnknownEnemySpecies:true}));
  expect(call(session,{op:'create',config:raw}).value).toEqual(engine.getSnapshot());
  for(const command of [{type:'begin'},{type:'start'}] as const)expect(call(session,{op:'command',command}).value).toEqual(engine.dispatch(command));
  call(session,{op:'advance',ticks:180});engine.advance(180);

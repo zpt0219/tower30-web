@@ -13,14 +13,18 @@ export type EditorProject=z.infer<typeof editorProjectSchema>;
 export const MAX_PROJECT_TEXT=2_000_000;
 function utf8Size(text:string){let size=0;for(const ch of text){const cp=ch.codePointAt(0)!;size+=cp<128?1:cp<2048?2:cp<65536?3:4;}return size;}
 // Host-independent project boundary: same validation, frozen setup and identifiers on both sides.
-export function inspectProject(input:unknown){
+ export function inspectProject(input:unknown){
  const project=editorProjectSchema.parse(input);
  if(utf8Size(JSON.stringify(project,null,2))>MAX_PROJECT_TEXT)throw new Error('工程文件不能超过2MB');
- const config=validateConfig(project.source),setup=project.setup;
+ const config=validateConfig(project.source,{allowUnknownEnemySpecies:true}),setup=project.setup;
+ const encounter=config.Encounters.find(e=>e.Id===config.Floors[setup.floor-1]!.Encounter)!;
+ const speciesSet=new Set(config.Species.map(s=>s.Id));
+ const missing=[...new Set(encounter.Enemies.filter(e=>!speciesSet.has(e.Species)).map(e=>e.Species))];
+ if(missing.length)throw new Error(`第${setup.floor}关包含已删除怪兽 [${missing.join('、')}]，请在关卡页修复后再试`);
  const warnings=playtestWarnings(config,setup);
  if(setup.skillPolicy==='strict'&&warnings.length)throw new Error('存在未迁移功能：'+warnings.join('；'));
  const configHash=fingerprint(config),launchHash=fingerprint({configHash,setup});
- return {project:clone(project),config,info:{configHash,launchHash,setup:clone(setup),warnings,title:config.Encounters.find(e=>e.Id===config.Floors[setup.floor-1]!.Encounter)!.Title}};
+ return {project:clone(project),config,info:{configHash,launchHash,setup:clone(setup),warnings,title:encounter.Title}};
 }
 export function parseProjectText(text:string){
  if(utf8Size(text)>MAX_PROJECT_TEXT)throw new Error('工程文件不能超过2MB');

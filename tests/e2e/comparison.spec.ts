@@ -5,7 +5,7 @@ import {TowerEngine} from '../../src/core/engine';
 import {simulatePair,type SimulationReport,trialSave,summarizeTrials} from '../../src/core/simulation';
 const artifacts=artifactDirectory();
 async function edit(page:Page,id:string,key:string,value:string){
- await page.getByRole('button',{name:'角色 · 42',exact:true}).click();
+ await page.getByRole('button',{name:'角色 · 43',exact:true}).click();
  await page.locator(`button[data-wb="character"][data-id="${id}"]`).click();
  await page.locator(`#wb-Rules-Combatants-${id}-Base-${key}`).fill(value);
 }

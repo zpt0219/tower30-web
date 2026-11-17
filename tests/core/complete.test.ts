@@ -1,10 +1,10 @@
 import {it,expect} from 'vitest';
-import raw from '../../data/tower/thirty-floor-trial.json';
+import raw from '../../data/tower/trial.json';
 import {validateConfig} from '../../src/core/config';
 import {TowerEngine} from '../../src/core/engine';
 import {defaultPlaytestSetup,playtestWarnings} from '../../src/core/playtest';
-it('42角色、40物种的正式配置均能完整Play，已有技能与被动不被数值模式停用',()=>{
- const c=validateConfig(raw);c.Encounters[0]!.Enemies=[{...c.Encounters[0]!.Enemies[0]!,Health:30,AttackScale:.01}];c.Rules.Profiles.slime_dusk!.Auto='';
+it('43角色、41物种的正式配置均能完整Play，已有技能与被动不被数值模式停用',()=>{
+ const c=validateConfig(raw,{allowUnknownEnemySpecies:true});c.Encounters[0]!.Enemies=[{...c.Encounters[0]!.Enemies[0]!,Health:30,AttackScale:.01}];c.Rules.Profiles.slime!.Auto='';delete c.Rules.Profiles.slime!.AutoSkills;
  for(const id of Object.keys(c.Rules.Combatants)){
   const setup={...defaultPlaytestSetup(),party:[id],level:5,rank:5,hpPercent:50,energy:1000,skillPolicy:'strict' as const};
   expect(playtestWarnings(c,setup),id).toEqual([]);const e=TowerEngine.createPlaytest(c,setup);expect(e.dispatch({type:'begin'}).ok).toBe(true);expect(e.dispatch({type:'start'}).ok).toBe(true);

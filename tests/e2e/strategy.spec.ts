@@ -1,6 +1,6 @@
 import {test,expect,type Page} from "@playwright/test";
 import {readFileSync,writeFileSync} from "node:fs";
-const raw:unknown=JSON.parse(readFileSync("data/tower/thirty-floor-trial.json","utf8"));
+const raw:unknown=JSON.parse(readFileSync("data/tower/trial.json","utf8"));
 import {scene} from "../helpers/status-scene";
 import {defaultPlaytestSetup} from "../../src/core/playtest";
 import {TowerEngine} from "../../src/core/engine";
@@ -18,12 +18,12 @@ async function session(page:Page){return page.evaluate(async()=>{const db=await 
 async function withdraw(page:Page,path:string){await page.getByRole("button",{name:"撤回",exact:true}).click();await page.getByRole("dialog").getByRole("button",{name:"确认撤回战斗",exact:true}).click();return TowerEngine.restorePlaytest(await file(page,"导出测试记录",path));}
 test("网页策略编辑、优先级与补人真实生效，单步/刷新恢复冻结策略且无重复出招，越界草稿可修复",async({page},info)=>{
  test.setTimeout(90000);const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));await page.clock.install({time:new Date("2026-10-31T12:00:00Z")});
- const party=["hero","princess","slime_dusk","sproutling","reedwing","boar","skeleton_guard"];
+ const party=["hero","princess","slime","treant","wind_bug","mudguard","flame_skeleton"];
  await importScene(page,`${artifacts}/${info.project.name}-strategy-input.json`,party);
  await page.getByLabel("Play自动执行策略",{exact:true}).check();await page.getByLabel("治疗生命阈值 %",{exact:true}).fill("101");await expect(page.locator("#wb-validation")).toContainText("配置有误");await expect(page.getByRole("button",{name:"▶ Play 第1关",exact:true})).toBeDisabled();
  await page.getByRole("button",{name:"打开批量对比",exact:true}).click();await page.getByRole("button",{name:"运行A / B配对模拟",exact:true}).click();await expect(page.getByText("治疗生命阈值须为0—100的有效数值。",{exact:true})).toBeVisible();await page.getByRole("button",{name:"战斗策略",exact:true}).click();
- await page.getByLabel("治疗生命阈值 %",{exact:true}).fill("80");await page.getByLabel("打断大招条件",{exact:true}).selectOption("immediate");await page.getByRole("button",{name:"大招优先级上移公主",exact:true}).click();await page.getByRole("button",{name:"补人顺序上移重装骷髅",exact:true}).click();
- for(let i=0;i<3;i++)await page.getByRole("button",{name:"补人顺序上移重装骷髅",exact:true}).click();
+ await page.getByLabel("治疗生命阈值 %",{exact:true}).fill("80");await page.getByLabel("打断大招条件",{exact:true}).selectOption("immediate");await page.getByRole("button",{name:"大招优先级上移公主",exact:true}).click();await page.getByRole("button",{name:"补人顺序上移烈焰骷髅",exact:true}).click();
+ for(let i=0;i<3;i++)await page.getByRole("button",{name:"补人顺序上移烈焰骷髅",exact:true}).click();
  await expect(page.locator("#wb-save-status")).toHaveText("草稿已保存到浏览器");await page.clock.runFor(4100);await page.locator(".strategy-controls").evaluate(el=>el.scrollTop=0);await page.locator(".strategy-priorities").evaluate(el=>el.scrollTop=0);const pane=(await page.locator(".strategy-controls").boundingBox())!,play=(await page.getByRole("button",{name:"▶ Play 第1关",exact:true}).boundingBox())!;expect(pane.width).toBeGreaterThan(300);expect(play.y+play.height).toBeLessThanOrEqual(pane.y+pane.height);await page.screenshot({path:`${artifacts}/${info.project.name}-strategy-editor.png`});
  await page.getByLabel("治疗生命阈值 %",{exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:`${artifacts}/${info.project.name}-strategy-conditions.png`});
  if(info.project.name==="mobile-landscape"){
@@ -34,8 +34,8 @@ test("网页策略编辑、优先级与补人真实生效，单步/刷新恢复�
  await page.reload();await page.getByRole("button",{name:"编辑属性与关卡 ▶ Play",exact:true}).click();await page.getByRole("button",{name:"战斗策略",exact:true}).click();await expect(page.getByLabel("治疗生命阈值 %",{exact:true})).toHaveValue("80");await expect(page.getByLabel("Play自动执行策略",{exact:true})).toBeChecked();
  await page.clock.pauseAt(new Date("2026-10-31T13:00:00Z"));await page.getByRole("button",{name:"▶ Play 第1关",exact:true}).click();await expect(page.locator(".test-label")).toContainText("策略自动执行");await page.clock.runFor(1600);await page.getByRole("button",{name:"暂停",exact:true}).click();
  await expect.poll(async()=>TowerEngine.restorePlaytest(await session(page)).getSnapshot().tick).toBeGreaterThan(20);
- await expect(page.locator('[data-unit="skeleton_guard"]')).toHaveCount(1);await expect(page.locator('[data-reserve="skeleton_guard"]')).toHaveCount(0);
- const before=TowerEngine.restorePlaytest(await session(page));expect(controls(before).filter((r:{command:{type:string}})=>r.command.type==="ultimate").slice(0,2).map((r:{command:{id:string}})=>r.command.id)).toEqual(["princess","hero"]);expect(controls(before).find((r:{command:{type:string}})=>r.command.type==="reinforce").command.id).toBe("skeleton_guard");
+ await expect(page.locator('[data-unit="flame_skeleton"]')).toHaveCount(1);await expect(page.locator('[data-reserve="flame_skeleton"]')).toHaveCount(0);
+ const before=TowerEngine.restorePlaytest(await session(page));expect(controls(before).filter((r:{command:{type:string}})=>r.command.type==="ultimate").slice(0,2).map((r:{command:{id:string}})=>r.command.id)).toEqual(["princess","hero"]);expect(controls(before).find((r:{command:{type:string}})=>r.command.type==="reinforce").command.id).toBe("flame_skeleton");
  await page.screenshot({path:`${artifacts}/${info.project.name}-strategy-play.png`});await page.reload();await expect(page.getByRole("button",{name:"继续",exact:true})).toBeVisible();const restored=TowerEngine.restorePlaytest(await session(page));expect(restored.getSnapshot()).toEqual(before.getSnapshot());
  await page.getByText("调试 · 固定步长 / 战斗事件",{exact:true}).click();await page.getByRole("button",{name:"单步 1/60秒",exact:true}).click();const exported=await withdraw(page,`${artifacts}/${info.project.name}-strategy-resumed-play.json`);expect(exported.getSnapshot().tick).toBe(before.getSnapshot().tick+1);expect(controls(exported)).toEqual(controls(before));expect(exported.getSnapshot().playtest!.strategy!.healingHpPercent).toBe(80);
  await page.getByRole("button",{name:"返回编辑",exact:true}).click();await page.getByRole("button",{name:"战斗策略",exact:true}).click();await page.getByLabel("治疗生命阈值 %",{exact:true}).fill("101");await expect(page.locator("#wb-save-status")).toHaveText("草稿已保存到浏览器");await page.reload();await page.getByRole("button",{name:"编辑属性与关卡 ▶ Play",exact:true}).click();await page.getByRole("button",{name:"战斗策略",exact:true}).click();await expect(page.getByLabel("治疗生命阈值 %",{exact:true})).toHaveValue("101");await page.getByRole("button",{name:"恢复默认策略",exact:true}).click();await expect(page.getByLabel("治疗生命阈值 %",{exact:true})).toHaveValue("65");await expect(page.getByLabel("Play自动执行策略",{exact:true})).toBeChecked();

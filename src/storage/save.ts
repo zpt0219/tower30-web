@@ -38,6 +38,7 @@ export async function readSaves(): Promise<{
 export async function writeSave(
   json: string,
   keepBackup = false,
+  clearBackup = false,
 ): Promise<void> {
   const db = await open();
   try {
@@ -46,7 +47,8 @@ export async function writeSave(
         store = tx.objectStore(STORE),
         old = store.get("current");
       old.onsuccess = () => {
-        if (!keepBackup && typeof old.result === "string")
+        if (clearBackup) store.delete("backup");
+        else if (!keepBackup && typeof old.result === "string")
           store.put(old.result, "backup");
         store.put(json, "current");
       };
@@ -59,8 +61,15 @@ export async function writeSave(
   }
 }
 
+export type WorkbenchKey =
+  | "draft"
+  | "draftBaseline"
+  | "draftBackup"
+  | "session"
+  | "comparison";
+
 export async function readWorkbench(
-  key: "draft" | "session" | "comparison",
+  key: WorkbenchKey,
 ): Promise<string | undefined> {
   const db = await open();
   try {
@@ -76,7 +85,7 @@ export async function readWorkbench(
   }
 }
 export async function writeWorkbench(
-  key: "draft" | "session" | "comparison",
+  key: WorkbenchKey,
   value: string,
 ): Promise<void> {
   const db = await open();

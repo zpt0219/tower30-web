@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import raw from "../../data/tower/thirty-floor-trial.json";
+import raw from "../../data/tower/trial.json";
 import { validateConfig } from "../../src/core/config";
 import { TowerEngine } from "../../src/core/engine";
 import { damage, nextRandom, roundAway, roundEven } from "../../src/core/math";
-const config = validateConfig(raw);
+const config = validateConfig(raw, { allowUnknownEnemySpecies: true });
 function fighting(seed?: number) {
   const e = new TowerEngine(config, seed);
   expect(e.dispatch({ type: "begin" }).ok).toBe(true);
@@ -15,9 +15,10 @@ function win(e: TowerEngine) {
   expect(e.getSnapshot().battle?.result).toBe("victory");
 }
 describe("配表与可移植数学", () => {
-  it("校验全部30层40物种且拒绝损坏引用", () => {
-    expect(config.Species).toHaveLength(40);
-    expect(config.Encounters.filter((e) => e.Boss)).toHaveLength(3);
+  it("校验全部100层41物种且默认拒绝损坏引用（草稿模式标记待修复）", () => {
+    expect(config.Species).toHaveLength(41);
+    expect(config.Floors).toHaveLength(100);
+    expect(config.Encounters.filter((e) => e.Boss)).toHaveLength(20);
     const bad = structuredClone(raw);
     bad.Floors[0]!.Encounter = "missing";
     expect(() => validateConfig(bad)).toThrow();
@@ -42,10 +43,10 @@ describe("真实战斗、奖励、重放", () => {
     const e = new TowerEngine(config),
       s = e.getSnapshot();
     expect(s.gold).toBe(240);
-    expect(s.members.map((m) => m.hp)).toEqual([1800, 1500]);
-    expect(s.members[0]!.attributes.Attack).toBe(146);
+    expect(s.members.map((m) => m.hp)).toEqual([720, 610]);
+    expect(s.members[0]!.attributes.Attack).toBe(121);
     s.members[0]!.hp = 1;
-    expect(e.getSnapshot().members[0]!.hp).toBe(1800);
+    expect(e.getSnapshot().members[0]!.hp).toBe(720);
   });
   it("批量、逐tick及在途弹道存档恢复一致", () => {
     const a = fighting(1),
@@ -88,7 +89,7 @@ describe("真实战斗、奖励、重放", () => {
     win(e);
     const before = e.getSnapshot();
     expect(before.items.xp_potion).toBe(2);
-    expect(before.members.find((m) => m.id === "slime_dusk")!.hp).toBe(540);
+    expect(before.members.find((m) => m.id === "slime")!.hp).toBe(230);
     e.advance(500);
     expect(e.getSnapshot()).toEqual(before);
     expect(e.dispatch({ type: "finish" }).ok).toBe(true);
@@ -161,23 +162,42 @@ describe("经济与养成", () => {
       e.getSnapshot(),
     );
   });
+  it("出售报价与批量出售正确结算且受库存约束", () => {
+    const e = new TowerEngine(config);
+    expect(e.quoteSell("herb", 2)).toEqual({
+      unitPrice: 4,
+      owned: 3,
+      quantity: 2,
+      total: 8,
+      remaining: 1,
+      balance: 248,
+    });
+    expect(e.quoteSell("herb", 5)?.remaining).toBe(-2);
+    expect(e.quoteSell("traveler_sword", 1)).toBeNull();
+    expect(e.quoteSell("herb", 0)).toBeNull();
+    expect(e.dispatch({ type: "sell", id: "herb", quantity: 3 }).ok).toBe(true);
+    expect(e.getSnapshot().gold).toBe(252);
+    expect(e.getSnapshot().items.herb).toBe(0);
+    expect(e.quoteSell("herb", 1)).toBeNull();
+    expect(e.dispatch({ type: "buy", id: "herb", quantity: 100 }).ok).toBe(false);
+  });
   it("药水按小瓶单位消耗，中瓶找零，退还不复制药水，升级不回血", () => {
     const e = fighting();
     win(e);
     e.dispatch({ type: "finish" });
     e.dispatch({ type: "buy", id: "potion_m", quantity: 1 });
     const s = e.getSnapshot(),
-      hp = s.members.find((m) => m.id === "slime_dusk")!.hp;
-    expect(e.dispatch({ type: "train", id: "slime_dusk" }).ok).toBe(true);
+      hp = s.members.find((m) => m.id === "slime")!.hp;
+    expect(e.dispatch({ type: "train", id: "slime" }).ok).toBe(true);
     const trained = e.getSnapshot();
-    expect(trained.members.find((m) => m.id === "slime_dusk")!.hp).toBe(hp);
-    const spent = trained.members.find((m) => m.id === "slime_dusk")!.training
+    expect(trained.members.find((m) => m.id === "slime")!.hp).toBe(hp);
+    const spent = trained.members.find((m) => m.id === "slime")!.training
       .refund;
-    expect(e.dispatch({ type: "refund", id: "slime_dusk" }).ok).toBe(true);
-    expect(e.dispatch({ type: "refund", id: "slime_dusk" }).ok).toBe(false);
+    expect(e.dispatch({ type: "refund", id: "slime" }).ok).toBe(true);
+    expect(e.dispatch({ type: "refund", id: "slime" }).ok).toBe(false);
     const total = (s.items.xp_potion ?? 0) + 4 * (s.items.xp_potion_m ?? 0);
     expect(
-      e.getSnapshot().members.find((m) => m.id === "slime_dusk")!.training
+      e.getSnapshot().members.find((m) => m.id === "slime")!.training
         .available,
     ).toBe(total);
     expect(spent).toBeGreaterThan(0);
@@ -186,12 +206,19 @@ describe("经济与养成", () => {
   });
 });
 it("手动大招在真实蓄能后扣1000，记录命令并可重放", () => {
-  const e = fighting();
+  const tough = structuredClone(raw);
+  tough.Encounters[0]!.Enemies[0]!.Health = 3;
+  tough.Encounters[1]!.Enemies[0]!.Health = 4;
+  tough.Encounters[1]!.Enemies[0]!.AttackScale = 0.5;
+  const cfg2 = validateConfig(tough, { allowUnknownEnemySpecies: true });
+  const e = new TowerEngine(cfg2);
+  expect(e.dispatch({ type: "begin" }).ok).toBe(true);
+  expect(e.dispatch({ type: "start" }).ok).toBe(true);
   win(e);
   e.dispatch({ type: "finish" });
   e.dispatch({ type: "begin" });
   e.dispatch({ type: "start" });
-  for (let i = 0; i < 600; i++) {
+  for (let i = 0; i < 1800; i++) {
     const s = e.getSnapshot(),
       u = s.battle!.units.find((u) => u.id === "hero")!;
     if (u.energy >= 1000 && u.entry <= 0) {
@@ -205,7 +232,7 @@ it("手动大招在真实蓄能后扣1000，记录命令并可重放", () => {
       expect(after.energy).toBe(energy - 1000);
       expect(after.action?.kind).toBe("ultimate");
       expect(after.ultimates).toBe(1);
-      const loaded = TowerEngine.restore(config, e.serialize());
+      const loaded = TowerEngine.restore(cfg2, e.serialize());
       e.advance(20);
       loaded.advance(20);
       expect(loaded.getSnapshot()).toEqual(e.getSnapshot());
@@ -219,7 +246,7 @@ it("高压对照战真实失败，无奖励，重试还原战前状态", () => {
   const hard = structuredClone(raw);
   hard.Encounters[0]!.Enemies[0]!.Health = 30;
   hard.Encounters[0]!.Enemies[0]!.AttackScale = 3;
-  const e = new TowerEngine(validateConfig(hard));
+  const e = new TowerEngine(validateConfig(hard, { allowUnknownEnemySpecies: true }));
   const before = e.getSnapshot();
   e.dispatch({ type: "begin" });
   e.dispatch({ type: "start" });
@@ -247,15 +274,15 @@ it("补人消耗唯一初始票，8秒回票，未参战伙伴不被误算入场
   win(e);
   e.dispatch({ type: "finish" });
   e.dispatch({ type: "begin" });
-  expect(e.dispatch({ type: "opening", id: "slime_dusk" }).ok).toBe(true);
+  expect(e.dispatch({ type: "opening", id: "slime" }).ok).toBe(true);
   e.dispatch({ type: "start" });
   expect(e.getSnapshot().battle!.units.filter((u) => !u.enemy)).toHaveLength(2);
-  expect(e.dispatch({ type: "reinforce", id: "slime_dusk" }).ok).toBe(true);
+  expect(e.dispatch({ type: "reinforce", id: "slime" }).ok).toBe(true);
   expect(e.getSnapshot().battle!.tickets).toBe(0);
   expect(
-    e.getSnapshot().battle!.units.find((u) => u.id === "slime_dusk")!.entry,
+    e.getSnapshot().battle!.units.find((u) => u.id === "slime")!.entry,
   ).toBe(0.9);
-  expect(e.dispatch({ type: "reinforce", id: "slime_dusk" }).ok).toBe(false);
+  expect(e.dispatch({ type: "reinforce", id: "slime" }).ok).toBe(false);
   e.advance(479);
   expect(e.getSnapshot().battle!.tickets).toBe(0);
   e.advance(1);
@@ -280,7 +307,7 @@ it("无被动时间回能，移动碰撞不穿透，5名敌首发后按票补人
   const crowded = structuredClone(raw);
   crowded.Encounters[0]!.Enemies[0]!.Count = 12;
   crowded.Encounters[0]!.Enemies[0]!.Health = 30;
-  const trial = new TowerEngine(validateConfig(crowded));
+  const trial = new TowerEngine(validateConfig(crowded, { allowUnknownEnemySpecies: true }));
   trial.dispatch({ type: "begin" });
   trial.dispatch({ type: "start" });
   expect(trial.getSnapshot().battle!.units.filter((u) => u.enemy)).toHaveLength(

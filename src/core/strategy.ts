@@ -20,7 +20,6 @@ export const defaultStrategy = (): BattleStrategy => ({
 });
 export const orderedIds = (preferred: readonly string[], available: readonly string[]) =>
   [...preferred.filter(id => available.includes(id)), ...available.filter(id => !preferred.includes(id))];
-const legacyHealingUltimates = new Set(["renew", "forest_rest", "holy_prayer", "forest_sanctuary"]);
 const healingCache = new WeakMap<TowerEngine, Set<string>>();
 function healingSkills(engine:TowerEngine){
   let skills=healingCache.get(engine);
@@ -30,15 +29,15 @@ function healingSkills(engine:TowerEngine){
 
 // Command controller shared by interactive Play and simulation. It never changes combat state directly.
 // A partial priority list puts unlisted members afterwards, in their existing stable order.
-export function applyStrategy(engine: TowerEngine, strategy: BattleStrategy, legacy = false): number {
+export function applyStrategy(engine: TowerEngine, strategy: BattleStrategy): number {
   const battle = engine.getBattleSnapshot();
   if (!battle?.started || battle.result) return 0;
   if (strategy.ultimates) {
     const ready = battle.units.filter(u => !u.enemy && u.hp > 0 && u.entry <= 0 && u.energy >= 1000);
     for (const id of orderedIds(strategy.ultimateOrder, ready.map(u => u.id))) {
       const u = ready.find(u => u.id === id)!;
-      if ((legacy ? legacyHealingUltimates : healingSkills(engine)).has(u.profile.Ultimate) && (strategy.healing === "disabled" ||
-        strategy.healing === "threshold" && !battle.units.some(v => !v.enemy && v.hp > 0 && v.hp < (legacy ? v.attributes.MaxHp * .65 : v.attributes.MaxHp * strategy.healingHpPercent / 100)))) continue;
+      if (healingSkills(engine).has(u.profile.Ultimate) && (strategy.healing === "disabled" ||
+        strategy.healing === "threshold" && !battle.units.some(v => !v.enemy && v.hp > 0 && v.hp < v.attributes.MaxHp * strategy.healingHpPercent / 100))) continue;
       if (u.profile.Ultimate === "interrupt" && (strategy.interrupt === "disabled" ||
         strategy.interrupt === "charging" && !battle.units.some(v => v.enemy && v.hp > 0 && v.charge > 0))) continue;
       engine.dispatch({ type: "ultimate", id });

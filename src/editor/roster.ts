@@ -91,7 +91,7 @@ export function createMonster(
   const rules = section("Species"),
     combatant = section("Combatants"),
     profile = section("Profiles");
-  if (input.templateId === "nightwing")
+  if (input.templateId === "nightwing" || input.templateId === "skeleton")
     (profile as Config["Rules"]["Profiles"][string]).LeechMoveMultiplier ??= 1.4;
   const id = nextMonsterId(project);
   list.push({

@@ -22,7 +22,7 @@ with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
   z.write(p,'Tower30Godot/'+r.as_posix())
  z.writestr('Tower30Godot/RUN.sh',run)
  z.writestr('Tower30Godot/RUN.txt','Requires Linux x86_64, Godot 4.6.2 .NET and .NET 9 SDK. Open project.godot, build C# and run. Or set GODOT to the full .NET engine path and run bash RUN.sh. The shared TS bundle, original data, all 42 sprites and native QuickJS library are included. No Node game server or sibling project is required. This is an editor-runnable project, not an exported game or APK. Web editor import/Play workflow: PROJECT-HANDOFF-STATUS.md. Native campaign features: GODOT-FLOW-STATUS.md.\n')
- for p in ['docs/PROJECT-HANDOFF-STATUS.md','docs/GODOT-FLOW-STATUS.md','docs/GODOT-BRIDGE-STATUS.md']:z.write(p,'Tower30Godot/'+Path(p).name)
+ for p in ['docs/history/PROJECT-HANDOFF-STATUS.md','docs/history/GODOT-FLOW-STATUS.md','docs/history/GODOT-BRIDGE-STATUS.md']:z.write(p,'Tower30Godot/'+Path(p).name)
  for d in ['src/core','src/bridge','src/battle-view']:
   for p in Path(d).rglob('*'):
    if p.is_file() and p.suffix in ['.ts','.json']:z.write(p,'Tower30Godot/shared-ts-source/'+p.as_posix())

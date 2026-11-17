@@ -125,6 +125,50 @@ function describeError(e: unknown): string[] {
     });
   return [e instanceof Error ? e.message : "配置无效"];
 }
+export interface BrokenFloorInfo {
+  floor: number;
+  encounterId: string;
+  encounterTitle: string;
+  missingSpecies: string[];
+}
+
+export function getBrokenFloors(source: unknown): BrokenFloorInfo[] {
+  const speciesList = (readPath(source, ["Species"]) as any[]) ?? [];
+  const validSpecies = new Set(speciesList.map((s: any) => s.Id));
+  const floors = (readPath(source, ["Floors"]) as any[]) ?? [];
+  const encounters = (readPath(source, ["Encounters"]) as any[]) ?? [];
+
+  const broken: BrokenFloorInfo[] = [];
+  for (const floor of floors) {
+    if (!floor || typeof floor.Number !== "number") continue;
+    const encounter = encounters.find((e: any) => e?.Id === floor.Encounter);
+    if (!encounter) {
+      broken.push({
+        floor: floor.Number,
+        encounterId: String(floor.Encounter ?? ""),
+        encounterTitle: "未找到敌群",
+        missingSpecies: [],
+      });
+      continue;
+    }
+    const missing: string[] = [];
+    for (const enemy of encounter.Enemies ?? []) {
+      if (enemy?.Species && !validSpecies.has(enemy.Species)) {
+        missing.push(enemy.Species);
+      }
+    }
+    if (missing.length > 0) {
+      broken.push({
+        floor: floor.Number,
+        encounterId: encounter.Id,
+        encounterTitle: encounter.Title ?? `第${floor.Number}关`,
+        missingSpecies: [...new Set(missing)],
+      });
+    }
+  }
+  return broken;
+}
+
 export function validateProject(project: EditorProject): {
   config: Config | null;
   errors: string[];
@@ -133,7 +177,7 @@ export function validateProject(project: EditorProject): {
   let config: Config | null = null;
   const errors: string[] = [];
   try {
-    config = validateConfig(project.source);
+    config = validateConfig(project.source, { allowUnknownEnemySpecies: true });
   } catch (e) {
     errors.push(...describeError(e));
   }
@@ -143,17 +187,6 @@ export function validateProject(project: EditorProject): {
   if (config && setup.success)
     try {
       warnings = playtestWarnings(config, setup.data);
-      const speciesSet = new Set(config.Species.map((s) => s.Id));
-      for (const floor of config.Floors) {
-        const encounter = config.Encounters.find((e) => e.Id === floor.Encounter);
-        for (const enemy of encounter?.Enemies ?? []) {
-          if (!speciesSet.has(enemy.Species)) {
-            warnings.push(
-              `第${floor.Number}关包含未注册怪兽 [${enemy.Species}]（可在关卡页替换或删除）`,
-            );
-          }
-        }
-      }
     } catch (e) {
       errors.push(...describeError(e));
     }
@@ -189,10 +222,7 @@ export function editableEncounter(
     out.Enemies = raw.map((entry, i) => {
       const group = clone(out.Enemies[i] ?? out.Enemies[0]!);
       const species = readPath(entry, ["Species"]);
-      if (
-        typeof species === "string" &&
-        config.Species.some((s) => s.Id === species)
-      )
+      if (typeof species === "string")
         group.Species = species;
       for (const key of [
         "Count",

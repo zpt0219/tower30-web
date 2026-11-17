@@ -6,7 +6,7 @@ import {
   type Config,
   type Gear,
 } from "./config";
-import { clone, damage, nextRandom, roundAway, roundEven, STEP, LEGACY_STEP, MAX_TICKS, elapsedSeconds } from "./math";
+import { clone, damage, LOGIC_HZ, nextRandom, roundAway, roundEven, STEP, MAX_TICKS } from "./math";
 import {
   commandSchema,
   saveSchema,
@@ -20,7 +20,16 @@ import {
   type Unit,
 } from "./model";
 import { canMove, deployment, distance, gap, move, separate } from "./movement";
-import { combatantAttributes, enemyAttributes } from "./projections";
+import {
+  combatantAttributes,
+  enemyAttributes,
+  humanLevelFromXp,
+  humanXpForLevel,
+  monsterCostForLevel,
+  monsterLevelFromXp,
+  monsterTotalXpForLevel,
+  postBattleHumanHealRatio,
+} from "./projections";
 import {
   playtestSetupSchema,
   playtestWarnings,
@@ -29,9 +38,18 @@ import {
   supportedGearEffects,
   type PlaytestSetup,
 } from "./playtest";
+import {
+  V2_SKILL_IDS,
+  executeV2Skill,
+  v2IgnoresSilence,
+  v2SelectTarget,
+  v2TriggerEvery,
+  type StrikeOptions,
+  type V2Context,
+} from "./v2-skills";
 import { z } from "zod";
 import { validateConfig } from "./config";
-export const PLAYABLE_FLOORS = 30;
+export const PLAYABLE_FLOORS = 100;
 export const SUPPORTED_SKILLS = supportedSkills;
 export const isHuman = (id: string) => id === "hero" || id === "princess";
 export const itemNames: Record<string, string> = {
@@ -58,23 +76,15 @@ const contribution = () => ({
 export class TowerEngine {
   private state: State;
   private playtest: PlaytestSetup | null = null;
-  private legacyRulesThroughTick = 0;
-  private clockHz:20|60;
-  private executionStep=STEP;
-  private legacy20ThroughTick=0;
-  get logicHz():20|60 {return this.clockHz;}
-  get stepSeconds(){return this.clockHz===20?LEGACY_STEP:STEP;}
-  private seconds(tick:number){return this.clockHz===20?tick*LEGACY_STEP:elapsedSeconds(tick,this.legacy20ThroughTick);}
-  private battleSeconds(b:Battle){return this.seconds(this.state.tick)-this.seconds(this.state.tick-b.tick);}
-  getPlaytestSetup(){return clone(this.playtest);}
-  upgradeTo60Hz(){if(this.clockHz===20){this.legacy20ThroughTick=this.state.tick;this.clockHz=60;}return this;}
-
-  private legacyRules() { return !this.playtest && this.legacyRulesThroughTick > 0 && this.state.tick <= this.legacyRulesThroughTick; }
+  readonly logicHz = LOGIC_HZ;
+  readonly stepSeconds = STEP;
+  private seconds(tick: number) { return tick * STEP; }
+  private battleSeconds(b: Battle) { return this.seconds(b.tick); }
+  getPlaytestSetup() { return clone(this.playtest); }
   readonly configHash: string;
   private readonly config: Config;
   private readonly effects: Effects;
-  constructor(config: Config, seed = 2463534242, referenceHz:20|60=60) {
-    this.clockHz=referenceHz;this.executionStep=this.stepSeconds;
+  constructor(config: Config, seed = 2463534242) {
     this.config = clone(config);
     this.effects = resolveEffects(this.config.Rules.Effects);
     if (!Number.isInteger(seed) || seed <= 0 || seed > 0xffffffff)
@@ -123,8 +133,8 @@ export class TowerEngine {
     return clone({
       ...this.state,
       configHash: this.configHash,
-      logicHz:this.clockHz, stepSeconds:this.stepSeconds,
-      seconds:this.seconds(this.state.tick),
+      logicHz: this.logicHz, stepSeconds: this.stepSeconds,
+      seconds: this.seconds(this.state.tick),
       battle:this.getBattleSnapshot(),
       events:this.state.events.map(e=>({...e,seconds:this.seconds(e.tick)})),
       arenaBackground: this.current()?.Background ?? "forest",
@@ -157,12 +167,15 @@ export class TowerEngine {
       })),
       innPrice: this.innPrice(),
       shopStage: this.shopStage(),
-      playableFloors: PLAYABLE_FLOORS,
+      ...(this.postBattleHumanHealRatio() > 0
+        ? { postBattleHumanHealRatio: this.postBattleHumanHealRatio() }
+        : {}),
+      playableFloors: this.config.Floors.length,
       completed: !this.playtest && this.state.floor > this.config.Floors.length,
       completion: !this.playtest && this.state.floor > this.config.Floors.length ? {
-        floors: this.state.records.length, bosses: this.shopStage(),
+        floors: this.state.records.length, bosses: this.clearedBosses(),
         ticks: this.state.records.reduce((sum,r)=>sum+r.ticks,0),
-        seconds:this.state.records.reduce((sum,r)=>sum+(r.seconds??r.ticks*LEGACY_STEP),0),
+        seconds:this.state.records.reduce((sum,r)=>sum+(r.seconds??r.ticks*STEP),0),
         gold: this.state.gold, members: this.state.members.length,
         alive: this.state.members.filter(m=>m.hp>0).length,
       } : null,
@@ -180,7 +193,9 @@ export class TowerEngine {
       unlocked:offer.Stage<=this.shopStage(),quote:this.quoteBuy(offer.Id,1),gear:this.config.Rules.Equipment.find(g=>g.Id===offer.Item)??null})));
   }
   getBattleSnapshot() {
-    const b=this.state.battle;return b?clone({...b,seconds:this.battleSeconds(b)}):null;
+    const b = this.state.battle;
+    if (!b) return null;
+    return clone({ ...b, seconds: this.battleSeconds(b) });
   }
   takeEvents(): readonly Event[] {
     return clone(this.state.events);
@@ -211,20 +226,14 @@ export class TowerEngine {
     return this.state.members.find((m) => m.id === id);
   }
   humanLevel() {
-    return (
-      1 + this.config.HumanXpThresholds.filter((x) => this.state.xp >= x).length
-    );
+    return humanLevelFromXp(this.config.HumanXpThresholds, this.state.xp);
   }
   level(m: Member) {
     if (isHuman(m.id)) return this.humanLevel();
-    let xp = m.potionXp,
-      level = 1;
-    for (const cost of this.config.Rules.Species[m.id]!.LevelCosts) {
-      if (xp < cost) break;
-      xp -= cost;
-      level++;
-    }
-    return level;
+    return monsterLevelFromXp(
+      this.config.Rules.Species[m.id]!.LevelCosts,
+      m.potionXp,
+    );
   }
   attributes(m: Member) {
     return combatantAttributes(
@@ -250,22 +259,19 @@ export class TowerEngine {
   private training(m: Member) {
     const level = this.level(m),
       costs = this.config.Rules.Species[m.id]?.LevelCosts ?? [],
-      basis = costs.slice(0, level - 1).reduce((s, v) => s + v, 0),
-      need = level < 30 ? (costs[level - 1] ?? 0) - (m.potionXp - basis) : 0;
+      basis = isHuman(m.id) ? 0 : monsterTotalXpForLevel(costs, level),
+      next = isHuman(m.id) ? 0 : monsterCostForLevel(costs, level),
+      need = isHuman(m.id) ? 0 : Math.max(0, next - (m.potionXp - basis)),
+      units = Math.ceil(need / 25);
     return {
       xp: m.potionXp - basis,
-      next: costs[level - 1] ?? 0,
-      units: Math.ceil(need / 25),
+      next,
+      units,
       targetLevel: isHuman(m.id)
         ? level
         : this.level({
             ...m,
-            potionXp:
-              m.potionXp +
-              Math.min(
-                Math.ceil(need / 25) * 25,
-                costs.reduce((s, v) => s + v, 0) - m.potionXp,
-              ),
+            potionXp: m.potionXp + units * 25,
           }),
       available:
         (this.state.items.xp_potion ?? 0) +
@@ -275,10 +281,39 @@ export class TowerEngine {
       refund: Math.ceil(m.potionXp / 25),
     };
   }
-  shopStage() {
+  private clearedBosses() {
     return this.config.Floors.slice(0, this.state.floor - 1).filter(
       (f) => this.config.Encounters.find((e) => e.Id === f.Encounter)!.Boss,
     ).length;
+  }
+  private postBattleHumanHealRatio() {
+    const princess = this.member("princess");
+    return postBattleHumanHealRatio(
+      this.config,
+      Object.values(princess?.equipment ?? {}),
+    );
+  }
+  private applyPostBattleHumanHeal(princessParticipated: boolean) {
+    if (!princessParticipated) return;
+    const princess = this.member("princess");
+    if (!princess || princess.hp <= 0) return;
+    const ratio = this.postBattleHumanHealRatio();
+    if (ratio <= 0) return;
+    for (const id of ["hero", "princess"] as const) {
+      const m = this.member(id);
+      if (!m || m.hp <= 0) continue;
+      const maxHp = this.attributes(m).MaxHp;
+      const amount = Math.max(1, Math.round(maxHp * ratio));
+      const gain = Math.min(maxHp - m.hp, amount);
+      if (gain > 0) {
+        m.hp += gain;
+        this.emit("heal", "princess", id, gain);
+      }
+    }
+  }
+  shopStage() {
+    const clearedBosses = this.clearedBosses();
+    return [2, 4, 8, 12, 16].filter((m) => clearedBosses >= m).length;
   }
   innPrice() {
     return (
@@ -302,6 +337,42 @@ export class TowerEngine {
       balance: this.state.gold - o.Price * quantity,
       stock: o.Stock < 0 ? -1 : o.Stock - (this.state.purchased[id] ?? 0),
       amount: o.Amount * quantity,
+    };
+  }
+  quoteSell(id: string, quantity: number) {
+    const prices = this.config.Economy.SellPrices;
+    const unitPrice = Object.hasOwn(prices, id) ? prices[id] : undefined;
+    if (
+      !unitPrice ||
+      this.config.StartingEquipment.includes(id) ||
+      !Number.isInteger(quantity) ||
+      quantity < 1 ||
+      quantity > 9999
+    )
+      return null;
+    if (this.state.equipment.includes(id)) {
+      const equipped = this.state.members.some((m) =>
+        Object.values(m.equipment).includes(id),
+      );
+      if (equipped || quantity !== 1) return null;
+      return {
+        unitPrice,
+        owned: 1,
+        quantity: 1,
+        total: unitPrice,
+        remaining: 0,
+        balance: this.state.gold + unitPrice,
+      };
+    }
+    const owned = this.state.items[id] ?? 0;
+    if (owned <= 0) return null;
+    return {
+      unitPrice,
+      owned,
+      quantity,
+      total: unitPrice * quantity,
+      remaining: owned - quantity,
+      balance: this.state.gold + unitPrice * quantity,
     };
   }
   previewEquip(id: string, gearId: string) {
@@ -351,13 +422,26 @@ export class TowerEngine {
     switch (c.type) {
       case "begin": {
         if (b) return "当前已有战斗";
-        if(!this.playtest&&s.floor>this.config.Floors.length)return "已完成全部30层试炼";
+        if (!this.playtest && s.floor > this.config.Floors.length)
+          return `已完成全部${this.config.Floors.length}层试炼`;
         if (!this.playtest && s.floor > PLAYABLE_FLOORS)
-          return "后续楼层技能尚在迁移，本版开放30层";
+          return `后续楼层技能尚在迁移，本版开放${PLAYABLE_FLOORS}层`;
         if (!s.members.some((m) => m.hp > 0))
           return "无人能够出战，请先在旅馆恢复";
+        const currentEncounter = this.current();
+        const missingSpecies = [
+          ...new Set(
+            currentEncounter.Enemies.filter(
+              (g) =>
+                !Object.hasOwn(this.config.Rules.Combatants, g.Species) ||
+                !Object.hasOwn(this.config.Rules.Profiles, g.Species),
+            ).map((g) => g.Species),
+          ),
+        ];
+        if (missingSpecies.length > 0)
+          return `当前关卡（第${s.floor}关）包含已删除怪兽 [${missingSpecies.join("、")}]，请在工作台关卡页修复后再试`;
         const enemies: Battle["enemies"] = [];
-        for (const group of this.current().Enemies)
+        for (const group of currentEncounter.Enemies)
           for (let i = 0; i < group.Count; i++) {
             const a = enemyAttributes(this.config, group);
             const p =
@@ -366,6 +450,7 @@ export class TowerEngine {
             if (
               this.playtest?.skillPolicy !== "supported-only" &&
               ((!!p.Auto && !SUPPORTED_SKILLS.has(p.Auto)) ||
+                !(p.AutoSkills ?? []).every((id) => SUPPORTED_SKILLS.has(id)) ||
                 !SUPPORTED_SKILLS.has(p.Ultimate))
             )
               return "该楼层技能尚未迁移";
@@ -404,7 +489,7 @@ export class TowerEngine {
         return "";
       }
       case "opening":
-        if (!b || b.started || !m || m.hp <= 0 || isHuman(c.id))
+        if (!b || b.started || !m || m.hp <= 0 || c.id === "hero")
           return "当前不能更改该首发";
         if (b.opening.includes(c.id)) {
           b.opening = b.opening.filter((id) => id !== c.id);
@@ -461,7 +546,7 @@ export class TowerEngine {
           b.result ||
           !m ||
           m.hp <= 0 ||
-          isHuman(c.id) ||
+          c.id === "hero" ||
           b.units.some((u) => u.id === c.id)
         )
           return "该伙伴不能增援";
@@ -492,7 +577,7 @@ export class TowerEngine {
         s.records.push({
           floor: s.floor,
           ticks: b.tick,
-          ...(this.clockHz===60?{seconds:this.battleSeconds(b)}:{}),
+          seconds: this.battleSeconds(b),
           result: "victory",
           gold: this.current().Gold,
           contributions: b.units
@@ -512,9 +597,13 @@ export class TowerEngine {
               staggers: u.staggers,
             })),
         });
+        const princessSurvivedInBattle = b.units.some(
+          (u) => !u.enemy && u.id === "princess" && u.hp > 0,
+        );
         s.floor++;
         s.battle = null;
         s.checkpoint = null;
+        this.applyPostBattleHumanHeal(princessSurvivedInBattle);
         this.emit("finish");
         return "";
     }
@@ -613,17 +702,13 @@ export class TowerEngine {
         m.hp = Math.min(m.hp, this.attributes(m).MaxHp);
         return "";
       case "train":
-        if (!m || isHuman(m.id) || this.level(m) >= 30)
+        if (!m || isHuman(m.id))
           return "该伙伴不能使用经验药水";
         {
           const t = this.training(m);
           if (t.available < t.units) return "经验药水不足";
           this.consumePotions(t.units);
-          const cap = this.config.Rules.Species[m.id]!.LevelCosts.reduce(
-            (s, v) => s + v,
-            0,
-          );
-          m.potionXp += Math.min(t.units * 25, cap - m.potionXp);
+          m.potionXp += t.units * 25;
           this.emit("train", m.id, "", t.units);
           return "";
         }
@@ -639,7 +724,8 @@ export class TowerEngine {
         {
           const cost = this.config.Rules.RankCosts[m.rank - 1]!;
           if ((s.souls[m.id] ?? 0) < cost) return "同种魂魄不足";
-          if (m.rank >= 2 && !supportedPassives.has(this.profile(m).PassiveEffect)) return "该物种三阶被动尚在迁移";
+          const prof = this.profile(m);
+          if (m.rank >= 2 && !prof.AutoSkills?.length && !supportedPassives.has(prof.PassiveEffect)) return "该物种三阶被动尚在迁移";
           s.souls[m.id]! -= cost;
           m.rank++;
           return "";
@@ -686,7 +772,13 @@ export class TowerEngine {
     const kind = enemy ? e!.kind : id,
       profile = clone(enemy ? e!.profile : this.profile(m!)),
       a = clone(enemy ? e!.attributes : this.attributes(m!)),
-      rank = enemy ? e!.rank : isHuman(id) ? 1 : m!.rank;
+      rank = enemy
+        ? e!.rank
+        : kind === "princess" && Boolean(profile.AutoSkills?.length)
+          ? Math.min(5, 1 + Math.floor((this.level(m!) - 1) / 6))
+          : isHuman(id)
+            ? 1
+            : m!.rank;
     const slot = Array.from({ length: 10 }, (_, i) => i).find(
         (i) =>
           !b.units.some((u) => u.enemy === enemy && u.hp > 0 && u.slot === i),
@@ -715,18 +807,25 @@ export class TowerEngine {
         this.config.Rules.Combatants[kind]!.MoveSpeed ?? sp?.MoveSpeed ?? 3.8,
       autoLevel: isHuman(kind)
         ? (w?.AutoLevel ?? 0)
-        : rank >= 5
-          ? 3
-          : rank >= 2
-            ? 2
-            : 1,
+        : profile.AutoSkills?.length
+          ? rank
+          : rank >= 5
+            ? 3
+            : rank >= 2
+              ? 2
+              : 1,
       ultimateLevel: isHuman(kind)
         ? (w?.UltimateLevel ?? 1)
-        : rank >= 4
-          ? 2
-          : 1,
+        : profile.AutoSkills?.length
+          ? rank
+          : rank >= 4
+            ? 2
+            : 1,
       passiveLevel:
-        (this.playtest?.skillPolicy === "supported-only" && !supportedPassives.has(profile.PassiveEffect)) || isHuman(kind)
+        (this.playtest?.skillPolicy === "supported-only" &&
+          Boolean(profile.PassiveEffect) &&
+          !supportedPassives.has(profile.PassiveEffect)) ||
+        isHuman(kind)
           ? 0
           : rank >= 5
             ? 2
@@ -749,6 +848,53 @@ export class TowerEngine {
       hitStun: 0,
       hitGuard: 0,
       blockedFor: 0,
+      basicCount: 0,
+      skillCursor: 0,
+      resBreak: 0,
+      resBreakAmount: 0,
+      armorBreakAmount: 0,
+      vuln: 0,
+      vulnAmount: 0,
+      blind: 0,
+      blindRate: 0,
+      disarm: 0,
+      energyLock: 0,
+      stealth: 0,
+      undying: 0,
+      reviveUsed: false,
+      petrify: 0,
+      petrifyDamage: 0,
+      atkBuff: 0,
+      atkBuffAmount: 0,
+      defBuff: 0,
+      defBuffAmount: 0,
+      critBuff: 0,
+      critBuffAmount: 0,
+      critDmgBuff: 0,
+      critDmgBuffAmount: 0,
+      dodgeBuff: 0,
+      dodgeBuffAmount: 0,
+      lifestealBuff: 0,
+      lifestealBuffAmount: 0,
+      hasteBuffAmount: 0,
+      dmgReduction: 0,
+      dmgReductionAmount: 0,
+      thornsTime: 0,
+      thornsRatio: 0,
+      damageCapTime: 0,
+      damageCapRatio: 0,
+      transformTime: 0,
+      transformKind: "",
+      stacks: {},
+      shackleIds: [],
+      shackleTime: 0,
+      shackleRatio: 0,
+      shieldShareTo: "",
+      shieldShareTime: 0,
+      shieldShareRatio: 0,
+      hitsTaken: 0,
+      damageTakenBucket: 0,
+      chainUltUsed: 0,
       action: null,
       recovery: 0,
     };
@@ -765,13 +911,19 @@ export class TowerEngine {
     return true;
   }
   private passive(u: Unit) { return u.passiveLevel > 0 ? u.profile.PassiveEffect : ""; }
-  private actionSpeed(u: Unit) { return 1+Math.min(1,u.attributes.Haste+(u.haste>0?this.effects.HasteBonus:0)); }
+  private actionSpeed(u: Unit) {
+    const hasteAmt = u.haste > 0 ? Math.max(this.effects.HasteBonus, u.hasteBuffAmount) : 0;
+    return Math.max(0.4, 1 + Math.min(1, u.attributes.Haste + hasteAmt));
+  }
   private negative(u: Unit) {
-    return u.stun>0 || u.root>0 || u.slow>0 || u.weaken>0 || u.silence>0 || u.armorBreak>0 || u.dotTime>0 || u.healBlock>0;
+    return u.stun>0 || u.root>0 || u.slow>0 || u.weaken>0 || u.silence>0 || u.armorBreak>0 || u.resBreak>0 || u.dotTime>0 || u.healBlock>0 || u.blind>0 || u.disarm>0 || u.energyLock>0 || u.vuln>0 || Object.keys(u.stacks).length>0;
   }
   private multiplier(actor: Unit, target: Unit, rule: ActionRule, weaken: number, hpRatio: number, skill: string) {
     const attack=this.passive(actor), defense=this.passive(target), spell=rule.DamageType==="magical";
     let scale=weaken>0?this.effects.WeakenMultiplier:1;
+    if(actor.atkBuff>0 && V2_SKILL_IDS.has(skill))scale*=1+actor.atkBuffAmount;
+    if(target.vuln>0)scale*=1+target.vulnAmount;
+    if(target.petrify>0 && target.rank>=3)scale*=1.25;
     if(attack==="execute" && target.hp<target.attributes.MaxHp*.4)scale+=.18;
     if(attack==="armor_bonus" && target.armorBreak>0)scale+=.12*actor.passiveLevel;
     if(attack==="burn_bonus" && target.dotTime>0)scale+=.12*actor.passiveLevel;
@@ -785,12 +937,14 @@ export class TowerEngine {
     if(attack==="combo")scale+=Math.min(3,actor.comboHits)*.06;
     let guard=target.shield>0?this.effects.ShieldGuard:0;
     if(spell && target.spellGuard>0 || !spell && target.physicalGuard>0)guard=Math.max(guard,this.effects.TypedGuard);
+    if(target.dmgReduction>0)guard=Math.max(guard,target.dmgReductionAmount);
     if(defense==="damage_guard")guard=Math.max(guard,.08*target.passiveLevel);
     if(!spell && defense==="physical_guard")guard=Math.max(guard,.12*target.passiveLevel);
     if(!spell&&defense==="silver")guard=Math.max(guard,.32);
     if(spell && defense==="spell_guard")guard=Math.max(guard,.15*target.passiveLevel);
     if(spell && this.gearEffect(target,"spell_guard"))guard=Math.max(guard,.15);
-    return scale*(1-Math.min(.6,guard));
+    const maxCap = target.dmgReduction > 0 && target.dmgReductionAmount > 0.6 ? target.dmgReductionAmount : 0.6;
+    return scale*(1-Math.min(maxCap,guard));
   }
   private gearEffect(u: Unit, effect: string) {
     return !u.enemy && Object.values(this.member(u.id)?.equipment ?? {}).some(id => this.config.Rules.Equipment.some(g => g.Id === id && g.Effect === effect));
@@ -800,15 +954,19 @@ export class TowerEngine {
       .sort((a,b) => gap(u,a)-gap(u,b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
   private target(u: Unit) {
-    const foes = this.foes(u);
-    return foes.find(v => u.taunt > 0 && v.id === u.taunter) ?? foes.find(v => u.focusTime > 0 && v.id === u.focus) ?? foes[0];
+    const foes = this.foes(u).filter(v => v.stealth <= 0);
+    const pool = foes.length ? foes : this.foes(u);
+    return pool.find(v => u.taunt > 0 && v.id === u.taunter) ?? pool.find(v => u.focusTime > 0 && v.id === u.focus) ?? pool[0];
   }
   private available(u: Unit, skill: string) {
     if (!SUPPORTED_SKILLS.has(skill)) return false;
     const r = this.config.Rules.Actions[skill]!;
     if (r.DamageType === "heal" || r.DamageType === "buff")
-      return this.state.battle!.units.some(v => v.enemy === u.enemy && v.hp > 0 && v.entry <= 0 && gap(u,v) <= (r.Range ?? 6) && (r.DamageType === "buff" || v.hp < v.attributes.MaxHp || this.negative(v)));
-    return this.foes(u).some(v => gap(u,v) <= (r.Range ?? (skill === u.profile.Ultimate ? 8 : u.range + .25)));
+      return this.state.battle!.units.some(v => v.enemy === u.enemy && v.hp > 0 && v.entry <= 0 && gap(u,v) <= (r.Range ?? (V2_SKILL_IDS.has(skill) ? 12 : 6)) && (r.DamageType === "buff" || v.hp < v.attributes.MaxHp || this.negative(v)));
+    const reach = V2_SKILL_IDS.has(skill) && skill !== u.profile.Ultimate
+      ? Math.max(r.Range ?? 0, u.range + .25)
+      : (r.Range ?? (skill === u.profile.Ultimate ? 8 : u.range + .25));
+    return this.foes(u).some(v => gap(u,v) <= reach);
   }
   private rule(
     u: Unit,
@@ -853,7 +1011,10 @@ export class TowerEngine {
     };
     u.charge = kind === "ultimate" ? u.action.work / this.actionSpeed(u) : 0;
     if (kind === "basic") u.cooldown = u.profile.Interval;
-    if (kind === "auto") u.special = u.profile.Cooldown;
+    if (kind === "auto") {
+      u.special = u.profile.Cooldown;
+      if (u.profile.AutoSkills?.length) u.cooldown = u.profile.Interval;
+    }
     if (kind === "ultimate") {
       u.energy -= 1000;
       u.ultimates++;
@@ -876,7 +1037,7 @@ export class TowerEngine {
     u.charge = 0;
   }
   private gain(u: Unit, amount: number, source: "action" | "hurt" | "kill") {
-    if (u.hp <= 0) return;
+    if (u.hp <= 0 || u.energyLock > 0) return;
     const before = u.energy;
     u.energy = Math.min(
       1000,
@@ -888,8 +1049,10 @@ export class TowerEngine {
     else u.killEnergy += gained;
   }
   private hp(u: Unit, value: number) {
-    u.hp = Math.max(0, Math.min(u.attributes.MaxHp, value));
+    const minHp = u.undying > 0 ? 1 : 0;
+    u.hp = Math.max(minHp, Math.min(u.attributes.MaxHp, value));
     if (u.hp === 0) u.energy = 0;
+    if (u.summoned) return;
     if (!u.enemy) this.member(u.id)!.hp = u.hp;
     else this.state.battle!.enemies.find((e) => e.id === u.id)!.hp = u.hp;
   }
@@ -949,45 +1112,147 @@ export class TowerEngine {
     hpRatio = actor.hp/actor.attributes.MaxHp,
     skill = "",
     reflection = false,
+    opts: StrikeOptions = {},
   ) {
-    if (target.hp <= 0 || target.entry > 0) return false;
+    return this.hitDetailed(
+      actor,
+      target,
+      raw,
+      rule,
+      kind,
+      actionId,
+      projectileId,
+      source,
+      periodic,
+      weaken,
+      hpRatio,
+      skill,
+      reflection,
+      opts,
+      false,
+    ).hit;
+  }
+  private hitDetailed(
+    actor: Unit,
+    target: Unit,
+    raw: number,
+    rule: ActionRule,
+    kind: "basic" | "auto" | "ultimate",
+    actionId: number,
+    projectileId: number,
+    source: Attributes,
+    periodic = false,
+    weaken = actor.weaken,
+    hpRatio = actor.hp/actor.attributes.MaxHp,
+    skill = "",
+    reflection = false,
+    opts: StrikeOptions = {},
+    shacklePropagated = false,
+  ): { hit: boolean; loss: number; critical: boolean } {
+    if (target.hp <= 0 || target.entry > 0) return { hit: false, loss: 0, critical: false };
+    const b = this.state.battle!;
+    const dmgType = opts.damageType ?? rule.DamageType;
+    const dodgeRate = Math.min(0.9, target.attributes.DodgeRate + (target.dodgeBuff > 0 ? target.dodgeBuffAmount : 0));
+    const blindMiss = !reflection && !periodic && kind !== "ultimate" && actor.blind > 0 && this.roll(actor.blindRate);
     const dodge =
-        !reflection && !periodic && rule.DamageType === "physical" &&
+        blindMiss ||
+        (!reflection && !periodic && dmgType === "physical" &&
         kind !== "ultimate" &&
-        this.roll(target.attributes.DodgeRate),
-      critical = !reflection && !periodic && this.roll(source.CritRate);
+        this.roll(dodgeRate));
+    const critRate = Math.min(1, source.CritRate + (actor.critBuff > 0 ? actor.critBuffAmount : 0));
+    const critical = !reflection && !periodic && (Boolean(opts.forceCrit) || this.roll(critRate));
     if (dodge) {
       target.dodges++;
       this.emit("dodge", actor.id, target.id, 0, false, actionId, projectileId);
-      return false;
+      return { hit: false, loss: 0, critical: false };
     }
-    const amount = damage(
-        raw,
-        rule.DamageType === "magical"
-          ? target.attributes.Resistance
-          : target.attributes.Defense * (target.armorBreak > 0 ? this.effects.ArmorBreakDefenseMultiplier : 1),
-        source.Penetration,
-        critical,
-        this.multiplier(actor,target,rule,weaken,hpRatio,skill==="firebolt"?"ember":skill),
-      ),
-      absorbed = Math.min(amount, Math.ceil(target.barrier));
+    let effDef =
+      dmgType === "magical"
+        ? target.attributes.Resistance * (target.resBreak > 0 ? Math.max(0, 1 - (target.resBreakAmount || 0.25)) : 1)
+        : target.attributes.Defense *
+          (target.armorBreak > 0
+            ? (target.armorBreakAmount > 0 ? Math.max(0, 1 - target.armorBreakAmount) : this.effects.ArmorBreakDefenseMultiplier)
+            : 1);
+    if (target.defBuff > 0) effDef *= 1 + target.defBuffAmount;
+    if (opts.ignoreDefRatio) effDef *= Math.max(0, 1 - opts.ignoreDefRatio);
+    const effectiveRule = dmgType === rule.DamageType ? rule : { ...rule, DamageType: dmgType };
+    const pureTrue = opts.trueDamage !== undefined && opts.trueDamage > 0 && raw === opts.trueDamage;
+    let amount = pureTrue
+      ? roundAway(opts.trueDamage!)
+      : damage(
+          raw,
+          effDef,
+          source.Penetration,
+          critical,
+          this.multiplier(actor, target, effectiveRule, weaken, hpRatio, skill === "firebolt" ? "ember" : skill),
+        ) + (opts.trueDamage && opts.trueDamage > 0 ? roundAway(opts.trueDamage) : 0);
+    const extraCrit = (actor.critDmgBuff > 0 ? actor.critDmgBuffAmount : 0) + (opts.bonusCritDmg ?? 0);
+    if (critical && extraCrit > 0 && !pureTrue) amount = roundAway(amount * ((1.5 + extraCrit) / 1.5));
+    if (target.damageCapTime > 0 && target.damageCapRatio > 0) {
+      amount = Math.min(amount, Math.max(1, roundAway(target.attributes.MaxHp * target.damageCapRatio)));
+    }
+    const absorbed = Math.min(amount, Math.ceil(target.barrier));
     target.barrier = Math.max(0, target.barrier - absorbed);
     target.absorbed += absorbed;
     if(absorbed>0&&target.barrier===0&&this.passive(target)==="shield_counter")target.counterReady=true;
-    const loss = Math.min(target.hp, amount - absorbed);
+    let postShield = amount - absorbed;
+    if (postShield > 0 && target.shieldShareTime > 0 && target.shieldShareTo && !shacklePropagated) {
+      const guardian = b.units.find(v => v.id === target.shieldShareTo && v.hp > 0 && v.entry <= 0);
+      if (guardian) {
+        const share = Math.min(postShield, Math.max(1, roundAway(postShield * target.shieldShareRatio)));
+        postShield -= share;
+        const gAbs = Math.min(share, Math.ceil(guardian.barrier));
+        guardian.barrier = Math.max(0, guardian.barrier - gAbs);
+        guardian.absorbed += gAbs;
+        const gLoss = Math.min(guardian.hp, share - gAbs);
+        this.hp(guardian, guardian.hp - gLoss);
+        actor.damage += gLoss;
+        if (gLoss > 0) this.emit("hit", actor.id, guardian.id, -gLoss, false, actionId, projectileId);
+      }
+    }
+    const loss = Math.min(target.hp, postShield);
     this.hp(target, target.hp - loss);
     actor.damage += loss;
     if (critical) actor.criticals++;
-    if (loss > 0 && target.hp > 0)
-      {
-        this.gain(target, (500 * loss) / target.attributes.MaxHp, "hurt");
-        if (!target.emergencyUsed && target.hp <= target.attributes.MaxHp * .3 && this.gearEffect(target, "emergency")) {
-          target.emergencyUsed = true; target.barrier = Math.max(target.barrier, target.attributes.MaxHp * this.effects.EmergencyShieldRatio); this.emit("ward", target.id, target.id);
-        }
+    if (target.petrify > 0 && target.petrifyDamage > 0 && loss > 0) {
+      target.damageTakenBucket += loss;
+    }
+    if (loss > 0 && target.hp > 0) {
+      target.hitsTaken++;
+      this.gain(target, (500 * loss) / target.attributes.MaxHp, "hurt");
+      if (!target.emergencyUsed && target.hp <= target.attributes.MaxHp * .3 && this.gearEffect(target, "emergency")) {
+        target.emergencyUsed = true; target.barrier = Math.max(target.barrier, target.attributes.MaxHp * this.effects.EmergencyShieldRatio); this.emit("ward", target.id, target.id);
       }
+    }
+    if (target.hp === 0 && !target.reviveUsed && target.rank >= 5 && !target.summoned) {
+      if (target.kind === "zombie") {
+        target.reviveUsed = true;
+        this.hp(target, Math.max(1, roundAway(target.attributes.MaxHp * 0.35)));
+        target.undying = 4;
+        this.emit("revive", target.id, target.id);
+      } else if (target.kind === "flame_skeleton") {
+        target.reviveUsed = true;
+        this.hp(target, Math.max(1, roundAway(target.attributes.MaxHp * 0.4)));
+        this.emit("revive", target.id, target.id);
+        for (const f of this.foes(target).filter(v => gap(target, v) <= 2.8)) {
+          this.hitDetailed(target, f, Math.max(1, roundAway(target.attributes.Magic * 1.6)), { ...rule, DamageType: "magical" }, "auto", actionId, 0, target.attributes, true, 0, target.hp / target.attributes.MaxHp, "revive_blast", true);
+        }
+      } else if (target.kind === "pharaoh_beast") {
+        target.reviveUsed = true;
+        this.hp(target, Math.max(1, roundAway(target.attributes.MaxHp * 0.5)));
+        target.energy = 500;
+        this.emit("revive", target.id, target.id);
+      }
+    }
     if (target.hp === 0) {
       if(!reflection)this.gain(actor, 300, "kill");
       this.cancel(target);
+      if (target.explodeOnDeath && target.explodeOnDeath > 0) {
+        const boom = Math.max(1, roundAway(target.attributes.MaxHp * target.explodeOnDeath));
+        for (const f of this.foes(target).filter(v => gap(target, v) <= 2.6)) {
+          this.hitDetailed(target, f, boom, { ...rule, DamageType: "magical" }, "auto", actionId, 0, target.attributes, true, 0, 1, "summon_explode", true);
+        }
+      }
     }
     if (
       !reflection && !periodic && loss > 0 &&
@@ -1011,14 +1276,30 @@ export class TowerEngine {
       actionId,
       projectileId,
     );
+    if (loss > 0 && !reflection && !shacklePropagated && target.shackleTime > 0 && target.shackleIds.length > 0) {
+      for (const sid of target.shackleIds) {
+        const linked = b.units.find(v => v.id === sid && v.hp > 0 && v.entry <= 0);
+        if (!linked) continue;
+        const shareDmg = Math.max(1, roundAway(loss * target.shackleRatio));
+        const sLoss = Math.min(linked.hp, shareDmg);
+        this.hp(linked, linked.hp - sLoss);
+        actor.damage += sLoss;
+        if (sLoss > 0) this.emit("hit", actor.id, linked.id, -sLoss, false, actionId, projectileId);
+        if (linked.hp === 0) this.cancel(linked);
+      }
+    }
     if(loss>0&&!reflection) {
       if(target.hp>0&&this.passive(target)==="counter")target.counterReady=true;
+      if(target.hp>0&&actor.hp>0&&!periodic&&target.thornsTime>0&&target.thornsRatio>0) {
+        const reflectDmg = Math.max(1, roundAway(loss * target.thornsRatio));
+        this.hitDetailed(target, actor, reflectDmg, { ...rule, DamageType: "magical" }, kind, actionId, 0, target.attributes, false, target.weaken, target.hp / target.attributes.MaxHp, "reflect", true);
+      }
       if(target.hp>0&&actor.hp>0&&target.reflectCooldown<=0&&this.passive(target)==="thorns"&&this.effects.ReflectionRatio>0) {
         target.reflectCooldown=this.effects.ReflectionCooldown;
         this.hit(target,actor,Math.max(1,roundAway(loss*this.effects.ReflectionRatio)),{...rule,DamageType:"physical"},kind,actionId,0,target.attributes,false,target.weaken,target.hp/target.attributes.MaxHp,"reflect",true);
       }
     }
-    return true;
+    return { hit: true, loss, critical };
   }
   private executeAction(
     u: Unit,
@@ -1050,7 +1331,7 @@ export class TowerEngine {
       return Math.max(1,Math.floor(ratio===undefined || (hasDotRatio(skill)&&ratio===dotDefaults[skill]) ? stat/divisor : stat*ratio));
     };
     const regen = (v: Unit, time: number) => { v.regeneration = duration(time); v.regenTick = 1; v.regenOwner = u.id; };
-    const taunt = (v: Unit, time: number) => { const before=v.taunt;v.taunter = u.id; v.taunt = duration(time);if(this.legacyRules())v.taunt*=1-v.attributes.Tenacity;else if(v.taunt>before)v.taunt=before+(v.taunt-before)*(1-v.attributes.Tenacity);this.emit(skill,u.id,v.id); };
+    const taunt = (v: Unit, time: number) => { const before=v.taunt;v.taunter = u.id; v.taunt = duration(time);if(v.taunt>before)v.taunt=before+(v.taunt-before)*(1-v.attributes.Tenacity);this.emit(skill,u.id,v.id); };
     const cleanse=(v: Unit)=>{
       v.stun=v.root=v.slow=v.weaken=v.silence=v.armorBreak=v.healBlock=v.dotTime=0;
       if(this.passive(u)==="cleanse_ward")v.barrier=Math.max(v.barrier,source.Magic*this.effects.CleanseShieldRatio);
@@ -1068,8 +1349,12 @@ export class TowerEngine {
       if(v.hp<=0)return;
       if(power<=0)return;
       if(power>=v.dotPower||v.dotTime<=0){v.dotOwner=u.id;v.dotPower=power;}
-      v.dotTime=Math.max(v.dotTime,duration(seconds));v.dotTick=Math.max(this.executionStep,v.dotTick);
+      v.dotTime=Math.max(v.dotTime,duration(seconds));v.dotTick=Math.max(STEP,v.dotTick);
     };
+    if (V2_SKILL_IDS.has(skill)) {
+      this.executeV2Action(u, target, kind, skill, r, actionId, projectileId, source, raw, stat, leechTime, weakenTime, hpRatio);
+      return;
+    }
     let leechAmount=0;
     const strike = (v: Unit) => {
       const before=u.damage,controlled=v.stun>0||v.root>0;
@@ -1239,13 +1524,404 @@ export class TowerEngine {
       }
     }
     if(skill==="frenzy_cut"){u.haste=duration(2.5);u.armorBreak=duration(2.5);}
+    if (kind === "basic" && u.transformTime > 0 && (u.transformKind === "minotaur" || u.transformKind === "phantom_bat")) {
+      const cleaveRadius = u.transformKind === "minotaur" ? 2.6 : 2.2;
+      for (const extra of foes.filter(v => v.id !== primary.id && distance(v, primary) <= cleaveRadius)) {
+        const hitExtra = this.hitDetailed(u, extra, raw, r, kind, actionId, projectileId, source, false, weakenTime, hpRatio, skill);
+        if (u.transformKind === "phantom_bat" && hitExtra.loss > 0 && u.hp > 0) {
+          this.heal(u, u, roundAway(hitExtra.loss * 0.3), null, actionId);
+        }
+      }
+      if (u.transformKind === "phantom_bat") leechAmount += roundAway((u.damage > 0 ? 1 : 0) * 0);
+    }
     if(kind==="basic")u.counterReady=false;
     finishLeech();
   }
+  private executeV2Action(
+    u: Unit,
+    target: Unit | undefined,
+    kind: "basic" | "auto" | "ultimate",
+    skill: string,
+    r: ActionRule,
+    actionId: number,
+    projectileId: number,
+    source: Attributes,
+    raw: number,
+    stat: number,
+    leechTime: number,
+    weakenTime: number,
+    hpRatio: number,
+    chainDepth = 0,
+  ) {
+    if (chainDepth > 4) return;
+    const b = this.state.battle!;
+    const resolvedTarget = projectileId > 0 ? target : (v2SelectTarget(u, skill, this.foes(u)) ?? target);
+    const ctx: V2Context = {
+      rank: u.rank,
+      unit: u,
+      target: resolvedTarget,
+      kind,
+      skill,
+      rule: r,
+      stat,
+      raw,
+      actionId,
+      projectileId,
+      source,
+      battle: b,
+      allies: (reach = 12) =>
+        b.units.filter(v => v.enemy === u.enemy && v.hp > 0 && v.entry <= 0 && gap(u, v) <= reach),
+      foes: (reach = 12) =>
+        b.units
+          .filter(v => v.enemy !== u.enemy && v.hp > 0 && v.entry <= 0 && gap(u, v) <= reach)
+          .sort((a, b2) => gap(u, a) - gap(u, b2) || (a.id < b2.id ? -1 : 1)),
+      strike: (v, dmgRaw = raw, opts = {}) => {
+        const res = this.hitDetailed(
+          u,
+          v,
+          dmgRaw ?? raw,
+          r,
+          kind,
+          actionId,
+          projectileId,
+          source,
+          false,
+          weakenTime,
+          hpRatio,
+          skill,
+          false,
+          opts,
+        );
+        const rate = Math.min(
+          0.6,
+          opts.lifestealOverride ??
+            source.Lifesteal +
+              (leechTime > 0 ? 0.33 : 0) +
+              (u.lifestealBuff > 0 ? u.lifestealBuffAmount : 0),
+        );
+        if (res.loss > 0 && rate > 0 && u.hp > 0) {
+          this.heal(u, u, roundAway(res.loss * rate), null, actionId);
+        }
+        return res;
+      },
+      heal: (v, amount) => {
+        if (amount > 0 && v.hp > 0) this.heal(u, v, roundAway(amount), null, actionId);
+      },
+      dot: (v, power, seconds) => {
+        if (v.hp <= 0 || power <= 0) return;
+        if (power >= v.dotPower || v.dotTime <= 0) {
+          v.dotOwner = u.id;
+          v.dotPower = power;
+        }
+        v.dotTime = Math.max(v.dotTime, seconds);
+        v.dotTick = Math.max(STEP, v.dotTick);
+      },
+      addStack: (v, sKind, count, power, seconds, maxStacks = 5) => {
+        if (v.hp <= 0) return;
+        const cur = v.stacks[sKind];
+        const nextCount = Math.min(maxStacks, (cur?.count ?? 0) + count);
+        v.stacks[sKind] = {
+          count: nextCount,
+          power: Math.max(cur?.power ?? 0, power),
+          time: Math.max(cur?.time ?? 0, seconds),
+          owner: u.id,
+          tick: cur?.tick ?? 1,
+        };
+        this.emit("stack", u.id, v.id, nextCount);
+        if (sKind === "poison" && u.kind === "green_snake" && u.rank >= 5 && nextCount >= 5) {
+          delete v.stacks.poison;
+          this.hitDetailed(u, v, Math.max(1, roundAway(source.Attack * 1.4)), { ...r, DamageType: "magical" }, "auto", actionId, 0, source, true, weakenTime, hpRatio, "poison_burst");
+          const spreadTarget = this.foes(u).find(f => f.id !== v.id && gap(v, f) <= 3);
+          if (spreadTarget && spreadTarget.hp > 0) {
+            const sc = spreadTarget.stacks.poison;
+            spreadTarget.stacks.poison = {
+              count: Math.min(5, (sc?.count ?? 0) + 2),
+              power: Math.max(sc?.power ?? 0, power),
+              time: Math.max(sc?.time ?? 0, seconds),
+              owner: u.id,
+              tick: sc?.tick ?? 1,
+            };
+          }
+        }
+      },
+      clearStacks: (v, sKind) => {
+        if (sKind === "all") {
+          let total = 0;
+          for (const st of Object.values(v.stacks)) total += st.count;
+          v.stacks = {};
+          return total;
+        }
+        const c = v.stacks[sKind]?.count ?? 0;
+        delete v.stacks[sKind];
+        return c;
+      },
+      detonatePoison: (v, perStackRatio, keepHalf = false, ignoreResRatio = 0) => {
+        const pCount = (v.stacks.poison?.count ?? 0) + (v.dotTime > 0 && !v.stacks.poison ? 1 : 0);
+        if (pCount <= 0 || v.hp <= 0) return 0;
+        const res = this.hitDetailed(
+          u,
+          v,
+          Math.max(1, roundAway(pCount * stat * perStackRatio)),
+          { ...r, DamageType: "magical" },
+          kind,
+          actionId,
+          0,
+          source,
+          false,
+          weakenTime,
+          hpRatio,
+          skill,
+          false,
+          { ignoreDefRatio: ignoreResRatio },
+        );
+        if (v.stacks.poison) {
+          if (keepHalf) v.stacks.poison.count = Math.max(1, Math.floor(pCount / 2));
+          else delete v.stacks.poison;
+        }
+        if (!keepHalf) v.dotTime = 0;
+        return res.loss;
+      },
+      control: (v, seconds, mode = "stun") => {
+        if (v.hp <= 0 || v.controlGuard > 0) return;
+        if (mode === "petrify") {
+          const time = Math.max(0.2, seconds * (1 - v.attributes.Tenacity));
+          v.petrify = Math.max(v.petrify, time);
+          v.controlGuard = time + 2.5;
+          if (u.kind === "medusa" && u.rank >= 5) {
+            v.petrifyDamage = Math.max(v.petrifyDamage, 0.25);
+          }
+          if (!(v.action?.kind === "ultimate" && !this.rule(v, "ultimate", v.action.skill).Interruptible)) {
+            this.cancel(v, true);
+          }
+          this.emit("petrify", u.id, v.id);
+          return;
+        }
+        const key = mode === "root" ? "root" : "stun";
+        const before = v[key];
+        const capped = Math.min(2, seconds);
+        v[key] = capped;
+        if (v[key] > before) v[key] = before + (v[key] - before) * (1 - v.attributes.Tenacity);
+        v.controlGuard = (mode === "root" ? capped : Math.min(2, capped)) + 2.5;
+        if (mode !== "root" && v.stun > 0 && !(v.action?.kind === "ultimate" && !this.rule(v, "ultimate", v.action.skill).Interruptible)) {
+          this.cancel(v, true);
+        }
+        this.emit(mode === "root" ? "earth_prison" : "control", u.id, v.id);
+      },
+      silence: (v, seconds) => {
+        if (v.hp <= 0) return;
+        const before = v.silence;
+        v.silence = Math.max(v.silence, seconds);
+        v.charge = 0;
+        if (v.silence > before) v.silence = before + (v.silence - before) * (1 - v.attributes.Tenacity);
+        this.emit("silence", u.id, v.id);
+      },
+      taunt: (v, seconds) => {
+        if (v.hp <= 0) return;
+        const before = v.taunt;
+        v.taunter = u.id;
+        v.taunt = Math.max(v.taunt, seconds);
+        if (v.taunt > before) v.taunt = before + (v.taunt - before) * (1 - v.attributes.Tenacity);
+        this.emit(skill, u.id, v.id);
+      },
+      cleanse: (v) => {
+        let count = Object.keys(v.stacks).length;
+        for (const k of ["stun", "root", "slow", "weaken", "silence", "armorBreak", "resBreak", "healBlock", "dotTime", "blind", "disarm", "energyLock", "vuln", "petrify"] as const) {
+          if (v[k] > 0) count++;
+          v[k] = 0;
+        }
+        v.stacks = {};
+        if (this.passive(u) === "cleanse_ward") {
+          v.barrier = Math.max(v.barrier, source.Magic * this.effects.CleanseShieldRatio);
+        }
+        this.emit("cleanse", u.id, v.id);
+        return count;
+      },
+      dispelEnemy: (v) => {
+        v.barrier = 0;
+        v.haste = 0;
+        v.shield = 0;
+        v.physicalGuard = 0;
+        v.spellGuard = 0;
+        v.atkBuff = 0;
+        v.defBuff = 0;
+        v.critBuff = 0;
+        v.critDmgBuff = 0;
+        v.dodgeBuff = 0;
+        v.lifestealBuff = 0;
+        v.dmgReduction = 0;
+        v.thornsTime = 0;
+        v.damageCapTime = 0;
+        v.stealth = 0;
+        this.emit("dispel", u.id, v.id);
+      },
+      addBarrier: (v, amount) => {
+        if (amount > 0 && v.hp > 0) {
+          v.barrier += roundAway(amount);
+          this.emit("ward", u.id, v.id);
+        }
+      },
+      gainEnergy: (v, amount) => {
+        this.gain(v, amount, "action");
+      },
+      drainEnergy: (v, amount) => {
+        const taken = Math.min(v.energy, amount);
+        v.energy -= taken;
+        return taken;
+      },
+      pullOrPush: (v, towards, dist) => {
+        if (v.hp <= 0) return;
+        const dx = v.x - towards.x;
+        const dz = v.z - towards.z;
+        const len = Math.max(0.001, Math.hypot(dx, dz));
+        const moveDist = dist < 0 ? -Math.min(Math.max(0, len - 0.3), Math.abs(dist)) : dist;
+        const nx = Math.max(-12, Math.min(12, v.x + (dx / len) * moveDist));
+        const nz = Math.max(-5.5, Math.min(5.5, v.z + (dz / len) * moveDist));
+        if (canMove(v, nx, nz, b.units)) {
+          v.x = nx;
+          v.z = nz;
+        }
+      },
+      blinkNear: (v) => {
+        if (v.hp <= 0) return;
+        const sign = u.x <= v.x ? 1 : -1;
+        const nx = Math.max(-12, Math.min(12, v.x + sign * (u.radius + v.radius + 0.35)));
+        const nz = Math.max(-5.5, Math.min(5.5, v.z));
+        u.x = nx;
+        u.z = nz;
+      },
+      spawnZone: (zone) => {
+        b.zones.push({ ...zone, owner: u.id, enemy: u.enemy, tick: 0.25 });
+        this.emit(zone.kind, u.id, u.id);
+      },
+      spawnSummon: (label, ratio, duration, opts) => {
+        const activeCount = b.units.filter(x => x.summoned && x.enemy === u.enemy && x.hp > 0).length;
+        if (activeCount >= 4) return;
+        const kindId = opts?.kind ?? label;
+        const sumProfile = this.config.Rules.Profiles[kindId] ?? u.profile;
+        const combatant = this.config.Rules.Combatants[kindId] ?? this.config.Rules.Combatants[u.kind]!;
+        const id = `${u.id}_sum_${++b.actionId}`;
+        const sumAttrs: Attributes = {
+          ...clone(u.attributes),
+          MaxHp: Math.max(40, roundAway(u.attributes.MaxHp * ratio)),
+          Attack: Math.max(10, roundAway(u.attributes.Attack * ratio)),
+          Magic: Math.max(10, roundAway(u.attributes.Magic * ratio)),
+          Defense: roundAway(u.attributes.Defense * ratio),
+          Resistance: roundAway(u.attributes.Resistance * ratio),
+        };
+        const sx = Math.max(-12, Math.min(12, u.x + (u.enemy ? -1 : 1) * 1.1));
+        const sz = Math.max(-5.5, Math.min(5.5, u.z + ((activeCount % 2 === 0 ? 1 : -1) * 0.9)));
+        const summonedUnit: Unit = {
+          ...clone(u),
+          id,
+          kind: kindId,
+          profile: clone(sumProfile),
+          rank: Math.min(u.rank, 3),
+          hp: sumAttrs.MaxHp,
+          energy: 0,
+          x: sx,
+          z: sz,
+          radius: combatant.Radius ?? u.radius,
+          range: combatant.AttackRange ?? u.range,
+          attributes: sumAttrs,
+          cooldown: 0.3,
+          special: 1.0,
+          entry: 0.1,
+          barrier: 0,
+          stacks: {},
+          shackleIds: [],
+          shackleTime: 0,
+          shieldShareTime: 0,
+          petrify: 0,
+          undying: 0,
+          stealth: 0,
+          stun: 0,
+          root: 0,
+          silence: 0,
+          weaken: 0,
+          slow: 0,
+          reviveUsed: false,
+          action: null,
+          recovery: 0,
+          summoned: true,
+          summonTime: duration,
+          summonOwner: u.id,
+          explodeOnDeath: opts?.explodeRatio,
+          ...contribution(),
+        };
+        b.units.push(summonedUnit);
+        this.emit("enter", id, u.id);
+        if (opts?.tauntAll) {
+          for (const f of this.foes(summonedUnit).slice(0, 3)) {
+            f.taunter = summonedUnit.id;
+            f.taunt = Math.max(f.taunt, 2);
+          }
+        }
+      },
+      applyBuff: (v, bKind, duration, amount, tag) => {
+        if (v.hp <= 0) return;
+        switch (bKind) {
+          case "atk": v.atkBuff = Math.max(v.atkBuff, duration); v.atkBuffAmount = Math.max(v.atkBuffAmount, amount); break;
+          case "def": v.defBuff = Math.max(v.defBuff, duration); v.defBuffAmount = Math.max(v.defBuffAmount, amount); break;
+          case "haste": v.haste = Math.max(v.haste, duration); v.hasteBuffAmount = Math.max(v.hasteBuffAmount, amount); break;
+          case "crit": v.critBuff = Math.max(v.critBuff, duration); v.critBuffAmount = Math.max(v.critBuffAmount, amount); break;
+          case "critDmg": v.critDmgBuff = Math.max(v.critDmgBuff, duration); v.critDmgBuffAmount = Math.max(v.critDmgBuffAmount, amount); break;
+          case "dodge": v.dodgeBuff = Math.max(v.dodgeBuff, duration); v.dodgeBuffAmount = Math.max(v.dodgeBuffAmount, amount); break;
+          case "lifesteal": v.lifestealBuff = Math.max(v.lifestealBuff, duration); v.lifestealBuffAmount = Math.max(v.lifestealBuffAmount, amount); break;
+          case "dmgReduction": v.dmgReduction = Math.max(v.dmgReduction, duration); v.dmgReductionAmount = Math.max(v.dmgReductionAmount, amount); break;
+          case "thorns": v.thornsTime = Math.max(v.thornsTime, duration); v.thornsRatio = Math.max(v.thornsRatio, amount); break;
+          case "physGuard": v.physicalGuard = Math.max(v.physicalGuard, duration); break;
+          case "spellGuard": v.spellGuard = Math.max(v.spellGuard, duration); break;
+          case "controlGuard": v.controlGuard = Math.max(v.controlGuard, duration); break;
+          case "undying": v.undying = Math.max(v.undying, duration); break;
+          case "stealth": v.stealth = Math.max(v.stealth, duration); break;
+          case "transform": v.transformTime = Math.max(v.transformTime, duration); v.transformKind = tag ?? v.kind; break;
+        }
+        this.emit("buff", u.id, v.id);
+      },
+      applyDebuff: (v, dKind, duration, amount = 0) => {
+        if (v.hp <= 0) return;
+        const ccTime = Math.max(0.5, duration * (1 - v.attributes.Tenacity * 0.5));
+        switch (dKind) {
+          case "slow": v.slow = Math.max(v.slow, ccTime); break;
+          case "weaken": v.weaken = Math.max(v.weaken, duration); break;
+          case "armorBreak": v.armorBreak = Math.max(v.armorBreak, duration); v.armorBreakAmount = Math.max(v.armorBreakAmount, amount); break;
+          case "resBreak": v.resBreak = Math.max(v.resBreak, duration); v.resBreakAmount = Math.max(v.resBreakAmount, amount); break;
+          case "vuln": v.vuln = Math.max(v.vuln, duration); v.vulnAmount = Math.max(v.vulnAmount, amount); break;
+          case "healBlock": v.healBlock = Math.max(v.healBlock, duration); break;
+          case "blind": v.blind = Math.max(v.blind, ccTime); v.blindRate = Math.max(v.blindRate, amount || 0.35); break;
+          case "disarm": v.disarm = Math.max(v.disarm, ccTime); break;
+          case "energyLock": v.energyLock = Math.max(v.energyLock, ccTime); break;
+        }
+        this.emit("debuff", u.id, v.id);
+      },
+      triggerSkillNow: (actorUnit, targetSkill, chosenTarget) => {
+        if (actorUnit.hp <= 0) return;
+        const nextKind = targetSkill === actorUnit.profile.Ultimate ? "ultimate" : "auto";
+        const nextRule = this.rule(actorUnit, nextKind, targetSkill);
+        const nextStat = actorUnit.attributes[nextRule.ScalingStat === "mag" ? "Magic" : "Attack"];
+        const nextLvl = actorUnit.rank;
+        const nextRatio = nextRule.Ratios[Math.min(nextLvl - 1, nextRule.Ratios.length - 1)] ?? 1;
+        const nextBase = nextRule.Bases[Math.min(nextLvl - 1, nextRule.Bases.length - 1)] ?? 0;
+        const nextRaw = Math.max(1, roundAway(nextStat * nextRatio + nextBase));
+        if (V2_SKILL_IDS.has(targetSkill)) {
+          this.executeV2Action(actorUnit, chosenTarget ?? this.target(actorUnit), nextKind, targetSkill, nextRule, ++b.actionId, 0, actorUnit.attributes, nextRaw, nextStat, actorUnit.leech, actorUnit.weaken, actorUnit.hp / actorUnit.attributes.MaxHp, chainDepth + 1);
+        }
+      },
+      triggerAllyBasic: (ally, chosenTarget) => {
+        if (ally.hp <= 0 || chosenTarget.hp <= 0) return;
+        const basicRule = this.rule(ally, "basic", "attack");
+        const basicPower = roundAway(ally.attributes[basicRule.DamageType === "magical" ? "Magic" : "Attack"]);
+        this.hitDetailed(ally, chosenTarget, basicPower, basicRule, "basic", ++b.actionId, 0, ally.attributes, false, ally.weaken, ally.hp / ally.attributes.MaxHp, "attack");
+      },
+      emit: (evKind, targetId = u.id, amt = 0) => {
+        this.emit(evKind, u.id, targetId, amt, false, actionId, projectileId);
+      },
+      roll: (chance) => this.roll(chance),
+    };
+    executeV2Skill(ctx);
+  }
 
   private step() {
-    const STEP=this.clockHz===20||this.state.tick<this.legacy20ThroughTick?LEGACY_STEP:this.stepSeconds;
-    this.executionStep=STEP;
     const s = this.state,
       b = s.battle!;
     s.tick++;
@@ -1302,11 +1978,33 @@ export class TowerEngine {
       b.enemyTickets--;
     for (const u of [...b.units]) {
       if (u.hp <= 0) continue;
+      if (u.summoned && u.summonTime !== undefined) {
+        u.summonTime = Math.max(0, u.summonTime - STEP);
+        if (u.summonTime <= 0) {
+          u.hp = 0;
+          this.cancel(u);
+          continue;
+        }
+      }
       u.cooldown = Math.max(0, u.cooldown - STEP);
       u.special = Math.max(0, u.special - STEP);
       u.stun = Math.max(0, u.stun - STEP);
       u.slow = Math.max(0, u.slow - STEP);
-      for (const k of ["haste","healBlock","reflectCooldown","weaken","root","physicalGuard","spellGuard","shield","armorBreak","silence","taunt","controlGuard","leech","focusTime"] as const) u[k]=Math.max(0,u[k]-STEP);
+      for (const k of ["haste","healBlock","reflectCooldown","weaken","root","physicalGuard","spellGuard","shield","armorBreak","silence","taunt","controlGuard","leech","focusTime","resBreak","vuln","blind","disarm","energyLock","stealth","undying","atkBuff","defBuff","critBuff","critDmgBuff","dodgeBuff","lifestealBuff","dmgReduction","thornsTime","damageCapTime","transformTime","shackleTime","shieldShareTime"] as const) u[k]=Math.max(0,u[k]-STEP);
+      if (u.petrify > 0) {
+        u.petrify = Math.max(0, u.petrify - STEP);
+        if (u.petrify === 0) {
+          if (u.petrifyDamage > 0 && u.damageTakenBucket > 0 && u.hp > 0) {
+            const shatter = Math.max(1, roundAway(u.damageTakenBucket * u.petrifyDamage));
+            const sLoss = Math.min(u.hp, shatter);
+            this.hp(u, u.hp - sLoss);
+            this.emit("hit", u.id, u.id, -sLoss, true, 0, 0);
+          }
+          u.petrifyDamage = 0;
+          u.damageTakenBucket = 0;
+        }
+      }
+      if (u.shackleTime === 0 && u.shackleIds.length) u.shackleIds = [];
       if (u.entry > 0) {
         u.entry = Math.max(0, u.entry - STEP);
         continue;
@@ -1316,6 +2014,19 @@ export class TowerEngine {
         if(u.dotTick===0){const owner=b.units.find(v=>v.id===u.dotOwner);if(owner)this.hit(owner,u,u.dotPower,{...this.config.Rules.Actions.poison!,DamageType:"magical"},"auto",0,0,owner.attributes,true);u.dotTick=1;}
         if(u.hp<=0)continue;
       }
+      for (const [sKey, st] of Object.entries(u.stacks)) {
+        st.time = Math.max(0, st.time - STEP);
+        st.tick = Math.max(0, st.tick - STEP * (u.petrify > 0 || u.root > 0 ? 2 : 1));
+        if (st.tick === 0 && st.power > 0 && st.count > 0 && (sKey === "poison" || sKey === "burn" || sKey === "wither")) {
+          const owner = b.units.find(v => v.id === st.owner);
+          if (owner) {
+            this.hitDetailed(owner, u, Math.max(1, roundAway(st.power * st.count)), { ...this.config.Rules.Actions.attack!, DamageType: "magical" }, "auto", 0, 0, owner.attributes, true, 0, owner.hp / owner.attributes.MaxHp, sKey);
+          }
+          st.tick = 1;
+        }
+        if (st.time <= 0 || st.count <= 0) delete u.stacks[sKey];
+      }
+      if (u.hp <= 0) continue;
       if (u.regeneration > 0) {
         u.regeneration = Math.max(0, u.regeneration - STEP);
         u.regenTick -= STEP;
@@ -1336,7 +2047,7 @@ export class TowerEngine {
       u.hitStun = Math.max(0, u.hitStun - STEP);
       u.hitGuard = Math.max(0, u.hitGuard - STEP);
       if (
-        (u.stun > 0 || u.hitStun > 0) &&
+        (u.stun > 0 || u.hitStun > 0 || u.petrify > 0) &&
         !(
           u.action?.kind === "ultimate" &&
           !this.rule(u, "ultimate", u.action.skill).Interruptible
@@ -1347,7 +2058,7 @@ export class TowerEngine {
       }
       if (u.action) {
         const action = u.action;
-        if (u.silence > 0 && action.kind !== "basic" && !(action.kind === "ultimate" && !this.rule(u,"ultimate",action.skill).Interruptible)) { this.cancel(u,true); continue; }
+        if (u.silence > 0 && action.kind !== "basic" && !(action.kind === "auto" && v2IgnoresSilence(u, action.skill)) && !(action.kind === "ultimate" && !this.rule(u,"ultimate",action.skill).Interruptible)) { this.cancel(u,true); continue; }
         action.work = Math.max(0, action.work - STEP * speed);
         u.charge=action.kind==="ultimate"?action.work/speed:0;
         if (action.work > 1e-8) continue;
@@ -1363,7 +2074,7 @@ export class TowerEngine {
               (1 - this.config.Rules.Combatants[u.kind]!.WindupRatio)
             : r.Backswing;
         if (!target && !["heal", "buff"].includes(r.DamageType)) continue;
-        if (action.kind === "basic") this.gain(u, 90, "action");
+        if (action.kind === "basic" || (action.kind === "auto" && Boolean(u.profile.AutoSkills?.length))) this.gain(u, 90, "action");
         if (r.Delivery === "projectile" && target) {
           b.projectiles.push({
             id: ++b.projectileId,
@@ -1425,6 +2136,7 @@ export class TowerEngine {
         continue;
       }
       if (
+        !u.profile.AutoSkills?.length &&
         u.silence <= 0 && u.profile.Auto &&
         u.special <= 0 &&
         this.available(u, u.profile.Auto)
@@ -1433,27 +2145,64 @@ export class TowerEngine {
         continue;
       }
       if (!target) continue;
-      if (gap(u, target) > u.range) { if(u.root<=0) move(u, target, b.units, this.legacyRules(),this.effects,STEP); }
-      else if (u.cooldown <= 0) this.startAction(u, "basic", "attack", target);
+      if (gap(u, target) > u.range) { if(u.root<=0) move(u, target, b.units, this.effects, STEP); }
+      else if (u.cooldown <= 0 && u.disarm <= 0) {
+        if (u.profile.AutoSkills?.length) {
+          const skills = u.profile.AutoSkills;
+          const nextSkill = skills[u.skillCursor % skills.length]!;
+          u.basicCount++;
+          const every = v2TriggerEvery(u, nextSkill);
+          if (u.basicCount >= every && (u.silence <= 0 || v2IgnoresSilence(u, nextSkill)) && this.available(u, nextSkill)) {
+            u.basicCount = 0;
+            u.skillCursor = (u.skillCursor + 1) % skills.length;
+            this.startAction(u, "auto", nextSkill, v2SelectTarget(u, nextSkill, this.foes(u)) ?? target);
+          } else {
+            this.startAction(u, "basic", "attack", target);
+          }
+        } else {
+          this.startAction(u, "basic", "attack", target);
+        }
+      }
     }
+    b.units = b.units.filter(u => !u.summoned || (u.hp > 0 && (u.summonTime ?? 0) > 0));
     for (const zone of [...b.zones]) {
       zone.remaining -= STEP; zone.tick -= STEP;
       if (zone.remaining <= 0) { b.zones = b.zones.filter(v=>v!==zone); continue; }
       if (zone.tick > 0) continue;
       zone.tick=1;
-      const owner=b.units.find(u=>u.id===zone.owner)!;
+      const owner=b.units.find(u=>u.id===zone.owner);
+      if (!owner) continue;
+      if (zone.allyHealRatio || zone.allyEnergy || zone.allyGuard) {
+        for (const a of b.units.filter(v => v.enemy === zone.enemy && v.hp > 0 && v.entry <= 0 && (v.x - zone.x) ** 2 + (v.z - zone.z) ** 2 <= zone.radius ** 2)) {
+          if (zone.allyHealRatio) this.heal(owner, a, Math.max(1, roundAway(a.attributes.MaxHp * zone.allyHealRatio)), null, 0);
+          if (zone.allyEnergy) this.gain(a, zone.allyEnergy, "action");
+          if (zone.allyGuard) {
+            a.dmgReduction = Math.max(a.dmgReduction, 1.2);
+            a.dmgReductionAmount = Math.max(a.dmgReductionAmount, zone.allyGuard);
+          }
+        }
+      }
+      if (zone.kind === "thunder_avatar") {
+        for (const v of this.foes(owner).slice(0, 2)) {
+          this.hit(owner, v, zone.power, { ...this.config.Rules.Actions.attack!, DamageType: "magical" }, "ultimate", 0, 0, owner.attributes, true);
+        }
+        continue;
+      }
       for (const v of b.units.filter(v=>v.enemy!==zone.enemy && v.hp>0 && v.entry<=0 && (v.x-zone.x)**2+(v.z-zone.z)**2<=zone.radius**2)) {
-        if(zone.kind==="gloom")v.weaken=Math.max(v.weaken,1.2);
+        if(zone.kind==="gloom" || zone.enemyWeaken)v.weaken=Math.max(v.weaken,1.2);
         if(zone.kind==="poison_cloud")v.healBlock=Math.max(v.healBlock,1.2);
-        this.hit(owner,v,zone.power,{...this.config.Rules.Actions.fire_rain!,DamageType:"magical"},"ultimate",0,0,owner.attributes,true);
+        if(zone.enemySlow)v.slow=Math.max(v.slow,1.2);
+        if(zone.enemyResBreak){v.resBreak=Math.max(v.resBreak,1.2);v.resBreakAmount=Math.max(v.resBreakAmount,zone.enemyResBreak);}
+        if(zone.enemyStunTick && v.controlGuard<=0){v.stun=Math.max(v.stun,zone.enemyStunTick*(1-v.attributes.Tenacity));v.controlGuard=zone.enemyStunTick+2;}
+        if(zone.power>0)this.hit(owner,v,zone.power,{...this.config.Rules.Actions.fire_rain!,DamageType:"magical"},"ultimate",0,0,owner.attributes,true);
       }
     }
     separate(b.units);
-    for (const u of b.units.filter((u) => !u.enemy))
+    for (const u of b.units.filter((u) => !u.enemy && !u.summoned))
       this.member(u.id)!.energy = u.hp > 0 ? u.energy : 0;
     if (
       b.enemies.every((e) => e.hp === 0) &&
-      b.units.some((u) => !u.enemy && u.hp > 0) &&
+      b.units.some((u) => !u.enemy && !u.summoned && u.hp > 0) &&
       !b.projectiles.some(
         (p) =>
           b.units.some((u) => u.id === p.owner && u.enemy) &&
@@ -1465,7 +2214,7 @@ export class TowerEngine {
       this.emit("victory");
       return;
     }
-    if (!b.units.some((u) => !u.enemy && u.hp > 0)) {
+    if (!b.units.some((u) => !u.enemy && !u.summoned && u.hp > 0)) {
       b.wipe += STEP;
       const reserves = s.members.some(
         (m) => m.hp > 0 && !b.units.some((u) => u.id === m.id),
@@ -1512,20 +2261,7 @@ export class TowerEngine {
           this.emit("collect", m.id);
         }
       }
-    for (const zone of [...b.zones]) {
-      zone.remaining -= STEP; zone.tick -= STEP;
-      if (zone.remaining <= 0) { b.zones = b.zones.filter(v=>v!==zone); continue; }
-      if (zone.tick > 0) continue;
-      zone.tick=1;
-      const owner=b.units.find(u=>u.id===zone.owner)!;
-      for (const v of b.units.filter(v=>v.enemy!==zone.enemy && v.hp>0 && v.entry<=0 && (v.x-zone.x)**2+(v.z-zone.z)**2<=zone.radius**2)) {
-        if(zone.kind==="gloom")v.weaken=Math.max(v.weaken,1.2);
-        if(zone.kind==="poison_cloud")v.healBlock=Math.max(v.healBlock,1.2);
-        this.hit(owner,v,zone.power,{...this.config.Rules.Actions.fire_rain!,DamageType:"magical"},"ultimate",0,0,owner.attributes,true);
-      }
-    }
-    separate(b.units);
-    for (const u of b.units.filter((u) => !u.enemy))
+    for (const u of b.units.filter((u) => !u.enemy && !u.summoned))
       u.attributes.MaxHp = this.attributes(this.member(u.id)!).MaxHp;
   }
   advance(ticks: number) {
@@ -1546,8 +2282,7 @@ export class TowerEngine {
       return JSON.stringify({
         format: "tower30-playtest",
         schemaVersion: 1,
-        engineVersion: this.clockHz===60?"tower30-ts-workbench-v7":this.playtest.strategy || this.playtest.autoPlay !== undefined ? "tower30-ts-workbench-v6" : "tower30-ts-workbench-v5",
-        ...(this.clockHz===60?{legacy20ThroughTick:this.legacy20ThroughTick}:{}),
+        engineVersion: "tower30-ts-workbench-v7",
         config: this.config,
         configHash: this.configHash,
         setup: this.playtest,
@@ -1557,9 +2292,7 @@ export class TowerEngine {
     return JSON.stringify({
       format: "tower30-web-command-save",
       schemaVersion: 1,
-      engineVersion: this.clockHz===60?"tower30-ts-m3-v2":"tower30-ts-m3-v1",
-      ...(this.clockHz===60?{legacy20ThroughTick:this.legacy20ThroughTick}:{}),
-      legacyRulesThroughTick: this.legacyRulesThroughTick,
+      engineVersion: "tower30-ts-m3-v2",
       configHash: this.configHash,
       seed: this.state.seed,
       tick: this.state.tick,
@@ -1569,20 +2302,29 @@ export class TowerEngine {
   getConfigSnapshot() {
     return clone(this.config);
   }
-  static createPlaytest(config: Config, input: PlaytestSetup, referenceHz:20|60=60) {
+  static createPlaytest(config: Config, input: PlaytestSetup) {
     const setup = playtestSetupSchema.parse(input),
-      checked = validateConfig(config),
+      checked = validateConfig(config, { allowUnknownEnemySpecies: true }),
       warnings = playtestWarnings(checked, setup);
     if (setup.skillPolicy === "strict" && warnings.length)
       throw new Error("存在未迁移功能：" + warnings.join("；"));
-    const engine = new TowerEngine(checked, setup.seed,referenceHz);
+    const currentEncounter = checked.Encounters.find(
+      (e) => e.Id === checked.Floors[setup.floor - 1]?.Encounter,
+    );
+    const speciesSet = new Set(checked.Species.map((s) => s.Id));
+    const missing = currentEncounter?.Enemies.filter((e) => !speciesSet.has(e.Species));
+    if (missing && missing.length > 0) {
+      const missingNames = [...new Set(missing.map((m) => m.Species))];
+      throw new Error(`当前测试关卡（第${setup.floor}关）包含已删除怪兽 [${missingNames.join("、")}]，无法开始战斗。请在关卡页修复后再试。`);
+    }
+    const engine = new TowerEngine(checked, setup.seed);
     engine.playtest = clone(setup);
     const s = engine.state;
     s.floor = setup.floor;
     s.gold = 0;
     s.items = {};
     s.equipment = setup.startingGear ? [...checked.StartingEquipment] : [];
-    s.xp = setup.level === 1 ? 0 : checked.HumanXpThresholds[setup.level - 2]!;
+    s.xp = humanXpForLevel(checked.HumanXpThresholds, setup.level);
     s.members = [...setup.party]
       .sort((a, b) => Number(isHuman(b)) - Number(isHuman(a)))
       .map((id) => ({
@@ -1592,10 +2334,10 @@ export class TowerEngine {
         rank: isHuman(id) ? 1 : setup.rank,
         potionXp: isHuman(id)
           ? 0
-          : checked.Rules.Species[id]!.LevelCosts.slice(
-              0,
-              setup.level - 1,
-            ).reduce((s, v) => s + v, 0),
+          : monsterTotalXpForLevel(
+              checked.Rules.Species[id]!.LevelCosts,
+              setup.level,
+            ),
         equipment:
           setup.startingGear && isHuman(id)
             ? { weapon: id === "hero" ? "traveler_sword" : "healer_staff" }
@@ -1614,8 +2356,7 @@ export class TowerEngine {
       .object({
         format: z.literal("tower30-playtest"),
         schemaVersion: z.literal(1),
-        engineVersion: z.enum(["tower30-ts-workbench-v4","tower30-ts-workbench-v5","tower30-ts-workbench-v6","tower30-ts-workbench-v7"]),
-        legacy20ThroughTick: z.number().int().min(0).max(MAX_TICKS).optional(),
+        engineVersion: z.literal("tower30-ts-workbench-v7"),
         config: z.unknown(),
         configHash: z.string(),
         setup: playtestSetupSchema,
@@ -1625,17 +2366,12 @@ export class TowerEngine {
       .strict();
     const save = schema.parse(JSON.parse(json)),
       engine = TowerEngine.createPlaytest(
-        validateConfig(save.config),
-        save.setup,save.engineVersion==="tower30-ts-workbench-v7"?60:20,
+        validateConfig(save.config, { allowUnknownEnemySpecies: true }),
+        save.setup,
       );
-    engine.readClockBoundary(save.engineVersion==="tower30-ts-workbench-v7",save.tick,save.legacy20ThroughTick);
     if (engine.configHash !== save.configHash)
       throw new Error("测试配置指纹不匹配");
     return TowerEngine.replay(engine, save.tick, save.journal);
-  }
-  private readClockBoundary(current:boolean,tick:number,boundary?:number){
-    if(current){if(boundary===undefined||boundary>tick||boundary>200000)throw new Error("逻辑时钟迁移边界无效");this.legacy20ThroughTick=boundary;}
-    else if(boundary!==undefined||tick>200000)throw new Error("旧记录不能携带新时钟边界");
   }
   private static replay(
     engine: TowerEngine,
@@ -1657,17 +2393,9 @@ export class TowerEngine {
   static restore(config: Config, json: string) {
     if (json.length > 2_000_000) throw new Error("存档过大");
     const save = saveSchema.parse(JSON.parse(json)),
-      engine = new TowerEngine(config, save.seed,save.engineVersion==="tower30-ts-m3-v2"?60:20);
-    engine.readClockBoundary(save.engineVersion==="tower30-ts-m3-v2",save.tick,save.legacy20ThroughTick);
+      engine = new TowerEngine(config, save.seed);
     if (engine.configHash !== save.configHash)
       throw new Error("存档配表版本不匹配");
-    if(save.engineVersion==="tower30-ts-m1-v1"){
-      if(save.legacyRulesThroughTick!==undefined)throw new Error("旧规则存档包含无效迁移边界");
-      engine.legacyRulesThroughTick=save.tick;
-    }else{
-      if(save.legacyRulesThroughTick===undefined||save.legacyRulesThroughTick>save.tick)throw new Error("存档规则迁移边界无效");
-      engine.legacyRulesThroughTick=save.legacyRulesThroughTick;
-    }
     return TowerEngine.replay(engine, save.tick, save.journal);
   }
 }

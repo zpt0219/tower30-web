@@ -1,5 +1,5 @@
 import {expect,it} from 'vitest';
-import raw from '../../data/tower/thirty-floor-trial.json';
+import raw from '../../data/tower/trial.json';
 import {createSession} from '../../src/bridge/session';
 import {inspectProject,createProjectTrial,parseProjectText} from '../../src/core/project';
 import {validateConfig} from '../../src/core/config';
@@ -26,6 +26,6 @@ it('preview, invalid import, failed spawn and mismatched record cannot replace a
  for(const invalid of [{...p,schemaVersion:2},{...p,setup:{...p.setup,seed:0}},{...p,source:{}}]){expect(request(s,{op:'play-project',project:invalid}).ok).toBe(false);expect(request(s,{op:'save'}).value).toBe(before);}
  const other=project();other.setup.seed=44;expect(request(s,{op:'restore-project',project:other,save:before}).ok).toBe(false);expect(request(s,{op:'save'}).value).toBe(before);
  // Valid attributes but impossible opening placement must fail transactionally at start.
- const giant=project();const source=validateConfig(giant.source);giant.source=source;giant.setup.party=['hero','princess','slime_dusk','sproutling','boar'];for(const id of giant.setup.party)source.Rules.Combatants[id]!.Radius=3;
+ const giant=project();const source=validateConfig(giant.source,{allowUnknownEnemySpecies:true});giant.source=source;giant.setup.party=['hero','princess','slime','treant','mudguard'];for(const id of giant.setup.party)source.Rules.Combatants[id]!.Radius=3;
  const result=request(s,{op:'play-project',project:giant});expect(result.ok).toBe(false);expect(request(s,{op:'save'}).value).toBe(before);
 });

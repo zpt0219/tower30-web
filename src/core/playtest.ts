@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { strategySchema } from "./strategy";
 import type { Config, Profile } from "./config";
+import { V2_SKILL_IDS } from "./v2-skills";
 export const supportedSkills = new Set([
+  ...V2_SKILL_IDS,
   "swift",
   "steady",
   "heal",
@@ -29,20 +31,20 @@ export const supportedPassives = new Set([
   "controlled_bonus", "physical_guard",
   "controlled_leech", "shield_counter", "low_power", "root_guard", "poison",
   "shield_break", "slow_power", "haste", "silver", "cleanse_ward", "unshielded",
-  "thorns", "flame_bonus", "shield_power", "counter",
+  "thorns", "flame_bonus", "shield_power", "counter", "post_battle_human_heal",
 ]);
 export const playtestSetupSchema = z
   .object({
     strategy: strategySchema.optional(),
     autoPlay: z.boolean().optional(),
-    floor: z.number().int().min(1).max(30),
+    floor: z.number().int().min(1).max(100),
     seed: z.number().int().min(1).max(0xffffffff),
     party: z
       .array(z.string().min(1).max(100))
       .min(1)
       .max(10)
       .refine((a) => new Set(a).size === a.length, "测试阵容不可重复"),
-    level: z.number().int().min(1).max(30),
+    level: z.number().int().min(1).max(999),
     rank: z.number().int().min(1).max(5),
     hpPercent: z.number().min(1).max(100),
     energy: z.number().min(0).max(1000),
@@ -73,6 +75,10 @@ export function playtestWarnings(
   const check = (id: string, p: Profile, rank: number) => {
     if (p.Auto && !supportedSkills.has(p.Auto))
       warnings.add(`${id}：自动技能 ${p.Auto}`);
+    for (const autoId of p.AutoSkills ?? []) {
+      if (!supportedSkills.has(autoId))
+        warnings.add(`${id}：普通技能 ${autoId}`);
+    }
     if (p.Ultimate && !supportedSkills.has(p.Ultimate))
       warnings.add(`${id}：大招 ${p.Ultimate}`);
     if (rank >= 3 && p.PassiveEffect && !supportedPassives.has(p.PassiveEffect))

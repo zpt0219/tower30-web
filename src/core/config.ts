@@ -21,6 +21,8 @@ export type Attributes = z.infer<typeof attributesSchema>;
 const profileSchema = z.object({
   Role: z.enum(["melee", "tank", "ranged", "healer"]),
   Auto: z.string(),
+  AutoSkills: z.array(id).max(3).optional(),
+  TriggerEvery: integer.min(1).max(10).optional(),
   Ultimate: id,
   Passive: z.string().default(""),
   PassiveEffect: z.string().default(""),
@@ -30,11 +32,12 @@ const profileSchema = z.object({
   Cooldown: n.min(1).max(30),
   Interval: n.min(0.4).max(5),
   LeechMoveMultiplier: n.min(1).max(3).optional(),
+  PostBattleHealBase: n.min(0).max(1).optional(),
 });
 const enemySchema = z.object({
   Species: id,
   Count: integer.min(1).max(12),
-  Level: integer.min(1).max(30),
+  Level: integer.min(1).max(999),
   Rank: integer.min(1).max(5),
   Health: n.min(0.01).max(30),
   AttackScale: n.positive().max(30),
@@ -49,8 +52,8 @@ const enemySchema = z.object({
 const actionSchema = z.object({
   DamageType: z.enum(["physical", "magical", "heal", "buff"]),
   ScalingStat: z.enum(["atk", "mag"]),
-  Ratios: z.array(n.max(20)).max(3).default([]),
-  Bases: z.array(integer).max(3).default([]),
+  Ratios: z.array(n.max(20)).max(5).default([]),
+  Bases: z.array(integer).max(5).default([]),
   Delivery: z.enum(["instant", "projectile"]),
   Family: z.string(),
   Windup: n.max(2),
@@ -63,7 +66,7 @@ const actionSchema = z.object({
   Radius: n.max(30).optional(),
   Duration: n.max(30).optional(),
   DotRatio: n.max(5).optional(),
-  ShieldRatios: z.array(n.max(20).nullable()).min(1).max(3).optional(),
+  ShieldRatios: z.array(n.max(20).nullable()).min(1).max(5).optional(),
 });
 const gearSchema = z.object({
   Id: id,
@@ -78,6 +81,7 @@ const gearSchema = z.object({
   UltimateLevel: integer.min(1).max(3),
   Attributes: attributesSchema,
   ModernDescription: z.string(),
+  PostBattleHealBonus: n.min(0).max(1).optional(),
 });
 export const configSchema = z.object({
   Species: z
@@ -147,18 +151,18 @@ export const configSchema = z.object({
         Enemies: z.array(enemySchema).min(1),
       }),
     )
-    .length(30),
+    .length(100),
   Floors: z
     .array(
       z.object({
-        Number: integer.min(1).max(30),
+        Number: integer.min(1).max(100),
         Encounter: id,
         Theme: id,
         Recover: z.literal(false),
         Equipment: z.array(id),
       }),
     )
-    .length(30),
+    .length(100),
   Economy: z.object({
     Enabled: z.literal(true),
     StartingGold: integer.max(10000),
@@ -168,7 +172,7 @@ export const configSchema = z.object({
       z.object({
         Id: id,
         Item: id,
-        Stage: integer.max(3),
+        Stage: integer.max(10),
         Price: integer.positive().max(10000),
         Amount: integer.positive().max(1000),
         Stock: z.union([z.literal(-1), integer.positive()]),
@@ -181,7 +185,10 @@ export type Config = z.infer<typeof configSchema>;
 export type Profile = Config["Rules"]["Profiles"][string];
 export type Gear = Config["Rules"]["Equipment"][number];
 export type ActionRule = Config["Rules"]["Actions"][string];
-export function validateConfig(input: unknown): Config {
+export interface ValidateConfigOptions {
+  allowUnknownEnemySpecies?: boolean;
+}
+export function validateConfig(input: unknown, options: ValidateConfigOptions = {}): Config {
   const c = configSchema.parse(input);
   const unique = (ids: string[], label: string) => {
     if (new Set(ids).size !== ids.length) throw new Error(`${label} ID重复`);
@@ -234,7 +241,9 @@ export function validateConfig(input: unknown): Config {
     );
     if (p)
       check(
-        !!c.Rules.Actions[p.Ultimate] && (!p.Auto || !!c.Rules.Actions[p.Auto]),
+        !!c.Rules.Actions[p.Ultimate] &&
+          (!p.Auto || !!c.Rules.Actions[p.Auto]) &&
+          (p.AutoSkills ?? []).every((id) => !!c.Rules.Actions[id]),
         s + "技能",
       );
     check(!!a && a.Base.MaxHp > 0, s + "生命");
@@ -243,10 +252,11 @@ export function validateConfig(input: unknown): Config {
     check(rule.DotRatio===undefined||hasDotRatio(skill),skill+"没有可编辑的持续伤害倍率");
     check(rule.ShieldRatios===undefined||hasShieldRatio(skill),skill+"没有可编辑的数值护盾倍率");
   }
+  check(c.Encounters.length === c.Floors.length, "关卡数量一致");
   c.Floors.forEach((f, i) => {
     const e = c.Encounters.find((e) => e.Id === f.Encounter);
     check(
-      f.Number === i + 1 && !!e && e.Boss === ((i + 1) % 10 === 0),
+      f.Number === i + 1 && !!e && e.Boss === ((i + 1) % 5 === 0),
       "楼层/Boss",
     );
     for (const g of f.Equipment) check(gear.has(g), g);
@@ -254,12 +264,15 @@ export function validateConfig(input: unknown): Config {
   c.Encounters.forEach((e) => {
     check(e.Enemies.reduce((s, v) => s + v.Count, 0) <= 16, e.Id);
     e.Enemies.forEach((v) => {
-      check(species.has(v.Species), `${e.Id}：未知物种 ${v.Species}`);
+      if (!options.allowUnknownEnemySpecies) {
+        check(species.has(v.Species), `${e.Id}：未知物种 ${v.Species}`);
+      }
       if (v.ProfileOverride)
         check(
           !!c.Rules.Actions[v.ProfileOverride.Ultimate] &&
             (!v.ProfileOverride.Auto ||
-              !!c.Rules.Actions[v.ProfileOverride.Auto]),
+              !!c.Rules.Actions[v.ProfileOverride.Auto]) &&
+            (v.ProfileOverride.AutoSkills ?? []).every((id) => !!c.Rules.Actions[id]),
           e.Id + "覆盖技能",
         );
     });

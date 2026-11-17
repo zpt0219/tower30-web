@@ -18,7 +18,7 @@ test('战中取左右行素材，胜利后存活友军正面踏步但逻辑tick�
  await page.getByRole('button',{name:'准备挑战 →',exact:true}).click();await page.getByRole('button',{name:'开始交战 →',exact:true}).click();
  await page.clock.runFor(1200);
  const poses=()=>page.evaluate(()=>window.__battlePoses);
- let actual=await poses();expect(actual.some(p=>p.id==='hero.png'&&(p.y===80||p.y===48))).toBe(true);expect(actual.some(p=>p.id==='slime_dusk.png'&&(p.y===16||p.y===32))).toBe(true);
+ let actual=await poses();expect(actual.some(p=>p.id==='hero.png'&&(p.y===80||p.y===48))).toBe(true);expect(actual.some(p=>p.id==='slime.png'&&(p.y===16||p.y===32))).toBe(true);
  await page.screenshot({path:`${artifactDirectory()}/${info.project.name}-web-side-battle.png`});
  await page.clock.runFor(24000);await expect(page.getByRole('heading',{name:'赢下这一战。',exact:true})).toBeVisible();
  const tick=await page.locator('#debug-tick').textContent();await page.evaluate(()=>window.__battlePoses=[]);

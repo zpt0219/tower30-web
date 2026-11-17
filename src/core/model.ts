@@ -2,7 +2,8 @@ import { z } from "zod";
 import {MAX_TICKS} from "./math";
 import type { ActionRule, Attributes, Profile } from "./config";
 const memberId = z.string().min(1).max(100),
-  quantity = z.number().int().min(1).max(100);
+  quantity = z.number().int().min(1).max(100),
+  sellQuantity = z.number().int().min(1).max(9999);
 export const commandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("begin") }),
   z.object({ type: z.literal("start") }),
@@ -13,7 +14,7 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("withdraw") }),
   z.object({ type: z.literal("finish") }),
   z.object({ type: z.literal("buy"), id: memberId, quantity }),
-  z.object({ type: z.literal("sell"), id: memberId, quantity }),
+  z.object({ type: z.literal("sell"), id: memberId, quantity: sellQuantity }),
   z.object({ type: z.literal("rest") }),
   z.object({
     type: z.literal("item"),
@@ -107,6 +108,57 @@ export interface Unit extends Contribution {
   hitStun: number;
   hitGuard: number;
   blockedFor: number;
+  basicCount: number;
+  skillCursor: number;
+  resBreak: number;
+  resBreakAmount: number;
+  armorBreakAmount: number;
+  vuln: number;
+  vulnAmount: number;
+  blind: number;
+  blindRate: number;
+  disarm: number;
+  energyLock: number;
+  stealth: number;
+  undying: number;
+  reviveUsed: boolean;
+  petrify: number;
+  petrifyDamage: number;
+  atkBuff: number;
+  atkBuffAmount: number;
+  defBuff: number;
+  defBuffAmount: number;
+  critBuff: number;
+  critBuffAmount: number;
+  critDmgBuff: number;
+  critDmgBuffAmount: number;
+  dodgeBuff: number;
+  dodgeBuffAmount: number;
+  lifestealBuff: number;
+  lifestealBuffAmount: number;
+  hasteBuffAmount: number;
+  dmgReduction: number;
+  dmgReductionAmount: number;
+  thornsTime: number;
+  thornsRatio: number;
+  damageCapTime: number;
+  damageCapRatio: number;
+  transformTime: number;
+  transformKind: string;
+  stacks: Record<string, { count: number; power: number; owner: string; time: number; tick: number }>;
+  shackleIds: string[];
+  shackleTime: number;
+  shackleRatio: number;
+  shieldShareTo: string;
+  shieldShareTime: number;
+  shieldShareRatio: number;
+  hitsTaken: number;
+  damageTakenBucket: number;
+  chainUltUsed: number;
+  summoned?: boolean;
+  summonTime?: number;
+  summonOwner?: string;
+  explodeOnDeath?: number;
   action: null | {
     id: number;
     kind: "basic" | "auto" | "ultimate";
@@ -150,7 +202,25 @@ export interface Battle {
     rank: number;
   }[];
   projectiles: Projectile[];
-  zones: { owner: string; enemy: boolean; x: number; z: number; remaining: number; tick: number; power: number; radius: number; kind: string }[];
+  zones: {
+    owner: string;
+    enemy: boolean;
+    x: number;
+    z: number;
+    remaining: number;
+    tick: number;
+    power: number;
+    radius: number;
+    kind: string;
+    allyHealRatio?: number;
+    allyEnergy?: number;
+    allyGuard?: number;
+    enemyStunTick?: number;
+    enemySlow?: number;
+    enemyWeaken?: number;
+    enemyResBreak?: number;
+    enemyEnergyDrain?: number;
+  }[];
   actionId: number;
   projectileId: number;
   tickets: number;
@@ -207,9 +277,7 @@ export const saveSchema = z
   .object({
     format: z.literal("tower30-web-command-save"),
     schemaVersion: z.literal(1),
-    engineVersion: z.enum(["tower30-ts-m1-v1", "tower30-ts-m3-v1","tower30-ts-m3-v2"]),
-    legacy20ThroughTick:z.number().int().min(0).max(MAX_TICKS).optional(),
-    legacyRulesThroughTick: z.number().int().min(0).max(MAX_TICKS).optional(),
+    engineVersion: z.literal("tower30-ts-m3-v2"),
     configHash: memberId,
     seed: z.number().int().min(1).max(0xffffffff),
     tick: z.number().int().min(0).max(MAX_TICKS),

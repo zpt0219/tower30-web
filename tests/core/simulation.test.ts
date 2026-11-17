@@ -1,10 +1,10 @@
 import {expect,it} from 'vitest';
-import raw from '../../data/tower/thirty-floor-trial.json';
+import raw from '../../data/tower/trial.json';
 import {validateConfig} from '../../src/core/config';
 import {TowerEngine} from '../../src/core/engine';
 import {defaultPlaytestSetup} from '../../src/core/playtest';
 import {createSimulationReport,simulatePair,simulateBattle,simulationSeed,summarizeTrials,summarizePairs,trialSave} from '../../src/core/simulation';
-const config=validateConfig(raw), setup={...defaultPlaytestSetup(),skillPolicy:'strict' as const},options={count:2,policy:'adaptive' as const,reinforce:true};
+const config=validateConfig(raw,{allowUnknownEnemySpecies:true}), setup={...defaultPlaytestSetup(),skillPolicy:'strict' as const},options={count:2,policy:'adaptive' as const,reinforce:true};
 it('同配置同种子配对一致，导出操作记录可用现行核心精确重放，正式资源不变',()=>{
  const normal=new TowerEngine(config),before=normal.serialize();
  const report=createSimulationReport(config,config,setup,options);
@@ -42,11 +42,11 @@ it('补人策略遵循真实票数；超时与严格校验有明确结果，零�
  const unsupported=structuredClone(raw);unsupported.Rules.Profiles.hero.Auto='guard';
  expect(()=>createSimulationReport(config,unsupported,{...setup,startingGear:false},options)).not.toThrow(); // Unequipped humans have no auto action.
  unsupported.Rules.Profiles.hero.Ultimate='guard';expect(()=>createSimulationReport(config,unsupported,setup,options)).toThrow(/未迁移/);
- const party={...setup,party:['hero','princess','slime_dusk','sproutling','reedwing','boar'],energy:1000};
+ const party={...setup,party:['hero','princess','slime','treant','wind_bug','mudguard'],energy:1000};
  const withReserve=simulateBattle(config,party,options),withoutReserve=simulateBattle(config,party,{...options,reinforce:false});
  expect(withReserve.reinforcements).toBe(1);expect(withoutReserve.reinforcements).toBe(0);
- const durable=structuredClone(raw);for(const id of ['hero','princess','slime_dusk'] as const)durable.Rules.Combatants[id].Base.MaxHp=1000000;
- expect(simulateBattle(validateConfig(durable),setup,{...options,policy:'no-ultimates'})).toMatchObject({result:'flee',ticks:18000});
+ const durable=structuredClone(raw);for(const id of ['hero','princess','slime'] as const)durable.Rules.Combatants[id].Base.MaxHp=1000000;
+ expect(simulateBattle(validateConfig(durable,{allowUnknownEnemySpecies:true}),setup,{...options,policy:'no-ultimates'})).toMatchObject({result:'flee',ticks:18000});
  const record=TowerEngine.restorePlaytest(JSON.stringify({...trialSave({...createSimulationReport(config,config,party,options),pairs:[{floor:party.floor,a:withReserve,b:withReserve}]},'a',0)})).getSnapshot();
- expect(record.battle!.units.some(u=>u.id==='boar')).toBe(true);
+ expect(record.battle!.units.some(u=>u.id==='mudguard')).toBe(true);
 },20000);

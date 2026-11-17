@@ -7,7 +7,7 @@ async function nav(page: Page, label: string) {
     .getByRole("button", { name: label, exact: true })
     .click();
 }
-async function start(page: Page) {
+async function start(page: Page, togglePrincess = false) {
   await page.getByRole("button", { name: "准备挑战 →" }).click();
   const startButton = page.getByRole("button", { name: "开始交战 →" });
   const action = await startButton.boundingBox(),
@@ -16,6 +16,16 @@ async function start(page: Page) {
   expect(action!.y + action!.height).toBeLessThanOrEqual(
     card!.y + card!.height,
   );
+  if (togglePrincess) {
+    const heroBtn = page.locator(".opening-options").getByRole("button", { name: /主角/ });
+    const princessBtn = page.locator(".opening-options").getByRole("button", { name: /公主/ });
+    await expect(heroBtn).toBeDisabled();
+    await expect(princessBtn).toBeEnabled();
+    await princessBtn.click();
+    await expect(page.locator(".opening-options").getByRole("button", { name: "公主 加入" })).toBeVisible();
+    await page.locator(".opening-options").getByRole("button", { name: "公主 加入" }).click();
+    await expect(page.locator(".opening-options").getByRole("button", { name: "公主 ✓" })).toBeVisible();
+  }
   await page.screenshot({
     path: `${artifactDir}/${test.info().project.name}-deployment.png`,
   });
@@ -52,8 +62,18 @@ test("真实前两层、战报、收集与刷新恢复", async ({ page }, info) 
   await nav(page, "伙伴");
   await expect(page.getByRole("heading", { name: /史莱姆/ })).toBeVisible();
   await screenshot(page, "party", info.project.name);
+  await page
+    .locator(".cards-grid .member-card")
+    .filter({ has: page.getByRole("heading", { name: /公主/ }) })
+    .getByRole("button", { name: "查看伙伴 →" })
+    .click();
+  await expect(page.getByRole("heading", { name: /战后守望/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "圣庭辉光" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "王女庇护敕令" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "星辉圣裁" })).toBeVisible();
+  await screenshot(page, "princess", info.project.name);
   await nav(page, "试炼");
-  await start(page);
+  await start(page, true);
   await fastWin(page);
   await expect(page.locator("#gold-counter")).toHaveText("370");
   await nav(page, "战报");
@@ -113,9 +133,9 @@ test("购买数量、取消不扣钱、装备预览不改变状态、触控滑�
   await expect(page.locator(".gear-slot").nth(1)).toContainText("亚麻衣");
   await screenshot(page, "equipped", info.project.name);
   await nav(page, "图鉴");
-  await expect(page.locator("#codex-list>.info-card")).toHaveCount(40);
+  await expect(page.locator("#codex-list>.info-card")).toHaveCount(41);
   await page.getByLabel("查找物种").fill("史莱姆");
-  await expect(page.locator("#codex-list>.info-card")).toHaveCount(2);
+  await expect(page.locator("#codex-list>.info-card")).toHaveCount(1);
   await expect(page.locator("#gold-counter")).toHaveText("151");
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > innerWidth,
@@ -225,7 +245,7 @@ test("实际触控滑动不购买，二级返回保留装备筛选", async ({
   }
   await expect(page.locator("#gold-counter")).toHaveText("240");
 });
-test("损坏主存档回退备份，双损坏不静默覆盖且可导出原件", async ({ page }) => {
+test("损坏主存档回退备份，双损坏不静默覆盖且可导出原件或清除重新开始", async ({ page }, info) => {
   // Fault injection isolates on-disk corruption from the normal unload autosave.
   await page.addInitScript(() => {
     window.addEventListener(
@@ -287,6 +307,10 @@ test("损坏主存档回退备份，双损坏不静默覆盖且可导出原件",
   await expect(page.locator("#save-status")).toHaveText(
     "原存档无法读取 · 未覆盖",
   );
+  await expect(
+    page.getByRole("button", { name: "清除旧存档并重新开始" }),
+  ).toBeVisible();
+  await screenshot(page, "incompatible-save-reset", info.project.name);
   await page
     .getByRole("navigation")
     .getByRole("button", { name: "⚙ 存档", exact: true })
@@ -294,4 +318,64 @@ test("损坏主存档回退备份，双损坏不静默覆盖且可导出原件",
   await expect(
     page.getByRole("button", { name: "导出故障原件" }),
   ).toBeVisible();
+  await page
+    .getByRole("button", { name: "清除旧存档并重新开始", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "确认清除旧存档并重新开始", exact: true })
+    .click();
+  await expect(page.locator("#save-status")).toHaveText("已保存到本机");
+  await expect(page.locator("#floor-counter")).toHaveText("01");
+  await expect(page.locator("#gold-counter")).toHaveText("240");
+  await page.reload();
+  await expect(page.locator("#save-status")).toHaveText("已恢复本机存档");
+});
+test("行囊出售弹窗支持快捷数量选择、步进、滑块与全额确认", async ({
+  page,
+}, info) => {
+  await page.goto("./");
+  await nav(page, "商店");
+  const shopHerb = page
+    .locator(".shop-row")
+    .filter({ has: page.getByRole("heading", { name: "草药", exact: true }) });
+  await shopHerb.getByRole("button", { name: "购买", exact: true }).click();
+  await page.getByLabel("购买数量").fill("7");
+  await page.getByRole("button", { name: "确认购买", exact: true }).click();
+  await expect(page.locator("#gold-counter")).toHaveText("156");
+  await nav(page, "行囊");
+  const herbCard = page
+    .locator(".cards-grid .info-card")
+    .filter({ has: page.getByRole("heading", { name: "草药", exact: true }) });
+  await expect(herbCard).toContainText("×10");
+  await expect(
+    page
+      .locator(".cards-grid .info-card")
+      .filter({ has: page.getByRole("heading", { name: "硬壳", exact: true }) })
+      .getByRole("button", { name: /出售/ }),
+  ).toBeDisabled();
+  await herbCard.getByRole("button", { name: /出售/ }).click();
+  const dlg = page.getByRole("dialog");
+  await expect(dlg).toContainText("出售确认");
+  await expect(dlg.locator("#sell-quote")).toContainText("出售 1 份 · 获得 ◈ 4");
+  await dlg.getByRole("button", { name: "+5", exact: true }).click();
+  await expect(page.getByLabel("出售数量", { exact: true })).toHaveValue("6");
+  await expect(dlg.locator("#sell-slider")).toHaveValue("6");
+  await expect(dlg.locator("#sell-quote")).toContainText("出售 6 份 · 获得 ◈ 24");
+  await dlg.getByRole("button", { name: "+1", exact: true }).click();
+  await expect(page.getByLabel("出售数量", { exact: true })).toHaveValue("7");
+  await dlg.getByRole("button", { name: "−5", exact: true }).click();
+  await expect(page.getByLabel("出售数量", { exact: true })).toHaveValue("2");
+  await dlg.getByRole("button", { name: "一半 (5)", exact: true }).click();
+  await expect(page.getByLabel("出售数量", { exact: true })).toHaveValue("5");
+  await expect(dlg.locator("#sell-quote")).toContainText("出售 5 份 · 获得 ◈ 20");
+  await screenshot(page, "sell-dialog", info.project.name);
+  await dlg.getByRole("button", { name: "全部 (10)", exact: true }).click();
+  await expect(page.getByLabel("出售数量", { exact: true })).toHaveValue("10");
+  const confirm = dlg.getByRole("button", { name: "确认出售 10 份 · ◈ 40" });
+  await expect(confirm).toBeEnabled();
+  await confirm.click();
+  await expect(dlg).toHaveCount(0);
+  await expect(page.locator("#gold-counter")).toHaveText("196");
+  await expect(herbCard).toContainText("×0");
 });

@@ -31,20 +31,20 @@ export function createSession() {
       let value:unknown;
       switch(r.op){
         case 'create': {
-          const config=validateConfig(r.config);
+          const config=validateConfig(r.config, { allowUnknownEnemySpecies: true });
           const next=r.setup?TowerEngine.createPlaytest(config,r.setup):new TowerEngine(config,r.seed);
           engine=next;value=engine.getSnapshot();break;
         }
         case 'restore': {
           const header:unknown=JSON.parse(r.save);
           const isPlay=z.object({format:z.string()}).parse(header).format==='tower30-playtest';
-          const next=isPlay?TowerEngine.restorePlaytest(r.save):TowerEngine.restore(validateConfig(r.config),r.save);
-          engine=next.upgradeTo60Hz();value=engine.getSnapshot();break;
+          const next=isPlay?TowerEngine.restorePlaytest(r.save):TowerEngine.restore(validateConfig(r.config, { allowUnknownEnemySpecies: true }),r.save);
+          engine=next;value=engine.getSnapshot();break;
         }
         case 'inspect-project': {const p=inspectProject(r.project);value={project:p.project,info:p.info};break;}
         case 'play-project': {const p=createProjectTrial(r.project);engine=p.engine;value={project:p.project,info:p.info,snapshot:engine.getSnapshot()};break;}
         case 'restore-project': {
-          const p=inspectProject(r.project),next=TowerEngine.restorePlaytest(r.save).upgradeTo60Hz();
+          const p=inspectProject(r.project),next=TowerEngine.restorePlaytest(r.save);
           if(next.configHash!==p.info.configHash||JSON.stringify(next.getConfigSnapshot())!==JSON.stringify(p.config)||JSON.stringify(next.getPlaytestSetup())!==JSON.stringify(p.info.setup))throw new Error('测试记录与冻结工程不匹配');
           engine=next;value={project:p.project,info:p.info,snapshot:engine.getSnapshot()};break;
         }

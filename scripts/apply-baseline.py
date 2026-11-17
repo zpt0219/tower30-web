@@ -4,7 +4,7 @@ from pathlib import Path
 import base64, json, os, shutil, subprocess, sys, zipfile
 
 root = Path(__file__).resolve().parents[1]
-target_json = root / "data" / "tower" / "thirty-floor-trial.json"
+target_json = root / "data" / "tower" / "trial.json"
 assets_dir = root / "public" / "assets"
 
 if len(sys.argv) < 2:
@@ -27,9 +27,9 @@ try:
     if source_path.suffix.lower() == ".zip":
         with zipfile.ZipFile(source_path, "r") as zf:
             names = zf.namelist()
-            # 1. Look for thirty-floor-trial-draft.json or tower30-editor-project.json
-            if "thirty-floor-trial-draft.json" in names:
-                raw = zf.read("thirty-floor-trial-draft.json").decode("utf-8")
+            # 1. Look for trial-draft.json or tower30-editor-project.json
+            if "trial-draft.json" in names:
+                raw = zf.read("trial-draft.json").decode("utf-8")
                 parsed = json.loads(raw)
                 target_json.write_text(json.dumps(parsed, ensure_ascii=False, indent=2) + "\n")
                 applied_config = True

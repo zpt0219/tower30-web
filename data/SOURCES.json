@@ -2,10 +2,10 @@
   "created_local": "2026-10-31T00:39:05-07:00",
   "source_project": "/home/pt/Desktop/asterfell-scene",
   "source_git_commit": "ed076a745e8986a7db10dd847dcbc7d15455a120",
-  "purpose": "Independent starting data for native Vite + TypeScript 30-floor web game; no runtime dependency on source project.",
+  "purpose": "Independent starting data for native Vite + TypeScript web game; no runtime dependency on source project.",
   "files": [
     {
-      "path": "data/tower/thirty-floor-trial.json",
+      "path": "data/tower/trial.json",
       "source": "/home/pt/Desktop/asterfell-scene/data/tower/thirty-floor-trial.json",
       "sha256": "086d5e09bfcec9fb03c5a4fa57d2ae446decf8d96d91d7ecfb879d804b389dbf",
       "bytes": 206390

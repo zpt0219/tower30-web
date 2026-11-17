@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import raw from "../../data/tower/thirty-floor-trial.json";
+import raw from "../../data/tower/trial.json";
 import { validateConfig, fingerprint } from "../../src/core/config";
 import { TowerEngine } from "../../src/core/engine";
 import {
@@ -14,9 +14,10 @@ import {
   importProject,
   restoreProject,
   validateProject,
+  getBrokenFloors,
 } from "../../src/editor/project";
 import { combatantAttributes } from "../../src/core/projections";
-const config = validateConfig(raw);
+const config = validateConfig(raw, { allowUnknownEnemySpecies: true });
 function testEngine(floor = 1) {
   const e = TowerEngine.createPlaytest(config, {
     ...defaultPlaytestSetup(),
@@ -43,7 +44,7 @@ describe("网页工作台草稿与测试", () => {
       validateProject(result).config!.Rules.Combatants.hero!.Base.Attack,
     ).toBe(888);
     expect(JSON.stringify(raw)).toBe(original);
-    expect(fingerprint(validateConfig(raw))).toBe(fingerprint(config));
+    expect(fingerprint(validateConfig(raw, { allowUnknownEnemySpecies: true }))).toBe(fingerprint(config));
   });
   it("42个角色的基础和成长均由同一个核心生效", () => {
     for (const id of Object.keys(config.Rules.Combatants)) {
@@ -65,10 +66,11 @@ describe("网页工作台草稿与测试", () => {
       expect(e.getSnapshot().members[0]!.level).toBe(3);
     }
   });
-  it("全部30关可以独立进入数值测试，正式资源不变且测试奖励隔离", () => {
+  it("完好关卡可以独立进入数值测试，已删怪兽的待修关卡明确报错，正式资源不变且测试奖励隔离", () => {
     const formal = new TowerEngine(config),
       before = formal.serialize();
-    for (let floor = 1; floor <= 30; floor++) {
+    expect(getBrokenFloors(newProject(raw).source)).toEqual([]);
+    for (let floor = 1; floor <= config.Floors.length; floor++) {
       const e = testEngine(floor);
       e.advance(3);
       expect(e.getSnapshot().floor).toBe(floor);
@@ -77,6 +79,21 @@ describe("网页工作台草稿与测试", () => {
       expect(e.getSnapshot().records).toEqual([]);
       expect(e.getSnapshot().battle!.units.length).toBeGreaterThan(1);
     }
+    const brokenDraft = newProject(raw);
+    const spList = (brokenDraft.source as any).Species as any[];
+    const slimeIdx = spList.findIndex((s) => s.Id === "slime");
+    spList.splice(slimeIdx, 1);
+    delete (brokenDraft.source as any).Rules.Species.slime;
+    delete (brokenDraft.source as any).Rules.Combatants.slime;
+    delete (brokenDraft.source as any).Rules.Profiles.slime;
+    const brokenConfig = validateProject(brokenDraft).config!;
+    expect(() =>
+      TowerEngine.createPlaytest(brokenConfig, {
+        ...defaultPlaytestSetup(),
+        floor: 1,
+        skillPolicy: "strict",
+      }),
+    ).toThrow(/(未在角色库注册|包含已删除怪兽)/);
     expect(formal.serialize()).toBe(before);
   });
   it("改关卡的种类数量、等级和倍率实际影响敌人；测试胜利不发正式奖励", () => {
@@ -91,7 +108,7 @@ describe("网页工作台草稿与测试", () => {
       ["Encounters", 29, "Enemies"],
       [
         {
-          Species: "slime_dusk",
+          Species: "slime",
           Count: 2,
           Level: 2,
           Rank: 1,
@@ -117,7 +134,7 @@ describe("网页工作台草稿与测试", () => {
     const s = e.getSnapshot();
     expect(s.battle!.enemies).toHaveLength(2);
     expect(s.battle!.enemies[0]!.hp).toBe(
-      Math.ceil(combatantAttributes(c, "slime_dusk", 2).MaxHp * 0.5),
+      Math.ceil(combatantAttributes(c, "slime", 2).MaxHp * 0.5),
     );
     expect(s.battle!.enemies[0]!.attributes.Defense).toBe(0);
     e.advance(6001);
@@ -129,7 +146,7 @@ describe("网页工作台草稿与测试", () => {
     expect(e.getSnapshot().members).toHaveLength(1);
   });
   it("配置快照、固定种子、命令和战中重载稳定；测试不能导入成正式存档", () => {
-    const c = validateConfig(raw),
+    const c = validateConfig(raw, { allowUnknownEnemySpecies: true }),
       setup = { ...defaultPlaytestSetup(), floor: 2 },
       e = TowerEngine.createPlaytest(c, setup);
     e.dispatch({ type: "begin" });
@@ -155,11 +172,11 @@ describe("网页工作台草稿与测试", () => {
   it("未迁移技能严格模式拒绝，数值模式明确停用而非替换成通用攻击技能", () => {
     const setup = {
       ...defaultPlaytestSetup(),
-      floor: 30,
-      party: ["ember_dragon"],
+      floor: 25,
+      party: ["nightmare_dragon"],
       rank: 5,
     };
-    const unsupported = validateConfig(raw);unsupported.Rules.Profiles.ember_dragon!.Auto="guard";
+    const unsupported = validateConfig(raw, { allowUnknownEnemySpecies: true });unsupported.Rules.Profiles.nightmare_dragon!.Auto="guard";
     expect(playtestWarnings(unsupported, setup).length).toBeGreaterThan(0);
     expect(() =>
       TowerEngine.createPlaytest(unsupported, { ...setup, skillPolicy: "strict" }),
@@ -170,13 +187,13 @@ describe("网页工作台草稿与测试", () => {
     for (let i = 0; i < 100; i++) {
       e.advance(1);
       for (const u of e.getSnapshot().battle!.units) {
-        if(u.kind==="ember_dragon")expect(u.passiveLevel).toBeGreaterThan(0);
+        if(u.kind==="nightmare_dragon")expect(u.passiveLevel).toBeGreaterThan(0);
         if (u.action)
           expect(u.action.skill === "attack" || supportedSkills.has(u.action.skill)).toBe(true);
       }
     }
     expect(e.getSnapshot().skippedFeatures.length).toBeGreaterThan(0);
-    const gear=validateConfig(raw);gear.Rules.Equipment.find(g=>g.Id==="traveler_sword")!.Effect="unknown_effect";expect(playtestWarnings(gear,defaultPlaytestSetup())).toContain("hero：装备效果 unknown_effect");expect(()=>TowerEngine.createPlaytest(gear,{...defaultPlaytestSetup(),skillPolicy:"strict"})).toThrow("未迁移");
+    const gear=validateConfig(raw, { allowUnknownEnemySpecies: true });gear.Rules.Equipment.find(g=>g.Id==="traveler_sword")!.Effect="unknown_effect";expect(playtestWarnings(gear,defaultPlaytestSetup())).toContain("hero：装备效果 unknown_effect");expect(()=>TowerEngine.createPlaytest(gear,{...defaultPlaytestSetup(),skillPolicy:"strict"})).toThrow("未迁移");
   });
   it("非法草稿阻止Play，错误字段可保存在浏览器草稿中，导入失败不替换现有工程", () => {
     const draft = newProject(raw);
@@ -189,7 +206,7 @@ describe("网页工作台草稿与测试", () => {
     ).toThrow();
   });
   it("吸血按实际扣血恢复，配置预览与战斗使用一致的属性", () => {
-    const c = validateConfig(raw);
+    const c = validateConfig(raw, { allowUnknownEnemySpecies: true });
     c.Rules.Combatants.hero!.Base.Lifesteal = 0.6;
     const setup = {
       ...defaultPlaytestSetup(),
@@ -231,11 +248,11 @@ it("测试参数填错后刷新仍保留全部草稿，修复后可以继续Play
   expect(validateProject(loaded).errors).toEqual([]);
 });
 it("无法容纳的碰撞半径在开战时原子拒绝，不留下半队单位", () => {
-  const c = validateConfig(raw);
+  const c = validateConfig(raw, { allowUnknownEnemySpecies: true });
   for (const d of Object.values(c.Rules.Combatants)) d.Radius = 3;
   const e = TowerEngine.createPlaytest(c, {
     ...defaultPlaytestSetup(),
-    party: ["hero", "princess", "slime_dusk", "sproutling", "boar"],
+    party: ["hero", "princess", "slime", "treant", "mudguard"],
   });
   expect(e.dispatch({ type: "begin" }).ok).toBe(true);
   const before = e.getSnapshot();
@@ -246,43 +263,43 @@ it("无法容纳的碰撞半径在开战时原子拒绝，不留下半队单位"
   });
   it("怪物名称、主职责标签与介绍可编辑并保存在工程与配表快照中", () => {
     const draft = newProject(raw);
-    const si = raw.Species.findIndex((s) => s.Id === "slime_dusk");
+    const si = raw.Species.findIndex((s) => s.Id === "slime");
     expect(si).toBeGreaterThanOrEqual(0);
     setPath(draft.source, ["Species", si, "Name"], "剧毒孢子菇");
     setPath(
       draft.source,
-      ["Rules", "Species", "slime_dusk", "PrimaryRole"],
+      ["Rules", "Species", "slime", "PrimaryRole"],
       "持续减益",
     );
     setPath(
       draft.source,
-      ["Rules", "Species", "slime_dusk", "Specialty"],
+      ["Rules", "Species", "slime", "Specialty"],
       "释放剧毒孢子造成持续伤害并降低敌方治疗，适合消耗战。",
     );
     setPath(
       draft.source,
-      ["Rules", "Profiles", "slime_dusk", "AutoDescription"],
+      ["Rules", "Profiles", "slime", "AutoDescription"],
       "喷吐毒雾并抑制敌方恢复。",
     );
     const validated = validateProject(draft);
     expect(validated.errors).toEqual([]);
     const c = validated.config!;
     expect(c.Species[si]!.Name).toBe("剧毒孢子菇");
-    expect(c.Rules.Species.slime_dusk!.PrimaryRole).toBe("持续减益");
-    expect(c.Rules.Species.slime_dusk!.Specialty).toContain("剧毒孢子");
-    expect(c.Rules.Profiles.slime_dusk!.AutoDescription).toBe(
+    expect(c.Rules.Species.slime!.PrimaryRole).toBe("持续减益");
+    expect(c.Rules.Species.slime!.Specialty).toContain("剧毒孢子");
+    expect(c.Rules.Profiles.slime!.AutoDescription).toBe(
       "喷吐毒雾并抑制敌方恢复。",
     );
     const imported = importProject(JSON.stringify(draft));
     const revalidated = validateProject(imported).config!;
     expect(revalidated.Species[si]!.Name).toBe("剧毒孢子菇");
-    expect(revalidated.Rules.Species.slime_dusk!.Specialty).toContain(
+    expect(revalidated.Rules.Species.slime!.Specialty).toContain(
       "剧毒孢子",
     );
   });
   it("支持动态删除怪兽，删减换皮怪后角色数量更新且校验通过", () => {
     const draft = newProject(raw);
-    const toDelete = "wisp";
+    const toDelete = "fluffy_jumper";
     const speciesList = readPath(draft.source, ["Species"]) as any[];
     const idx = speciesList.findIndex((s) => s.Id === toDelete);
     expect(idx).toBeGreaterThanOrEqual(0);
@@ -293,9 +310,69 @@ it("无法容纳的碰撞半径在开战时原子拒绝，不留下半队单位"
 
     const validated = validateProject(draft);
     expect(validated.errors).toEqual([]);
-    expect(validated.config!.Species.length).toBe(39);
-    expect(Object.keys(validated.config!.Rules.Combatants).length).toBe(41);
-    expect(Object.keys(validated.config!.Rules.Species).length).toBe(39);
+    expect(validated.config!.Species.length).toBe(40);
+    expect(Object.keys(validated.config!.Rules.Combatants).length).toBe(42);
+    expect(Object.keys(validated.config!.Rules.Species).length).toBe(40);
+  });
+  it("删除关卡在用的怪兽不被阻挡，对应关卡标记为异常，调整替换后恢复正常", () => {
+    const draft = newProject(raw);
+    const toDelete = "nether_fire";
+    const speciesList = readPath(draft.source, ["Species"]) as any[];
+    const idx = speciesList.findIndex((s) => s.Id === toDelete);
+    expect(idx).toBeGreaterThanOrEqual(0);
+    speciesList.splice(idx, 1);
+    delete (draft.source as any).Rules.Species[toDelete];
+    delete (draft.source as any).Rules.Combatants[toDelete];
+    delete (draft.source as any).Rules.Profiles[toDelete];
+
+    // Check broken floors detection dynamically across floors using nether_fire
+    const expectedFloor =
+      ((draft.source as any).Encounters as any[]).findIndex((e) =>
+        e.Enemies.some((g: any) => g.Species === toDelete),
+      ) + 1;
+    expect(expectedFloor).toBeGreaterThan(0);
+    const broken = getBrokenFloors(draft.source);
+    const hit = broken.find((b) => b.floor === expectedFloor);
+    expect(hit).toBeDefined();
+    expect(hit!.missingSpecies).toEqual(["nether_fire"]);
+
+    // validateProject yields valid config even with broken floors present
+    const validated = validateProject(draft);
+    expect(validated.errors).toEqual([]);
+    expect(validated.config).not.toBeNull();
+
+    // Floor 1 (unaffected) can still be playtested
+    const e1 = TowerEngine.createPlaytest(validated.config!, {
+      ...defaultPlaytestSetup(),
+      floor: 1,
+    });
+    expect(e1.dispatch({ type: "begin" }).ok).toBe(true);
+    expect(e1.dispatch({ type: "start" }).ok).toBe(true);
+
+    // Target broken floor playtest throws clear error
+    expect(() =>
+      TowerEngine.createPlaytest(validated.config!, {
+        ...defaultPlaytestSetup(),
+        floor: expectedFloor,
+      }),
+    ).toThrow(new RegExp(`（第${expectedFloor}关）包含已删除怪兽`));
+
+    // Fix broken floor by changing species to doomsday_satan
+    const encEnemies = (draft.source as any).Encounters[expectedFloor - 1].Enemies;
+    for (const enemy of encEnemies) {
+      if (enemy.Species === toDelete) enemy.Species = "doomsday_satan";
+    }
+    expect(getBrokenFloors(draft.source).some((b) => b.floor === expectedFloor)).toBe(false);
+
+    // Now broken floor can be playtested
+    const fixed = validateProject(draft);
+    expect(fixed.errors).toEqual([]);
+    const eFixed = TowerEngine.createPlaytest(fixed.config!, {
+      ...defaultPlaytestSetup(),
+      floor: expectedFloor,
+    });
+    expect(eFixed.dispatch({ type: "begin" }).ok).toBe(true);
+    expect(eFixed.dispatch({ type: "start" }).ok).toBe(true);
   });
   it("支持新增怪兽，克隆模板后可正常生效并独立Play", () => {
     const draft = newProject(raw);
@@ -305,7 +382,7 @@ it("无法容纳的碰撞半径在开战时原子拒绝，不留下半队单位"
       ...template,
       Id: newId,
       Name: "霜火小鬼",
-      Sprite: "fire_imp",
+      Sprite: "mushroom",
     });
     (draft.source as any).Rules.Species[newId] = {
       ...(draft.source as any).Rules.Species[template.Id],
@@ -325,7 +402,7 @@ it("无法容纳的碰撞半径在开战时原子拒绝，不留下半队单位"
 
     const validated = validateProject(draft);
     expect(validated.errors).toEqual([]);
-    expect(validated.config!.Species.length).toBe(41);
+    expect(validated.config!.Species.length).toBe(42);
 
     const engine = TowerEngine.createPlaytest(validated.config!, {
       ...defaultPlaytestSetup(),

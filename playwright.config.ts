@@ -4,6 +4,7 @@ const artifactDir = artifactDirectory();
 const externalBase = process.env.TOWER_E2E_BASE_URL;
 export default defineConfig({
   testDir: "tests/e2e",
+  testIgnore: process.env.TOWER_GODOT_RECORD ? undefined : ["**/godot-record.spec.ts"],
   outputDir: `${artifactDir}/playwright`,
   timeout: 45000,
   fullyParallel: false,

@@ -189,7 +189,16 @@ export function drawBattle(
   const b = s.battle;
   if (!b) return;
   for (const zone of b.zones) {
-    c.fillStyle = zone.kind==="poison_cloud"?"#a0bc4749":zone.kind==="gloom"?"#7f64a849":"#eaa14442";
+    c.fillStyle =
+      zone.kind === "poison_cloud" || zone.kind === "acid_pool"
+        ? "#a0bc4749"
+        : zone.kind === "gloom" || zone.kind === "purgatory"
+          ? "#7f64a849"
+          : zone.kind === "blizzard"
+            ? "#7fcbe049"
+            : zone.kind === "mushroom_carpet"
+              ? "#6fd49949"
+              : "#eaa14442";
     c.strokeStyle = "#f8d18c99";
     c.beginPath();
     c.ellipse(px(zone.x), pz(zone.z), Math.abs(px(zone.x+zone.radius)-px(zone.x)), Math.abs(pz(zone.z+zone.radius)-pz(zone.z)), 0, 0, Math.PI*2);
@@ -210,7 +219,7 @@ export function drawBattle(
       y = pz(pos.z),
       size = unitSize;
     c.save();
-    c.globalAlpha = u.hp <= 0 ? 0.22 : u.entry > 0 ? 0.55 : 1;
+    c.globalAlpha = u.hp <= 0 ? 0.22 : u.entry > 0 ? 0.55 : u.stealth > 0 ? 0.42 : 1;
     c.fillStyle = "#17261b70";
     c.beginPath();
     c.ellipse(x, y + size * 0.08, size * 0.65, size * 0.2, 0, 0, Math.PI * 2);
@@ -273,9 +282,34 @@ export function drawBattle(
       c.shadowColor = "#10291c";
       c.shadowBlur = 4;
       c.fillText(names(u.kind), x, y + size * 0.45);
-      if (u.slow > 0 || u.stun > 0 || u.taunt > 0 || u.shield > 0 || u.armorBreak > 0 || u.root > 0 || u.weaken > 0 || u.silence > 0 || u.physicalGuard > 0 || u.spellGuard > 0 || u.dotTime > 0 || u.healBlock > 0 || u.haste > 0) {
+      const statusTags = [
+        u.petrify > 0 ? "石化" : "",
+        u.undying > 0 ? "不死" : "",
+        u.stealth > 0 ? "隐身" : "",
+        u.dotTime > 0 ? "持续伤害" : "",
+        u.stacks.poison?.count ? `毒${u.stacks.poison.count}` : "",
+        u.stacks.burn?.count ? `灼烧${u.stacks.burn.count}` : "",
+        u.stacks.chill?.count ? `冰寒${u.stacks.chill.count}` : "",
+        u.healBlock > 0 ? "重伤" : "",
+        u.haste > 0 ? "加速" : "",
+        u.stun > 0 ? "眩晕" : "",
+        u.silence > 0 ? "沉默" : "",
+        u.root > 0 ? "定身" : "",
+        u.blind > 0 ? "致盲" : "",
+        u.disarm > 0 ? "缴械" : "",
+        u.weaken > 0 ? "弱化" : "",
+        u.vuln > 0 ? "易伤" : "",
+        u.physicalGuard > 0 ? "物防" : "",
+        u.spellGuard > 0 ? "法防" : "",
+        u.taunt > 0 ? "受嘲讽" : "",
+        u.shield > 0 ? "减伤" : "",
+        u.armorBreak > 0 ? "破甲" : "",
+        u.resBreak > 0 ? "破魔" : "",
+        u.slow > 0 ? "减速" : "",
+      ].filter(Boolean);
+      if (statusTags.length) {
         c.fillStyle = "#b4e7ed";
-        c.fillText([u.dotTime>0?"持续伤害":"",u.healBlock>0?"治疗受限":"",u.haste>0?"加速":"",u.stun>0?"眩晕":"",u.silence>0?"沉默":"",u.root>0?"扎根":"",u.weaken>0?"弱化":"",u.physicalGuard>0?"物防":"",u.spellGuard>0?"法防":"",u.taunt>0?"受嘲讽":"",u.shield>0?"减伤":"",u.armorBreak>0?"破甲":"",u.slow>0?"减速":""].filter(Boolean).slice(0,2).join(" · "), x, y + size * 0.45 + 17);
+        c.fillText(statusTags.slice(0, 2).join(" · "), x, y + size * 0.45 + 17);
       }
       if (u.action) {
         c.fillStyle = "#f9de9c";

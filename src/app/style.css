@@ -911,11 +911,61 @@ label {
   max-width: 130px;
 }
 .quantity-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   justify-content: space-between;
   margin: 24px 0;
 }
 .quantity-label input {
   width: 110px;
+}
+.quantity-label:has(.qty-stepper) {
+  margin: 14px 0 10px;
+}
+.qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.qty-stepper input {
+  width: 86px;
+  text-align: center;
+}
+.qty-stepper button {
+  min-width: 48px;
+  min-height: 44px;
+  padding: 6px 10px;
+  font-weight: 700;
+}
+.qty-slider {
+  display: block;
+  width: 100%;
+  height: 28px;
+  margin: 6px 0 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  accent-color: #2f5747;
+  cursor: pointer;
+}
+.qty-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.qty-presets button {
+  min-height: 42px;
+  padding: 6px 12px;
+  font-size: 14px;
+  transition: box-shadow 0.12s;
+}
+.qty-presets button.active,
+.qty-presets button.active:hover:not(:disabled) {
+  background: linear-gradient(#3e6754, #294f42);
+  color: #fff6de;
+  border-color: #193e32;
 }
 .quote {
   padding: 12px;
@@ -1937,19 +1987,51 @@ dialog::backdrop {
     min-height: 48px;
   }
   .dialog-heading {
-    padding: 9px 18px;
+    padding: 8px 18px;
   }
   .dialog-body {
-    padding: 17px;
+    padding: 12px 18px;
   }
   .dialog-heading h2 {
-    font-size: 22px;
+    font-size: 20px;
   }
   dialog .attributes > div {
     padding: 5px 0;
   }
+  .dialog-body > p {
+    margin-bottom: 6px;
+    font-size: 13px;
+  }
+  .quantity-label:has(.qty-stepper) {
+    margin: 4px 0;
+  }
+  .qty-stepper button,
+  .qty-stepper input {
+    min-height: 38px;
+    padding: 4px 8px;
+  }
+  .qty-slider {
+    height: 20px;
+    margin: 2px 0 6px;
+  }
+  .qty-presets {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .qty-presets button {
+    min-height: 36px;
+    padding: 4px 10px;
+    font-size: 13px;
+  }
+  .quote {
+    padding: 7px 12px;
+    font-size: 13px;
+  }
   .dialog-actions {
-    margin-top: 14px;
+    margin-top: 10px;
+  }
+  .dialog-actions button {
+    min-height: 42px;
   }
 }
 @media (max-width: 700px) {

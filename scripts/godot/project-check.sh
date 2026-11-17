@@ -33,4 +33,4 @@ for host in desktop mobile-landscape; do
   bash scripts/godot/engine.sh --headless --path integrations/godot -- --verify="$artifacts/$host-continue-requests.jsonl" --responses="$artifacts/$host-godot-continue-responses.jsonl"
 done
 node scripts/godot/compare-project.mjs
-npx playwright test project-record.spec.ts --workers=1
+TOWER_GODOT_RECORD=1 npx playwright test godot-record.spec.ts --workers=1
