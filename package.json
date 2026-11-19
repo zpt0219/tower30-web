@@ -19,7 +19,8 @@
     "deploy:lan": "npm run build && python3 scripts/deploy-lan.py",
     "verify:lan": "node scripts/verify-lan.mjs",
     "apply:baseline": "python3 scripts/apply-baseline.py",
-    "audit:balance": "./node_modules/.bin/esbuild scripts/balance-audit.ts --bundle --platform=node --format=esm --outfile=.tools/balance-audit.mjs && node .tools/balance-audit.mjs"
+    "audit:balance": "./node_modules/.bin/esbuild scripts/balance-audit.ts --bundle --platform=node --format=esm --outfile=.tools/balance-audit.mjs && node .tools/balance-audit.mjs",
+    "export:checkpoints": "./node_modules/.bin/esbuild scripts/balance-audit.ts --bundle --platform=node --format=esm --outfile=.tools/balance-audit.mjs && node .tools/balance-audit.mjs --export-checkpoints"
   },
   "engines": {
     "node": ">=22.12"

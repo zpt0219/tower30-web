@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import raw from "../data/tower/trial.json";
@@ -6,12 +7,42 @@ import { TowerEngine, isHuman } from "../src/core/engine";
 import { combatantAttributes } from "../src/core/projections";
 import { applyStrategy, defaultStrategy } from "../src/core/strategy";
 
+const DEFAULT_SEEDS = [
+  2463534242,
+  123456,
+  987654,
+  135792468,
+  20260401,
+  314159265,
+  777777777,
+  1122334455,
+  299792458,
+  424242424,
+];
+
+function getArg(name: string): string | undefined {
+  const idx = process.argv.indexOf(name);
+  if (idx < 0) return undefined;
+  const next = process.argv[idx + 1];
+  return next && !next.startsWith("--") ? next : undefined;
+}
+
 const args = process.argv.slice(2);
 const showAllFloors = args.includes("--detail");
-const seedIdx = args.indexOf("--seed");
-const seed = seedIdx >= 0 && args[seedIdx + 1] ? Number(args[seedIdx + 1]) : 2463534242;
-const jsonIdx = args.indexOf("--json");
-const jsonOut = jsonIdx >= 0 ? args[jsonIdx + 1] : undefined;
+const workerJsonMode = args.includes("--worker-json");
+const seedArg = getArg("--seed");
+const seed = seedArg ? Number(seedArg) : DEFAULT_SEEDS[0]!;
+const seedsArg = getArg("--seeds");
+const seedCount = seedsArg ? Math.max(1, Number(seedsArg)) : 0;
+const jobsArg = getArg("--jobs");
+const jsonOut = getArg("--json");
+const exportCheckpointsMode = args.includes("--export-checkpoints");
+const exportCheckpointsDir =
+  getArg("--export-checkpoints") ??
+  (exportCheckpointsMode ? ".tools/checkpoints" : undefined);
+const checkpointFloorsArg = getArg("--checkpoint-floors");
+const checkpointArchetypesArg = getArg("--checkpoint-archetypes");
+const archetypesArg = getArg("--archetypes");
 
 const config = validateConfig(raw, { allowUnknownEnemySpecies: false });
 
@@ -21,6 +52,14 @@ type Archetype =
   | "optimal_no_princess"
   | "early_no_princess"
   | "single_carry_princess";
+
+const ARCHETYPE_SPECS: { id: Archetype; label: string; slug: string }[] = [
+  { id: "smart_princess", label: "正常主力（带公主+集中养宠）", slug: "smart" },
+  { id: "wasteful_princess", label: "乱配资源（均摊经验+不买装）", slug: "wasteful" },
+  { id: "optimal_no_princess", label: "无公主极限（主角+4宠精调轮换）", slug: "no-princess" },
+  { id: "early_no_princess", label: "无公主常规（仅前期7宠不轮换）", slug: "early-no-princess" },
+  { id: "single_carry_princess", label: "单核偏科（全药水砸1只核心宠）", slug: "single-carry" },
+];
 
 interface FloorMetric {
   floor: number;
@@ -49,6 +88,44 @@ interface RunSummary {
   totalDeaths: number;
   finalGold: number;
   floors: FloorMetric[];
+}
+
+interface SingleSeedReport {
+  seed: number;
+  runs: RunSummary[];
+}
+
+interface CheckpointRecord {
+  file: string;
+  floor: number;
+  boss: boolean;
+  title: string;
+  archetype: Archetype;
+  label: string;
+  seed: number;
+  configHash: string;
+  gold: number;
+  shopStage: number;
+  heroLv: number;
+  princessLv: number | null;
+  maxPetLv: number;
+  unlockedSpecies: number;
+  rank5Species: number;
+  bytes: number;
+  journalCommands: number;
+  restoreMs: number;
+}
+
+function buildSeedList(count: number): number[] {
+  const list = [...DEFAULT_SEEDS];
+  let x = 0x9e3779b9;
+  while (list.length < count) {
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    list.push((x >>> 0) || 1);
+  }
+  return list.slice(0, count);
 }
 
 const roleOf = (id: string) => config.Rules.Profiles[id]?.Role ?? "melee";
@@ -247,13 +324,22 @@ function buyAndEquip(
   return { boughtGear, boughtPotionUnits };
 }
 
-function runArchetype(archetype: Archetype, label: string): RunSummary {
-  const e = new TowerEngine(config, seed);
+function runArchetype(
+  archetype: Archetype,
+  label: string,
+  runSeed: number,
+  options?: {
+    stopAfterFloor?: number;
+    onPreBattle?: (floor: number, engine: TowerEngine) => void;
+  },
+): RunSummary {
+  const e = new TowerEngine(config, runSeed);
   const floors: FloorMetric[] = [];
   let totalRests = 0;
   let totalDeaths = 0;
+  const maxFloor = options?.stopAfterFloor ?? 100;
 
-  for (let f = 1; f <= 100; f++) {
+  for (let f = 1; f <= maxFloor; f++) {
     const enc = config.Encounters[f - 1]!;
     if (archetype !== "wasteful_princess") {
       for (const m of e.getSnapshot().members) {
@@ -369,7 +455,6 @@ function runArchetype(archetype: Archetype, label: string): RunSummary {
         rested = e.dispatch({ type: "rest" }).ok;
       }
     } else if (archetype === "single_carry_princess") {
-      // Funnel almost all XP into highest-tier single monster carry + 2 uninvested filler
       ({ boughtGear, boughtPotionUnits } = buyAndEquip(e, ["hero", "princess"], f, true));
       const carry =
         [...monsters].sort((a, b) => memberScore(b, 25) - memberScore(a, 25))[0];
@@ -390,7 +475,6 @@ function runArchetype(archetype: Archetype, label: string): RunSummary {
         rested = e.dispatch({ type: "rest" }).ok;
       }
     } else {
-      // wasteful_princess
       let trained = true;
       while (trained) {
         trained = false;
@@ -409,6 +493,8 @@ function runArchetype(archetype: Archetype, label: string): RunSummary {
       }
     }
     if (rested) totalRests++;
+
+    options?.onPreBattle?.(f, e);
 
     const includePrincess =
       archetype === "smart_princess" ||
@@ -563,7 +649,7 @@ function runArchetype(archetype: Archetype, label: string): RunSummary {
   return {
     archetype,
     label,
-    cleared: 100,
+    cleared: floors.filter((x) => x.result === "victory").length,
     completed: fin.completed,
     allRank5: fin.members.filter((m) => !isHuman(m.id)).every((m) => m.rank === 5),
     totalRests,
@@ -573,31 +659,23 @@ function runArchetype(archetype: Archetype, label: string): RunSummary {
   };
 }
 
-const runs: RunSummary[] = [
-  runArchetype("smart_princess", "正常主力（带公主+集中养宠）"),
-  runArchetype("wasteful_princess", "乱配资源（均摊经验+不买装）"),
-  runArchetype("optimal_no_princess", "无公主极限（主角+4宠精调轮换）"),
-  runArchetype("early_no_princess", "无公主常规（仅前期7宠不轮换）"),
-  runArchetype("single_carry_princess", "单核偏科（全药水砸1只核心宠）"),
-];
+function median(values: number[]): number {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1]! + sorted[mid]!) / 2
+    : sorted[mid]!;
+}
 
-console.log(`\n=== 翠庭试炼 100层 强度曲线体检 (seed=${seed}) ===\n`);
-for (const r of runs) {
-  const wins = r.floors.filter((f) => f.result === "victory");
-  const minHp = wins.length ? Math.min(...wins.map((f) => f.endHpPct)) : 0;
-  const minFloor = wins.find((f) => f.endHpPct === minHp)?.floor ?? "-";
-  const avgHp = wins.length
-    ? (wins.reduce((s, f) => s + f.endHpPct, 0) / wins.length).toFixed(1)
-    : "-";
-  const maxSec = wins.length ? Math.max(...wins.map((f) => f.seconds)) : 0;
-  const maxSecFloor = wins.find((f) => f.seconds === maxSec)?.floor ?? "-";
-  const last = r.floors[r.floors.length - 1];
-  const status = r.completed
-    ? `通关 100/100 (全5阶:${r.allRank5 ? "是" : "否"})`
-    : `止步 F${last?.floor} (${last?.result === "flee" ? "超时" : "败北"})`;
-  console.log(
-    `[${r.archetype}] ${r.label}\n  结果: ${status} | 住宿 ${r.totalRests} 次 | 阵亡 ${r.totalDeaths} 人次 | 最低胜场余血 ${minHp}% (F${minFloor}) | 平均余血 ${avgHp}% | 最久 ${maxSec}s (F${maxSecFloor}) | 结余金币 ${r.finalGold}`,
-  );
+function mean(values: number[]): number {
+  return values.length ? values.reduce((s, x) => s + x, 0) / values.length : 0;
+}
+
+function selectedArchetypes(): typeof ARCHETYPE_SPECS {
+  if (!archetypesArg) return ARCHETYPE_SPECS;
+  const set = new Set(archetypesArg.split(",").map((s) => s.trim()));
+  return ARCHETYPE_SPECS.filter((s) => set.has(s.id) || set.has(s.slug));
 }
 
 function printChapterTable(run: RunSummary) {
@@ -655,13 +733,323 @@ function printKeyFloors(run: RunSummary) {
   }
 }
 
-printChapterTable(runs[0]!);
-printKeyFloors(runs[0]!);
-printChapterTable(runs[2]!);
-printKeyFloors(runs[2]!);
-
-if (jsonOut) {
-  fs.mkdirSync(path.dirname(path.resolve(jsonOut)), { recursive: true });
-  fs.writeFileSync(jsonOut, JSON.stringify({ seed, runs }, null, 2));
-  console.log(`\n已写入 JSON 报告: ${jsonOut}`);
+function runWorkerSeed(targetSeed: number): Promise<SingleSeedReport> {
+  return new Promise((resolve, reject) => {
+    const childArgs = [process.argv[1]!, "--seed", String(targetSeed), "--worker-json"];
+    if (archetypesArg) childArgs.push("--archetypes", archetypesArg);
+    const child = spawn(process.execPath, childArgs, {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const chunks: Buffer[] = [];
+    const errChunks: Buffer[] = [];
+    child.stdout.on("data", (d: Buffer) => chunks.push(d));
+    child.stderr.on("data", (d: Buffer) => errChunks.push(d));
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(
+          new Error(
+            `seed ${targetSeed} exited with ${code}: ${Buffer.concat(errChunks).toString("utf8")}`,
+          ),
+        );
+        return;
+      }
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")) as SingleSeedReport);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  });
 }
+
+async function runMultiSeed(seeds: number[], concurrency: number) {
+  const results: SingleSeedReport[] = new Array(seeds.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < seeds.length) {
+      const idx = cursor++;
+      results[idx] = await runWorkerSeed(seeds[idx]!);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, seeds.length) }, () => worker()),
+  );
+
+  const specs = selectedArchetypes();
+  console.log(
+    `\n=== 翠庭试炼 100层 多种子强度体检 (${seeds.length} seeds, jobs=${Math.min(concurrency, seeds.length)}) ===`,
+  );
+  console.log(`Seeds: ${seeds.join(", ")}\n`);
+
+  for (const spec of specs) {
+    const list = results
+      .map((r) => r.runs.find((x) => x.archetype === spec.id))
+      .filter((x): x is RunSummary => !!x);
+    const passed = list.filter((r) => r.completed);
+    const rank5Count = passed.filter((r) => r.allRank5).length;
+    const clearedList = list.map((r) => r.cleared);
+    const failMap = new Map<number, number>();
+    for (const r of list) {
+      if (!r.completed) {
+        const failFloor = r.floors[r.floors.length - 1]?.floor ?? r.cleared + 1;
+        failMap.set(failFloor, (failMap.get(failFloor) ?? 0) + 1);
+      }
+    }
+    const failDist = [...failMap.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+      .map(([fl, c]) => `F${fl}×${c}`)
+      .join(", ");
+    const minWinHps = list
+      .map((r) => {
+        const wins = r.floors.filter((f) => f.result === "victory");
+        return wins.length ? Math.min(...wins.map((f) => f.endHpPct)) : 0;
+      });
+    const avgWinHps = list.map((r) =>
+      mean(r.floors.filter((f) => f.result === "victory").map((f) => f.endHpPct)),
+    );
+    const passPct = ((passed.length / list.length) * 100).toFixed(0);
+    console.log(`[${spec.id}] ${spec.label}`);
+    console.log(
+      `  通关率: ${passed.length}/${list.length} (${passPct}%, 全5阶:${rank5Count}/${passed.length}) | 通关层数 min/med/max: ${Math.min(...clearedList)}/${median(clearedList).toFixed(0)}/${Math.max(...clearedList)}`,
+    );
+    console.log(
+      `  最低胜场余血 min/med: ${Math.min(...minWinHps).toFixed(1)}% / ${median(minWinHps).toFixed(1)}% | 平均余血 med: ${median(avgWinHps).toFixed(1)}% | 阵亡 med: ${median(list.map((r) => r.totalDeaths)).toFixed(0)} | 住宿 med: ${median(list.map((r) => r.totalRests)).toFixed(0)} | 结余金币 med: ${median(list.map((r) => r.finalGold)).toFixed(0)}`,
+    );
+    if (failDist) {
+      console.log(`  止步分布: ${failDist}`);
+    }
+  }
+
+  for (const focusId of ["smart_princess", "optimal_no_princess"] as Archetype[]) {
+    const spec = specs.find((s) => s.id === focusId);
+    if (!spec) continue;
+    const list = results
+      .map((r) => r.runs.find((x) => x.archetype === focusId))
+      .filter((x): x is RunSummary => !!x);
+    console.log(`\n--- 多种子分章节聚合：${spec.label} ---`);
+    console.log("章节        | 全通种子 | 均值血量 | 最低血量(最险关)  | 阵亡均值 | 住宿均值 | 章末金币均值");
+    for (let ch = 0; ch < 5; ch++) {
+      const start = ch * 20 + 1;
+      const end = (ch + 1) * 20;
+      const chWins = list.flatMap((r) =>
+        r.floors.filter((f) => f.floor >= start && f.floor <= end && f.result === "victory"),
+      );
+      const chAll = list.flatMap((r) =>
+        r.floors.filter((f) => f.floor >= start && f.floor <= end),
+      );
+      const clearedSeeds = list.filter(
+        (r) => r.floors.filter((f) => f.floor >= start && f.floor <= end && f.result === "victory").length === 20,
+      ).length;
+      const worst = chWins.reduce<FloorMetric | null>(
+        (best, x) => (!best || x.endHpPct < best.endHpPct ? x : best),
+        null,
+      );
+      const endGolds = list
+        .map((r) => r.floors.find((f) => f.floor === end)?.goldAfter)
+        .filter((x): x is number => typeof x === "number");
+      console.log(
+        `F${String(start).padStart(2, "0")}-F${String(end).padStart(3, " ")} | ${String(clearedSeeds).padStart(3, " ")}/${String(list.length).padEnd(4, " ")} | ${`${mean(chWins.map((f) => f.endHpPct)).toFixed(1)}%`.padStart(8, " ")} | ${(worst ? `${worst.endHpPct}% (F${worst.floor})` : "-").padStart(17, " ")} | ${(chAll.reduce((s, f) => s + f.deaths, 0) / list.length).toFixed(1).padStart(8, " ")} | ${(chAll.filter((f) => f.rested).length / list.length).toFixed(1).padStart(8, " ")} | ${(endGolds.length ? mean(endGolds).toFixed(0) : "-").padStart(12, " ")}`,
+      );
+    }
+
+    // Top 12 toughest floors by failure count then average remaining HP
+    const byFloor = new Map<
+      number,
+      { boss: boolean; title: string; attempts: number; fails: number; hps: number[]; deaths: number }
+    >();
+    for (const r of list) {
+      for (const f of r.floors) {
+        const entry = byFloor.get(f.floor) ?? {
+          boss: f.boss,
+          title: f.title,
+          attempts: 0,
+          fails: 0,
+          hps: [],
+          deaths: 0,
+        };
+        entry.attempts++;
+        if (f.result !== "victory") entry.fails++;
+        else entry.hps.push(f.endHpPct);
+        entry.deaths += f.deaths;
+        byFloor.set(f.floor, entry);
+      }
+    }
+    const toughest = [...byFloor.entries()]
+      .sort((a, b) => {
+        if (b[1].fails !== a[1].fails) return b[1].fails - a[1].fails;
+        return mean(a[1].hps) - mean(b[1].hps);
+      })
+      .slice(0, 12);
+    console.log(`\n--- 多种子高压榜 Top 12：${spec.label} ---`);
+    console.log("层   | 败次/次 | 胜场均血 | 最低余血 | 阵亡合计 | 关卡");
+    for (const [fl, st] of toughest) {
+      const tag = st.boss ? "◆" : " ";
+      const avg = st.hps.length ? `${mean(st.hps).toFixed(1)}%` : "-";
+      const min = st.hps.length ? `${Math.min(...st.hps).toFixed(1)}%` : "-";
+      console.log(
+        `F${String(fl).padStart(3, "0")}${tag}| ${String(st.fails).padStart(3, " ")}/${String(st.attempts).padEnd(3, " ")} | ${avg.padStart(8, " ")} | ${min.padStart(8, " ")} | ${String(st.deaths).padStart(8, " ")} | ${st.title}`,
+      );
+    }
+  }
+
+  if (jsonOut) {
+    fs.mkdirSync(path.dirname(path.resolve(jsonOut)), { recursive: true });
+    fs.writeFileSync(jsonOut, JSON.stringify({ seeds, results }, null, 2));
+    console.log(`\n已写入多种子 JSON 报告: ${jsonOut}`);
+  }
+}
+
+function exportCheckpoints(outDir: string) {
+  const targetFloors = (checkpointFloorsArg ?? "20,40,60,80,95,100")
+    .split(",")
+    .map((s) => Number(s.trim()))
+    .filter((n) => Number.isInteger(n) && n >= 1 && n <= 100)
+    .sort((a, b) => a - b);
+  const targetSet = new Set(targetFloors);
+  const maxTarget = targetFloors[targetFloors.length - 1] ?? 100;
+  const wantedSpecs = (checkpointArchetypesArg ?? "smart_princess,optimal_no_princess")
+    .split(",")
+    .map((s) => s.trim())
+    .map((key) => ARCHETYPE_SPECS.find((s) => s.id === key || s.slug === key))
+    .filter((s): s is (typeof ARCHETYPE_SPECS)[number] => !!s);
+
+  fs.mkdirSync(outDir, { recursive: true });
+  const records: CheckpointRecord[] = [];
+
+  for (const spec of wantedSpecs) {
+    runArchetype(spec.id, spec.label, seed, {
+      stopAfterFloor: maxTarget,
+      onPreBattle: (floor, engine) => {
+        if (!targetSet.has(floor)) return;
+        const json = engine.serialize();
+        const t0 = performance.now();
+        const restored = TowerEngine.restore(config, json);
+        const restoreMs = Number((performance.now() - t0).toFixed(1));
+        const snap = restored.getSnapshot();
+        const parsed = JSON.parse(json) as { journal: unknown[] };
+        if (snap.floor !== floor) {
+          throw new Error(`Checkpoint restore floor mismatch: expected ${floor}, got ${snap.floor}`);
+        }
+        const fileName = `checkpoint-f${String(floor).padStart(2, "0")}-${spec.slug}.json`;
+        const filePath = path.join(outDir, fileName);
+        fs.writeFileSync(filePath, json, "utf8");
+        const enc = config.Encounters[floor - 1]!;
+        const hero = snap.members.find((m) => m.id === "hero")!;
+        const princess = snap.members.find((m) => m.id === "princess");
+        const pets = snap.members.filter((m) => !isHuman(m.id));
+        records.push({
+          file: fileName,
+          floor,
+          boss: enc.Boss,
+          title: enc.Title,
+          archetype: spec.id,
+          label: spec.label,
+          seed,
+          configHash: snap.configHash,
+          gold: snap.gold,
+          shopStage: snap.shopStage,
+          heroLv: hero.level,
+          princessLv: princess ? princess.level : null,
+          maxPetLv: Math.max(0, ...pets.map((p) => p.level)),
+          unlockedSpecies: pets.length,
+          rank5Species: pets.filter((p) => p.rank === 5).length,
+          bytes: Buffer.byteLength(json, "utf8"),
+          journalCommands: parsed.journal.length,
+          restoreMs,
+        });
+      },
+    });
+  }
+
+  const manifestPath = path.join(outDir, "manifest.json");
+  fs.writeFileSync(
+    manifestPath,
+    JSON.stringify({ seed, generatedAt: new Date().toISOString(), records }, null, 2),
+    "utf8",
+  );
+
+  const lines = [
+    "# 翠庭试炼 · 合法章节实玩存档（自动 60Hz 通关导出）",
+    "",
+    `- 种子: \`${seed}\``,
+    `- 用法: 打开游戏「存档」页 -> 「导入存档 JSON」选择任意文件；导入后直接位于该层战前整备页，宠物经验药水支持 100% 无损退还重配。`,
+    "",
+    "| 文件 | 路线 | 层数与关卡 | 主角/最高宠Lv | 金币 | 商店阶段 | 已收编(5阶) | 体积 | 命令数 | 恢复耗时 |",
+    "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+  ];
+  for (const r of records) {
+    lines.push(
+      `| \`${r.file}\` | ${r.label} | F${r.floor}${r.boss ? "◆" : ""} ${r.title} | Lv.${r.heroLv} / Lv.${r.maxPetLv} | ${r.gold} | 阶段${r.shopStage} | ${r.unlockedSpecies} (${r.rank5Species}) | ${(r.bytes / 1024).toFixed(1)}KB | ${r.journalCommands} | ${r.restoreMs}ms |`,
+    );
+  }
+  fs.writeFileSync(path.join(outDir, "README.md"), `${lines.join("\n")}\n`, "utf8");
+
+  console.log(`\n=== 已导出并校验 ${records.length} 份合法章节存档 -> ${outDir} ===`);
+  for (const r of records) {
+    console.log(
+      `  ${r.file.padEnd(34, " ")} | F${String(r.floor).padStart(3, " ")} | Lv.${String(r.heroLv).padStart(2, " ")}/${String(r.maxPetLv).padStart(2, " ")} | 金币 ${String(r.gold).padStart(5, " ")} | ${(r.bytes / 1024).toFixed(1).padStart(6, " ")}KB | ${String(r.journalCommands).padStart(4, " ")} cmds | restore ${r.restoreMs}ms | hash ${r.configHash}`,
+    );
+  }
+}
+
+async function main() {
+  if (exportCheckpointsDir) {
+    exportCheckpoints(exportCheckpointsDir);
+    return;
+  }
+
+  if (seedCount > 1) {
+    const seeds = buildSeedList(seedCount);
+    const concurrency = jobsArg ? Math.max(1, Number(jobsArg)) : Math.min(8, seeds.length);
+    await runMultiSeed(seeds, concurrency);
+    return;
+  }
+
+  const runs = selectedArchetypes().map((spec) =>
+    runArchetype(spec.id, spec.label, seed),
+  );
+
+  if (workerJsonMode) {
+    process.stdout.write(JSON.stringify({ seed, runs }));
+    return;
+  }
+
+  console.log(`\n=== 翠庭试炼 100层 强度曲线体检 (seed=${seed}) ===\n`);
+  for (const r of runs) {
+    const wins = r.floors.filter((f) => f.result === "victory");
+    const minHp = wins.length ? Math.min(...wins.map((f) => f.endHpPct)) : 0;
+    const minFloor = wins.find((f) => f.endHpPct === minHp)?.floor ?? "-";
+    const avgHp = wins.length
+      ? (wins.reduce((s, f) => s + f.endHpPct, 0) / wins.length).toFixed(1)
+      : "-";
+    const maxSec = wins.length ? Math.max(...wins.map((f) => f.seconds)) : 0;
+    const maxSecFloor = wins.find((f) => f.seconds === maxSec)?.floor ?? "-";
+    const last = r.floors[r.floors.length - 1];
+    const status = r.completed
+      ? `通关 100/100 (全5阶:${r.allRank5 ? "是" : "否"})`
+      : `止步 F${last?.floor} (${last?.result === "flee" ? "超时" : "败北"})`;
+    console.log(
+      `[${r.archetype}] ${r.label}\n  结果: ${status} | 住宿 ${r.totalRests} 次 | 阵亡 ${r.totalDeaths} 人次 | 最低胜场余血 ${minHp}% (F${minFloor}) | 平均余血 ${avgHp}% | 最久 ${maxSec}s (F${maxSecFloor}) | 结余金币 ${r.finalGold}`,
+    );
+  }
+
+  const smart = runs.find((r) => r.archetype === "smart_princess");
+  const noPrincess = runs.find((r) => r.archetype === "optimal_no_princess");
+  if (smart) {
+    printChapterTable(smart);
+    printKeyFloors(smart);
+  }
+  if (noPrincess) {
+    printChapterTable(noPrincess);
+    printKeyFloors(noPrincess);
+  }
+
+  if (jsonOut) {
+    fs.mkdirSync(path.dirname(path.resolve(jsonOut)), { recursive: true });
+    fs.writeFileSync(jsonOut, JSON.stringify({ seed, runs }, null, 2));
+    console.log(`\n已写入 JSON 报告: ${jsonOut}`);
+  }
+}
+
+void main();

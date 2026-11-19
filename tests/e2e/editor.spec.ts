@@ -520,7 +520,15 @@ test("删除关卡怪兽永远可行，关卡标记异常并在关卡页调整�
   // Baseline 100-floor config starts cleanly with 0 broken floors
   await expect(page.locator('[data-wb="floors"]')).not.toContainText("待修");
 
-  // Delete phantom_bat (幽魂蝙蝠), used on F45, F46, F64, F80, F91
+  const baseline = JSON.parse(readFileSync("data/tower/trial.json", "utf8")) as {
+    Encounters: { Enemies: { Species: string }[] }[];
+  };
+  const affectedCount = baseline.Encounters.filter((enc) =>
+    enc.Enemies.some((e) => e.Species === "phantom_bat"),
+  ).length;
+  expect(affectedCount).toBeGreaterThanOrEqual(2);
+
+  // Delete phantom_bat (幽魂蝙蝠), referenced across multiple floors including F45
   await page.locator('[data-wb="character"][data-id="phantom_bat"]').click();
   await expect(page.getByRole("heading", { name: "幽魂蝙蝠", exact: true })).toBeVisible();
 
@@ -536,8 +544,8 @@ test("删除关卡怪兽永远可行，关卡标记异常并在关卡页调整�
   await expect(page.locator("#toast")).toContainText("已标记为待修复");
   await saveReady(page);
 
-  // Tab should show badge for the 6 affected floors
-  await expect(page.locator('[data-wb="floors"]')).toContainText("6待修");
+  // Tab should show badge for all affected floors
+  await expect(page.locator('[data-wb="floors"]')).toContainText(`${affectedCount}待修`);
 
   // Switch to Floors tab
   await page.getByRole("button", { name: /关卡 · 100/ }).click();
@@ -567,10 +575,10 @@ test("删除关卡怪兽永远可行，关卡标记异常并在关卡页调整�
   await page.getByLabel("敌人物种", { exact: true }).selectOption("mudguard");
   await saveReady(page);
 
-  // Floor 45 should no longer be broken and badge decrements to 5待修
+  // Floor 45 should no longer be broken and badge decrements by 1
   await expect(page.locator(".wb-broken-banner")).toHaveCount(0);
   await expect(f45).not.toHaveClass(/wb-entity-broken/);
-  await expect(page.locator('[data-wb="floors"]')).toContainText("5待修");
+  await expect(page.locator('[data-wb="floors"]')).toContainText(`${affectedCount - 1}待修`);
   await expect(playBtn).toBeEnabled();
   await shot(page, "editor-floors-repaired");
 
