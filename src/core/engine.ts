@@ -2261,8 +2261,12 @@ export class TowerEngine {
           this.emit("collect", m.id);
         }
       }
-    for (const u of b.units.filter((u) => !u.enemy && !u.summoned))
-      u.attributes.MaxHp = this.attributes(this.member(u.id)!).MaxHp;
+    for (const u of b.units.filter((u) => !u.enemy && !u.summoned)) {
+      const m = this.member(u.id)!;
+      u.attributes.MaxHp = this.attributes(m).MaxHp;
+      u.hp = Math.min(u.hp, u.attributes.MaxHp);
+      m.hp = Math.min(m.hp, u.attributes.MaxHp);
+    }
   }
   advance(ticks: number) {
     if (!Number.isInteger(ticks) || ticks < 0 || ticks > MAX_TICKS)

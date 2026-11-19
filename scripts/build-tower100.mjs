@@ -113,11 +113,11 @@ const BOSS_SPECS = {
     title: "浅滩飓风 · 岚风巨兽",
     hint: "风暴兽高频范围风压并打断吟唱，合理安排替补与瞬发大招节奏。",
     gear: "healer_staff_2",
-    gold: 330,
+    gold: 210,
     enemies: [
-      { Species: "storm_beast", Count: 1, Level: 10, Rank: 3, Health: 1.75, AttackScale: 1.0, DefenseScale: 1.05 },
-      { Species: "jellyfish", Count: 2, Level: 9, Rank: 2, Health: 1.05, AttackScale: 0.92, DefenseScale: 1.0 },
-      { Species: "red_crab", Count: 2, Level: 9, Rank: 2, Health: 1.1, AttackScale: 0.92, DefenseScale: 1.05 },
+      { Species: "storm_beast", Count: 1, Level: 10, Rank: 3, Health: 2.1, AttackScale: 1.04, DefenseScale: 1.08 },
+      { Species: "jellyfish", Count: 2, Level: 9, Rank: 2, Health: 1.25, AttackScale: 0.96, DefenseScale: 1.04 },
+      { Species: "red_crab", Count: 2, Level: 9, Rank: 2, Health: 1.3, AttackScale: 0.96, DefenseScale: 1.08 },
     ],
   },
   30: {
@@ -125,11 +125,11 @@ const BOSS_SPECS = {
     title: "寒雾冰窟 · 霜魄幽灵",
     hint: "冰霜幽灵附带冰冻与群体减速，注意提升韧性或分散站位。",
     gear: "guard_sword_2",
-    gold: 360,
+    gold: 230,
     enemies: [
-      { Species: "ice_ghost", Count: 1, Level: 12, Rank: 3, Health: 1.8, AttackScale: 0.98, DefenseScale: 1.08 },
-      { Species: "green_ooze", Count: 2, Level: 11, Rank: 2, Health: 1.08, AttackScale: 0.92, DefenseScale: 1.05 },
-      { Species: "spirit_turtle", Count: 1, Level: 11, Rank: 3, Health: 1.15, AttackScale: 0.9, DefenseScale: 1.08 },
+      { Species: "ice_ghost", Count: 1, Level: 12, Rank: 3, Health: 2.35, AttackScale: 1.06, DefenseScale: 1.12 },
+      { Species: "green_ooze", Count: 2, Level: 11, Rank: 2, Health: 1.35, AttackScale: 0.98, DefenseScale: 1.08 },
+      { Species: "spirit_turtle", Count: 1, Level: 11, Rank: 3, Health: 1.5, AttackScale: 0.96, DefenseScale: 1.12 },
     ],
   },
   35: {
@@ -137,11 +137,11 @@ const BOSS_SPECS = {
     title: "毒沼龙潭 · 翡翠毒龙",
     hint: "翡翠毒龙能喷吐腐蚀毒雾叠加破甲，优先集火后排治疗再围剿毒龙。",
     gear: "sweep_sword_2",
-    gold: 400,
+    gold: 250,
     enemies: [
-      { Species: "emerald_venom_drake", Count: 1, Level: 13, Rank: 3, Health: 1.7, AttackScale: 0.86, DefenseScale: 1.05 },
-      { Species: "snake_demon", Count: 1, Level: 12, Rank: 3, Health: 1.05, AttackScale: 0.84, DefenseScale: 1.02 },
-      { Species: "shaman_orc", Count: 1, Level: 12, Rank: 2, Health: 0.98, AttackScale: 0.82, DefenseScale: 1.0 },
+      { Species: "emerald_venom_drake", Count: 1, Level: 13, Rank: 3, Health: 2.5, AttackScale: 1.02, DefenseScale: 1.12 },
+      { Species: "snake_demon", Count: 1, Level: 12, Rank: 3, Health: 1.45, AttackScale: 0.98, DefenseScale: 1.08 },
+      { Species: "shaman_orc", Count: 1, Level: 12, Rank: 2, Health: 1.35, AttackScale: 0.96, DefenseScale: 1.06 },
     ],
   },
   40: {
@@ -149,11 +149,12 @@ const BOSS_SPECS = {
     title: "沼泽要塞 · 剑盾兽人统领",
     hint: "第二章大首领：高阶兽人阵线拥有护盾与爆发反击，需平衡破盾与续航。",
     gear: "bell_staff_2",
-    gold: 460,
+    gold: 280,
     enemies: [
-      { Species: "sword_shield_orc", Count: 1, Level: 15, Rank: 3, Health: 1.6, AttackScale: 0.84, DefenseScale: 1.05 },
-      { Species: "sword_shield_frog", Count: 1, Level: 14, Rank: 3, Health: 1.0, AttackScale: 0.8, DefenseScale: 1.02 },
-      { Species: "shaman_orc", Count: 1, Level: 14, Rank: 3, Health: 0.98, AttackScale: 0.8, DefenseScale: 1.0 },
+      { Species: "sword_shield_orc", Count: 1, Level: 15, Rank: 3, Health: 2.65, AttackScale: 1.04, DefenseScale: 1.14 },
+      { Species: "sword_shield_frog", Count: 1, Level: 14, Rank: 3, Health: 1.55, AttackScale: 0.98, DefenseScale: 1.1 },
+      { Species: "shaman_orc", Count: 1, Level: 14, Rank: 3, Health: 1.45, AttackScale: 0.96, DefenseScale: 1.08 },
+      { Species: "red_crab", Count: 1, Level: 14, Rank: 3, Health: 1.4, AttackScale: 0.96, DefenseScale: 1.08 },
     ],
   },
   45: {
@@ -161,11 +162,11 @@ const BOSS_SPECS = {
     title: "古堡钟楼 · 幻影吸血蝠",
     hint: "幻影蝠具备高吸血与闪避，建议配备命中/压制控制角色快速锁杀。",
     gear: "linen_armor_2",
-    gold: 490,
+    gold: 290,
     enemies: [
-      { Species: "phantom_bat", Count: 1, Level: 16, Rank: 3, Health: 1.6, AttackScale: 0.82, DefenseScale: 1.04 },
-      { Species: "gray_bat", Count: 1, Level: 15, Rank: 3, Health: 0.95, AttackScale: 0.78, DefenseScale: 1.0 },
-      { Species: "zombie", Count: 2, Level: 15, Rank: 3, Health: 0.98, AttackScale: 0.78, DefenseScale: 1.02 },
+      { Species: "phantom_bat", Count: 1, Level: 16, Rank: 3, Health: 2.8, AttackScale: 1.02, DefenseScale: 1.14 },
+      { Species: "gray_bat", Count: 2, Level: 15, Rank: 3, Health: 1.45, AttackScale: 0.96, DefenseScale: 1.08 },
+      { Species: "zombie", Count: 2, Level: 15, Rank: 3, Health: 1.5, AttackScale: 0.96, DefenseScale: 1.1 },
     ],
   },
   50: {
@@ -173,11 +174,11 @@ const BOSS_SPECS = {
     title: "断戟角斗场 · 战争牛头人",
     hint: "半程殿堂首领：牛头人冲锋具备强力击晕与高额物理伤害，注意替补吸收爆发。",
     gear: "rescue_armor_2",
-    gold: 560,
+    gold: 320,
     enemies: [
-      { Species: "minotaur", Count: 1, Level: 18, Rank: 4, Health: 1.36, AttackScale: 0.74, DefenseScale: 1.0 },
-      { Species: "rock_beast", Count: 1, Level: 17, Rank: 3, Health: 0.9, AttackScale: 0.74, DefenseScale: 1.0 },
-      { Species: "flame_skeleton", Count: 1, Level: 17, Rank: 3, Health: 0.85, AttackScale: 0.74, DefenseScale: 0.98 },
+      { Species: "minotaur", Count: 1, Level: 18, Rank: 4, Health: 1.9, AttackScale: 0.78, DefenseScale: 1.06 },
+      { Species: "rock_beast", Count: 1, Level: 17, Rank: 3, Health: 1.25, AttackScale: 0.8, DefenseScale: 1.06 },
+      { Species: "flame_skeleton", Count: 1, Level: 17, Rank: 3, Health: 1.2, AttackScale: 0.8, DefenseScale: 1.04 },
     ],
   },
   55: {
@@ -185,11 +186,11 @@ const BOSS_SPECS = {
     title: "雷霆祭坛 · 霹雳魔兽",
     hint: "雷霆兽联动感电溅射与麻痹控制，全队抗性与及时抬血十分关键。",
     gear: "arrival_banner_2",
-    gold: 590,
+    gold: 330,
     enemies: [
-      { Species: "thunder_beast", Count: 1, Level: 19, Rank: 4, Health: 1.72, AttackScale: 0.84, DefenseScale: 1.05 },
-      { Species: "fluffy_jumper", Count: 1, Level: 18, Rank: 3, Health: 1.0, AttackScale: 0.8, DefenseScale: 1.02 },
-      { Species: "skeleton", Count: 2, Level: 18, Rank: 4, Health: 0.98, AttackScale: 0.78, DefenseScale: 1.02 },
+      { Species: "thunder_beast", Count: 1, Level: 19, Rank: 4, Health: 2.35, AttackScale: 0.88, DefenseScale: 1.1 },
+      { Species: "fluffy_jumper", Count: 1, Level: 18, Rank: 3, Health: 1.35, AttackScale: 0.86, DefenseScale: 1.06 },
+      { Species: "skeleton", Count: 2, Level: 18, Rank: 4, Health: 1.25, AttackScale: 0.84, DefenseScale: 1.06 },
     ],
   },
   60: {
@@ -197,11 +198,11 @@ const BOSS_SPECS = {
     title: "石化回廊 · 美杜莎女皇",
     hint: "第三章大首领：美杜莎可石化多名单位，利用高韧性前排与净光驱散保持战线。",
     gear: "traveler_sword_3",
-    gold: 660,
+    gold: 360,
     enemies: [
-      { Species: "medusa", Count: 1, Level: 21, Rank: 4, Health: 1.08, AttackScale: 0.64, DefenseScale: 0.98 },
-      { Species: "snake_demon", Count: 1, Level: 20, Rank: 4, Health: 0.78, AttackScale: 0.65, DefenseScale: 0.96 },
-      { Species: "green_snake", Count: 1, Level: 20, Rank: 4, Health: 0.82, AttackScale: 0.65, DefenseScale: 0.96 },
+      { Species: "medusa", Count: 1, Level: 21, Rank: 4, Health: 1.6, AttackScale: 0.72, DefenseScale: 1.04 },
+      { Species: "snake_demon", Count: 1, Level: 20, Rank: 4, Health: 1.05, AttackScale: 0.72, DefenseScale: 1.0 },
+      { Species: "green_snake", Count: 1, Level: 20, Rank: 4, Health: 1.05, AttackScale: 0.72, DefenseScale: 1.0 },
     ],
   },
   65: {
@@ -209,11 +210,11 @@ const BOSS_SPECS = {
     title: "黑曜熔炉 · 熔岩之灵",
     hint: "熔岩之灵高频灼烧全场并触发火焰增伤，带齐双奶或法盾应对持续掉血。",
     gear: "healer_staff_3",
-    gold: 700,
+    gold: 370,
     enemies: [
-      { Species: "lava_spirit", Count: 1, Level: 22, Rank: 4, Health: 1.5, AttackScale: 0.72, DefenseScale: 1.02 },
-      { Species: "flame_skeleton", Count: 1, Level: 21, Rank: 4, Health: 0.9, AttackScale: 0.7, DefenseScale: 1.0 },
-      { Species: "rock_beast", Count: 1, Level: 21, Rank: 4, Health: 0.98, AttackScale: 0.7, DefenseScale: 1.02 },
+      { Species: "lava_spirit", Count: 1, Level: 22, Rank: 4, Health: 2.35, AttackScale: 0.86, DefenseScale: 1.1 },
+      { Species: "flame_skeleton", Count: 2, Level: 21, Rank: 4, Health: 1.35, AttackScale: 0.84, DefenseScale: 1.06 },
+      { Species: "rock_beast", Count: 1, Level: 21, Rank: 4, Health: 1.5, AttackScale: 0.84, DefenseScale: 1.1 },
     ],
   },
   70: {
@@ -221,11 +222,11 @@ const BOSS_SPECS = {
     title: "沙炎遗迹 · 法老魔兽",
     hint: "法老魔兽掌控沙暴诅咒与护盾反制，优先清理侧翼幽冥火以免全队被沉默。",
     gear: "guard_sword_3",
-    gold: 760,
+    gold: 390,
     enemies: [
-      { Species: "pharaoh_beast", Count: 1, Level: 24, Rank: 4, Health: 1.28, AttackScale: 0.65, DefenseScale: 1.0 },
-      { Species: "nether_fire", Count: 1, Level: 23, Rank: 4, Health: 0.85, AttackScale: 0.66, DefenseScale: 0.98 },
-      { Species: "twin_rooster", Count: 2, Level: 23, Rank: 4, Health: 0.82, AttackScale: 0.64, DefenseScale: 0.98 },
+      { Species: "pharaoh_beast", Count: 1, Level: 24, Rank: 4, Health: 2.4, AttackScale: 0.84, DefenseScale: 1.12 },
+      { Species: "nether_fire", Count: 1, Level: 23, Rank: 4, Health: 1.45, AttackScale: 0.84, DefenseScale: 1.08 },
+      { Species: "twin_rooster", Count: 2, Level: 23, Rank: 4, Health: 1.35, AttackScale: 0.82, DefenseScale: 1.06 },
     ],
   },
   75: {
@@ -233,11 +234,12 @@ const BOSS_SPECS = {
     title: "狱火前殿 · 烈焰战将",
     hint: "烈焰战将进入 5 阶狂暴斩击与点燃连段，保留关键控制大招打断其节奏。",
     gear: "sweep_sword_3",
-    gold: 820,
+    gold: 410,
     enemies: [
-      { Species: "flame_warrior", Count: 1, Level: 25, Rank: 5, Health: 1.44, AttackScale: 0.72, DefenseScale: 1.04 },
-      { Species: "dark_kid", Count: 1, Level: 24, Rank: 4, Health: 0.98, AttackScale: 0.72, DefenseScale: 1.0 },
-      { Species: "lava_spirit", Count: 1, Level: 24, Rank: 4, Health: 0.98, AttackScale: 0.72, DefenseScale: 1.0 },
+      { Species: "flame_warrior", Count: 1, Level: 25, Rank: 5, Health: 2.6, AttackScale: 0.88, DefenseScale: 1.14 },
+      { Species: "dark_kid", Count: 1, Level: 24, Rank: 4, Health: 1.55, AttackScale: 0.86, DefenseScale: 1.1 },
+      { Species: "lava_spirit", Count: 1, Level: 24, Rank: 4, Health: 1.55, AttackScale: 0.86, DefenseScale: 1.1 },
+      { Species: "shaman_orc", Count: 1, Level: 24, Rank: 4, Health: 1.45, AttackScale: 0.82, DefenseScale: 1.08 },
     ],
   },
   80: {
@@ -245,11 +247,12 @@ const BOSS_SPECS = {
     title: "裂谷深渊 · 噩梦魔龙",
     hint: "第四章大首领：噩梦魔龙吐息附加恐惧与高额法伤，需大师级抗性与全员5星准备。",
     gear: "bell_staff_3",
-    gold: 900,
+    gold: 440,
     enemies: [
-      { Species: "nightmare_dragon", Count: 1, Level: 27, Rank: 5, Health: 1.50, AttackScale: 0.76, DefenseScale: 1.05 },
-      { Species: "emerald_venom_drake", Count: 1, Level: 26, Rank: 4, Health: 0.98, AttackScale: 0.74, DefenseScale: 1.0 },
-      { Species: "phantom_bat", Count: 1, Level: 26, Rank: 4, Health: 0.96, AttackScale: 0.74, DefenseScale: 1.0 },
+      { Species: "nightmare_dragon", Count: 1, Level: 27, Rank: 5, Health: 2.8, AttackScale: 0.9, DefenseScale: 1.16 },
+      { Species: "emerald_venom_drake", Count: 1, Level: 26, Rank: 4, Health: 1.65, AttackScale: 0.86, DefenseScale: 1.12 },
+      { Species: "phantom_bat", Count: 1, Level: 26, Rank: 4, Health: 1.6, AttackScale: 0.86, DefenseScale: 1.12 },
+      { Species: "spirit_turtle", Count: 1, Level: 26, Rank: 5, Health: 1.7, AttackScale: 0.82, DefenseScale: 1.16 },
     ],
   },
   85: {
@@ -257,11 +260,12 @@ const BOSS_SPECS = {
     title: "深渊外廷 · 幽冥魔火阵",
     hint: "幽冥魔火与寒霜死灵混合封锁治疗与能量回复，利用后备奇兵轮换破局。",
     gear: "fire_book_3",
-    gold: 940,
+    gold: 450,
     enemies: [
-      { Species: "nether_fire", Count: 1, Level: 28, Rank: 5, Health: 1.56, AttackScale: 0.76, DefenseScale: 1.06 },
-      { Species: "ice_ghost", Count: 1, Level: 27, Rank: 5, Health: 1.04, AttackScale: 0.73, DefenseScale: 1.02 },
-      { Species: "sword_shield_orc", Count: 1, Level: 27, Rank: 5, Health: 1.06, AttackScale: 0.73, DefenseScale: 1.04 },
+      { Species: "nether_fire", Count: 1, Level: 28, Rank: 5, Health: 2.95, AttackScale: 0.9, DefenseScale: 1.18 },
+      { Species: "ice_ghost", Count: 1, Level: 27, Rank: 5, Health: 1.8, AttackScale: 0.88, DefenseScale: 1.14 },
+      { Species: "sword_shield_orc", Count: 1, Level: 27, Rank: 5, Health: 1.9, AttackScale: 0.88, DefenseScale: 1.16 },
+      { Species: "thunder_beast", Count: 1, Level: 27, Rank: 5, Health: 1.8, AttackScale: 0.88, DefenseScale: 1.14 },
     ],
   },
   90: {
@@ -269,11 +273,11 @@ const BOSS_SPECS = {
     title: "白骨王庭 · 骷髅巫妖王",
     hint: "巫妖王召唤亡灵军团并施放暗影诅咒，务必在召唤成型前集火压低其血量。",
     gear: "linen_armor_3",
-    gold: 1020,
+    gold: 470,
     enemies: [
-      { Species: "skeleton_lich_king", Count: 1, Level: 29, Rank: 5, Health: 1.56, AttackScale: 0.76, DefenseScale: 1.06 },
-      { Species: "flame_skeleton", Count: 1, Level: 28, Rank: 5, Health: 1.04, AttackScale: 0.73, DefenseScale: 1.02 },
-      { Species: "skeleton", Count: 1, Level: 28, Rank: 5, Health: 1.04, AttackScale: 0.73, DefenseScale: 1.02 },
+      { Species: "skeleton_lich_king", Count: 1, Level: 29, Rank: 5, Health: 2.75, AttackScale: 0.86, DefenseScale: 1.14 },
+      { Species: "flame_skeleton", Count: 1, Level: 28, Rank: 5, Health: 1.75, AttackScale: 0.86, DefenseScale: 1.12 },
+      { Species: "skeleton", Count: 1, Level: 28, Rank: 5, Health: 1.65, AttackScale: 0.86, DefenseScale: 1.12 },
     ],
   },
   95: {
@@ -281,11 +285,11 @@ const BOSS_SPECS = {
     title: "魔渊三巨头 · 传说的试炼",
     hint: "美杜莎、牛头人与法老魔兽三强联手镇守王座前门，善用 10 人满编替补车轮消耗！",
     gear: "iron_armor_3",
-    gold: 1150,
+    gold: 500,
     enemies: [
-      { Species: "minotaur", Count: 1, Level: 30, Rank: 5, Health: 1.52, AttackScale: 0.80, DefenseScale: 1.08 },
-      { Species: "medusa", Count: 1, Level: 30, Rank: 5, Health: 1.48, AttackScale: 0.78, DefenseScale: 1.06 },
-      { Species: "pharaoh_beast", Count: 1, Level: 30, Rank: 5, Health: 1.48, AttackScale: 0.78, DefenseScale: 1.06 },
+      { Species: "minotaur", Count: 1, Level: 30, Rank: 5, Health: 2.2, AttackScale: 0.82, DefenseScale: 1.12 },
+      { Species: "medusa", Count: 1, Level: 30, Rank: 5, Health: 2.0, AttackScale: 0.8, DefenseScale: 1.1 },
+      { Species: "pharaoh_beast", Count: 1, Level: 30, Rank: 5, Health: 2.1, AttackScale: 0.8, DefenseScale: 1.1 },
     ],
   },
   100: {
@@ -293,11 +297,11 @@ const BOSS_SPECS = {
     title: "终焉王座 · 末日撒旦",
     hint: "百层试炼大结局首领：末日撒旦亲率深渊魔火压境！击败后所有 41 种怪兽将集齐 25 魂魄突破至满阶，迎战后续终极最终 Boss。",
     gear: "rescue_armor_3",
-    gold: 1500,
+    gold: 600,
     enemies: [
-      { Species: "doomsday_satan", Count: 1, Level: 32, Rank: 5, Health: 2.05, AttackScale: 0.86, DefenseScale: 1.12 },
-      { Species: "lava_spirit", Count: 1, Level: 31, Rank: 5, Health: 1.28, AttackScale: 0.80, DefenseScale: 1.06 },
-      { Species: "nether_fire", Count: 1, Level: 31, Rank: 5, Health: 1.28, AttackScale: 0.80, DefenseScale: 1.06 },
+      { Species: "doomsday_satan", Count: 1, Level: 32, Rank: 5, Health: 4.8, AttackScale: 0.94, DefenseScale: 1.24 },
+      { Species: "lava_spirit", Count: 2, Level: 31, Rank: 5, Health: 1.85, AttackScale: 0.86, DefenseScale: 1.16 },
+      { Species: "nether_fire", Count: 1, Level: 31, Rank: 5, Health: 1.85, AttackScale: 0.86, DefenseScale: 1.16 },
     ],
   },
 };
@@ -380,9 +384,10 @@ function interpolateFloorStats(floor) {
           : floor <= 90
             ? 4
             : 5;
-  const health = Number((0.76 + (floor / 100) * 0.14).toFixed(2));
-  const attackScale = Number((0.78 - Math.max(0, floor - 20) * 0.0022).toFixed(2));
-  const defenseScale = Number((0.96 + (floor / 100) * 0.04).toFixed(2));
+  const p = Math.max(0, floor - 20) / 80;
+  const health = Number((0.78 + (floor <= 20 ? (floor / 20) * 0.2 : 0.2 + p * 0.9)).toFixed(2));
+  const attackScale = Number((floor <= 20 ? 0.78 + (floor / 20) * 0.04 : 0.8 - p * 0.05).toFixed(2));
+  const defenseScale = Number((0.96 + (floor / 100) * 0.16).toFixed(2));
   return { ch, level, rank, health, attackScale, defenseScale };
 }
 
@@ -461,9 +466,9 @@ function buildFloorPlan() {
               Count: 1,
               Level: 1,
               Rank: 1,
-              Health: 1,
-              AttackScale: 1,
-              DefenseScale: 1,
+              Health: 0.78,
+              AttackScale: 0.78,
+              DefenseScale: 0.92,
               Souls: 0,
               Potions: 0,
               PotionsM: 0,
@@ -475,9 +480,9 @@ function buildFloorPlan() {
               Count: 2,
               Level: 1,
               Rank: 1,
-              Health: 1,
-              AttackScale: 1,
-              DefenseScale: 1,
+              Health: 0.8,
+              AttackScale: 0.78,
+              DefenseScale: 0.92,
               Souls: 0,
               Potions: 0,
               PotionsM: 0,
@@ -509,14 +514,14 @@ function buildFloorPlan() {
         const isElite = Boolean(ELITE_WINDOWS[sp]);
         const count = isLeg || isElite || STALL_SPECIES.has(sp) ? 1 : floor >= 40 && idx === 0 ? 2 : floor <= 2 ? 1 : idx === 0 ? 2 : 1;
         const lv = Math.max(1, level - (idx > 0 ? 1 : 0));
-        const spRank = Math.max(1, isLeg ? Math.min(5, rank) : isElite ? Math.min(5, rank) : Math.min(5, rank - (idx > 0 && floor > 15 ? 1 : 0)));
+        const spRank = Math.max(1, (idx > 0 && floor <= 96 && floor > 15) ? Math.min(4, rank - 1) : isLeg || isElite ? Math.min(5, rank) : Math.min(5, rank));
         return {
           Species: sp,
           Count: count,
           Level: lv,
           Rank: spRank,
-          Health: isLeg ? Number((health * 1.05).toFixed(2)) : isElite ? Number((health * 1.02).toFixed(2)) : health,
-          AttackScale: isLeg ? Number((attackScale * 0.88).toFixed(2)) : attackScale,
+          Health: isLeg ? Number((health * 0.86).toFixed(2)) : isElite ? Number((health * 0.94).toFixed(2)) : health,
+          AttackScale: isLeg ? Number((attackScale * 0.8).toFixed(2)) : attackScale,
           DefenseScale: defenseScale,
           Souls: 0,
           Potions: 0,
@@ -543,7 +548,7 @@ function buildFloorPlan() {
         hint: `第${ch.chapter}章常规战（推荐队伍 Lv.${Math.max(1, level - 2)}~${level}），保留大招应对第${Math.ceil(floor / 5) * 5}层守关首领。`,
         boss: false,
         difficulty: ch.chapter === 1 ? "普通" : ch.chapter <= 3 ? "标准" : "高压",
-        gold: 55 + floor * 7,
+        gold: floor <= 20 ? Math.round(52 + floor * 1.8) : Math.round(75 + floor * 1.0),
         gear: null,
         enemies,
       });
@@ -565,7 +570,7 @@ function allocateSouls(floors) {
     // Ensure doomsday_satan has at least 3 appearances ending at F100
     if (entries.length === 0 || (sp === "doomsday_satan" && entries.length < 3)) {
       const [start, end] = ALL_WINDOWS[sp];
-      for (let f = end - 1; f >= start && entries.length < 3; f--) {
+      for (let f = end - 2; f >= start && entries.length < 3; f--) {
         const fl = floors[f - 1];
         if (fl.boss || fl.enemies.some((g) => g.Species === sp)) continue;
         const { level, rank, health, attackScale, defenseScale } = interpolateFloorStats(fl.floor);

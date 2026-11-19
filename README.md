@@ -28,6 +28,7 @@ npm run dev -- --host 0.0.0.0
 | --- | --- |
 | `npm run typecheck` | 严格类型检查（含无宿主API的核心配置） |
 | `npm run test -- --run` | Vitest核心测试（`tests/core/`） |
+| `npm run audit:balance` | 100层强度曲线体检（支持 `--seed`、`--detail`、`--json`） |
 | `npm run build` | 生成可静态托管的 `dist/` |
 | `npm run test:e2e` | Playwright桌面1280×720与横屏1000×450浏览器流程 |
 | `npm run deploy:lan` / `npm run verify:lan` | 内网部署与实际点击验证（需本机sudo） |
